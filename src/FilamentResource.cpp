@@ -3,6 +3,7 @@
 
 #include "FilamentResource.h"
 
+#include <filament/Camera.h>
 #include <filament/Engine.h>
 #include <filament/Material.h>
 #include <filament/Renderer.h>
@@ -22,12 +23,19 @@ void FilamentResource<T>::reset(T *ptr) {
 template <typename T>
 void FilamentResource<T>::destroy() {
     if (mPtr) {
-        mEngine->destroy(mPtr);
+        if (mDeleter) {
+            mDeleter();
+        } else if constexpr (requires(filament::Engine *e, T *p) {
+            e->destroy(p);
+        }) {
+            mEngine->destroy(mPtr);
+        }
         mPtr = nullptr;
     }
 }
 
 // Explicit instantiations for all Filament types we manage
+template class FilamentResource<filament::Camera>;
 template class FilamentResource<filament::View>;
 template class FilamentResource<filament::SwapChain>;
 template class FilamentResource<filament::Texture>;

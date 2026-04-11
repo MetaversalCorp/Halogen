@@ -10,6 +10,7 @@ add_compile_options(
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wextra>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wpedantic>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wold-style-cast>
 )
 
 # -- Material compilation with matc --
@@ -76,12 +77,14 @@ endforeach()
 # --- Filament ANARI device shared library ---
 
 add_library(anari_library_filament SHARED
+    Aabb.h
     Device.h
     Device.cpp
     DeviceState.h
     DeviceState.cpp
     FilamentResource.h
     FilamentResource.cpp
+    MathConversions.h
     Object.h
     Camera.h
     Camera.cpp

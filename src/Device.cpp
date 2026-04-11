@@ -54,11 +54,11 @@ ANARIArray1D Device::newArray1D(const void *appMemory,
     md.elementType = type;
     md.numItems = numItems;
     if (anari::isObject(type))
-        return (ANARIArray1D) new helium::ObjectArray(
-            deviceState(), md);
+        return reinterpret_cast<ANARIArray1D>(new helium::ObjectArray(
+            deviceState(), md));
     else
-        return (ANARIArray1D) new helium::Array1D(
-            deviceState(), md);
+        return reinterpret_cast<ANARIArray1D>(new helium::Array1D(
+            deviceState(), md));
 }
 
 ANARIArray2D Device::newArray2D(const void *appMemory,
@@ -76,7 +76,7 @@ ANARIArray2D Device::newArray2D(const void *appMemory,
     md.elementType = type;
     md.numItems1 = numItems1;
     md.numItems2 = numItems2;
-    return (ANARIArray2D) new helium::Array2D(deviceState(), md);
+    return reinterpret_cast<ANARIArray2D>(new helium::Array2D(deviceState(), md));
 }
 
 ANARIArray3D Device::newArray3D(const void *appMemory,
@@ -96,86 +96,86 @@ ANARIArray3D Device::newArray3D(const void *appMemory,
     md.numItems1 = numItems1;
     md.numItems2 = numItems2;
     md.numItems3 = numItems3;
-    return (ANARIArray3D) new helium::Array3D(deviceState(), md);
+    return reinterpret_cast<ANARIArray3D>(new helium::Array3D(deviceState(), md));
 }
 
 ANARICamera Device::newCamera(const char *)
 {
     initDevice();
-    return (ANARICamera) new Camera(deviceState());
+    return reinterpret_cast<ANARICamera>(new Camera(deviceState()));
 }
 
 ANARIFrame Device::newFrame()
 {
     initDevice();
-    return (ANARIFrame) new Frame(deviceState());
+    return reinterpret_cast<ANARIFrame>(new Frame(deviceState()));
 }
 
 ANARIGeometry Device::newGeometry(const char *)
 {
     initDevice();
-    return (ANARIGeometry) new Geometry(deviceState());
+    return reinterpret_cast<ANARIGeometry>(new Geometry(deviceState()));
 }
 
 ANARIGroup Device::newGroup()
 {
     initDevice();
-    return (ANARIGroup) new UnknownObject(ANARI_GROUP, deviceState());
+    return reinterpret_cast<ANARIGroup>(new UnknownObject(ANARI_GROUP, deviceState()));
 }
 
 ANARIInstance Device::newInstance(const char *)
 {
     initDevice();
-    return (ANARIInstance) new UnknownObject(
-        ANARI_INSTANCE, deviceState());
+    return reinterpret_cast<ANARIInstance>(new UnknownObject(
+        ANARI_INSTANCE, deviceState()));
 }
 
 ANARILight Device::newLight(const char *)
 {
     initDevice();
-    return (ANARILight) new Light(deviceState());
+    return reinterpret_cast<ANARILight>(new Light(deviceState()));
 }
 
 ANARIMaterial Device::newMaterial(const char *subtype)
 {
     initDevice();
-    return (ANARIMaterial) new Material(deviceState(), subtype);
+    return reinterpret_cast<ANARIMaterial>(new Material(deviceState(), subtype));
 }
 
 ANARIRenderer Device::newRenderer(const char *)
 {
     initDevice();
-    return (ANARIRenderer) new AnariFilament::Renderer(deviceState());
+    return reinterpret_cast<ANARIRenderer>(new AnariFilament::Renderer(deviceState()));
 }
 
 ANARISampler Device::newSampler(const char *)
 {
-    return (ANARISampler) new UnknownObject(
-        ANARI_SAMPLER, deviceState());
+    return reinterpret_cast<ANARISampler>(new UnknownObject(
+        ANARI_SAMPLER, deviceState()));
 }
 
 ANARISpatialField Device::newSpatialField(const char *)
 {
-    return (ANARISpatialField) new UnknownObject(
-        ANARI_SPATIAL_FIELD, deviceState());
+    return reinterpret_cast<ANARISpatialField>(new UnknownObject(
+        ANARI_SPATIAL_FIELD, deviceState()));
 }
 
 ANARISurface Device::newSurface()
 {
     initDevice();
-    return (ANARISurface) new Surface(deviceState());
+    return reinterpret_cast<ANARISurface>(new Surface(deviceState()));
 }
 
 ANARIVolume Device::newVolume(const char *)
 {
-    return (ANARIVolume) new UnknownObject(
-        ANARI_VOLUME, deviceState());
+    return reinterpret_cast<ANARIVolume>(new UnknownObject(
+        ANARI_VOLUME, deviceState()));
 }
 
 ANARIWorld Device::newWorld()
 {
     initDevice();
-    return (ANARIWorld) new World(deviceState());
+    return reinterpret_cast<ANARIWorld>(new World(deviceState()));
 }
 
 // -- Query functions --
@@ -207,7 +207,7 @@ Device::Device(ANARILibrary l)
 
 Device::~Device()
 {
-    auto *state = deviceState();
+    DeviceState *state = deviceState();
     if (state)
         state->commitBuffer.clear();
 }
@@ -219,7 +219,7 @@ void Device::initDevice()
     mInitialized = true;
 
     m_state = std::make_unique<DeviceState>(this_device());
-    auto *state = deviceState();
+    DeviceState *state = deviceState();
 
     state->engine = filament::Engine::create(
         filament::Engine::Backend::DEFAULT);

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "FilamentResource.h"
 #include "Object.h"
 
 #include <utils/Entity.h>
@@ -20,12 +21,12 @@ struct Camera : public Object
 
     void commitParameters() override;
 
-    filament::Camera *filamentCamera() const { return mCamera; }
+    filament::Camera *filamentCamera() const { return mCamera.get(); }
     utils::Entity entity() const { return mEntity; }
 
 private:
     utils::Entity mEntity;
-    filament::Camera *mCamera = nullptr;
+    FilamentResource<filament::Camera> mCamera;
 };
 
 }

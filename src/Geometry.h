@@ -3,9 +3,8 @@
 
 #pragma once
 
+#include "Aabb.h"
 #include "Object.h"
-
-#include <math/vec3.h>
 
 namespace filament {
 class VertexBuffer;
@@ -26,16 +25,14 @@ struct Geometry : public Object
     uint32_t indexCount() const { return mIndexCount; }
     bool hasVertexColors() const { return mHasColors; }
 
-    filament::math::float3 aabbMin() const { return mAabbMin; }
-    filament::math::float3 aabbMax() const { return mAabbMax; }
+    const Aabb &aabb() const { return mAabb; }
 
 private:
     filament::VertexBuffer *mVertexBuffer = nullptr;
     filament::IndexBuffer *mIndexBuffer = nullptr;
     uint32_t mIndexCount = 0;
     bool mHasColors = false;
-    filament::math::float3 mAabbMin = {0, 0, 0};
-    filament::math::float3 mAabbMax = {0, 0, 0};
+    Aabb mAabb;
 };
 
 }

@@ -34,5 +34,5 @@ const char **Library::getDeviceExtensions(const char *) {
 
 extern "C" FILAMENT_ANARI_EXPORT ANARI_DEFINE_LIBRARY_ENTRYPOINT(
     filament, handle, scb, scbPtr) {
-    return (ANARILibrary) new AnariFilament::Library(handle, scb, scbPtr);
+    return reinterpret_cast<ANARILibrary>(new AnariFilament::Library(handle, scb, scbPtr));
 }

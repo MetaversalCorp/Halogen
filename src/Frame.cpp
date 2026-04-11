@@ -54,7 +54,7 @@ void Frame::commitParameters()
     mCamera = getParamObject<Camera>("camera");
     mWorld = getParamObject<World>("world");
 
-    auto imgSize = getParam<anari::math::uint2>(
+    anari::math::uint2 imgSize = getParam<anari::math::uint2>(
         "size", anari::math::uint2(0u, 0u));
     mWidth = imgSize[0];
     mHeight = imgSize[1];
@@ -69,9 +69,9 @@ void Frame::finalize() {}
 
 void Frame::renderFrame()
 {
-    auto *state = deviceState();
-    auto *engine = state->engine;
-    auto *renderer = state->renderer.get();
+    DeviceState *state = deviceState();
+    filament::Engine *engine = state->engine;
+    filament::Renderer *renderer = state->renderer.get();
 
     state->commitBuffer.flush();
 
@@ -136,8 +136,8 @@ void Frame::renderFrame()
 
         using namespace filament::backend;
 
-        auto *bufferData = mPixelBuffer.data();
-        auto bufferSize = mPixelBuffer.size();
+        uint8_t *bufferData = mPixelBuffer.data();
+        size_t bufferSize = mPixelBuffer.size();
 
         renderer->readPixels(mRenderTarget.get(), 0, 0, mWidth, mHeight,
             PixelBufferDescriptor(

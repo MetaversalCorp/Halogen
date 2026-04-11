@@ -3,10 +3,10 @@
 
 #include "Material.h"
 
+#include "MathConversions.h"
+
 #include <filament/Material.h>
 #include <filament/MaterialInstance.h>
-
-#include <anari/anari_cpp/ext/linalg.h>
 
 ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Material *);
 
@@ -18,14 +18,14 @@ Material::Material(DeviceState *s, const char *subtype)
 
 Material::~Material()
 {
-    auto *engine = deviceState()->engine;
+    filament::Engine *engine = deviceState()->engine;
     if (mMaterialInstance)
         engine->destroy(mMaterialInstance);
 }
 
 void Material::commitParameters()
 {
-    auto *state = deviceState();
+    DeviceState *state = deviceState();
 
     if (mMaterialInstance) {
         state->engine->destroy(mMaterialInstance);
@@ -47,7 +47,7 @@ void Material::commitParameters()
 
     mMaterialInstance = baseMaterial->createInstance();
 
-    auto colorStr = getParamString("color", "");
+    std::string colorStr = getParamString("color", "");
     if (colorStr == "color") {
         mUsesVertexColors = true;
         mMaterialInstance->setParameter("baseColor",
@@ -57,15 +57,15 @@ void Material::commitParameters()
         using float3 = anari::math::float3;
         using float4 = anari::math::float4;
 
-        auto c4 = getParam<float4>("color", float4(1.0f, 1.0f, 1.0f, 1.0f));
-        auto c3 = getParam<float3>("color", float3(c4[0], c4[1], c4[2]));
+        float4 c4 = getParam<float4>("color", float4(1.0f, 1.0f, 1.0f, 1.0f));
+        float3 c3 = getParam<float3>("color", float3(c4[0], c4[1], c4[2]));
         mMaterialInstance->setParameter("baseColor",
             filament::math::float4{c3[0], c3[1], c3[2], c4[3]});
     }
 
     if (mSubtype == "physicallyBased") {
-        auto metallic = getParam<float>("metallic", 1.0f);
-        auto roughness = getParam<float>("roughness", 1.0f);
+        float metallic = getParam<float>("metallic", 1.0f);
+        float roughness = getParam<float>("roughness", 1.0f);
         mMaterialInstance->setParameter("metallic", metallic);
         mMaterialInstance->setParameter("roughness", roughness);
     }

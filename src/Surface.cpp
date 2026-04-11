@@ -19,7 +19,7 @@ Surface::Surface(DeviceState *s)
 
 Surface::~Surface()
 {
-    auto *engine = deviceState()->engine;
+    filament::Engine *engine = deviceState()->engine;
     engine->destroy(mEntity);
     utils::EntityManager::get().destroy(mEntity);
 }
@@ -36,23 +36,20 @@ void Surface::commitParameters()
         || !mMaterial->materialInstance())
         return;
 
-    auto *engine = deviceState()->engine;
+    filament::Engine *engine = deviceState()->engine;
 
     if (mBuilt)
         engine->getRenderableManager().destroy(mEntity);
 
-    auto aabbMin = mGeometry->aabbMin();
-    auto aabbMax = mGeometry->aabbMax();
-    filament::Box aabb = {
-        (aabbMin + aabbMax) * 0.5f,
-        (aabbMax - aabbMin) * 0.5f};
+    const Aabb &geomAabb = mGeometry->aabb();
+    filament::Box box = {geomAabb.center(), geomAabb.halfExtent()};
 
     filament::RenderableManager::Builder(1)
         .geometry(0, filament::RenderableManager::PrimitiveType::TRIANGLES,
             mGeometry->vertexBuffer(), mGeometry->indexBuffer(),
             0, mGeometry->indexCount())
         .material(0, mMaterial->materialInstance())
-        .boundingBox(aabb)
+        .boundingBox(box)
         .receiveShadows(false)
         .castShadows(false)
         .build(*engine, mEntity);

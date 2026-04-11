@@ -3,6 +3,8 @@
 
 #include "Geometry.h"
 
+#include "Aabb.h"
+
 #include <filament/Engine.h>
 #include <filament/IndexBuffer.h>
 #include <filament/VertexBuffer.h>
@@ -11,9 +13,7 @@
 
 #include <helium/array/Array1D.h>
 
-#include <algorithm>
 #include <cstring>
-#include <limits>
 #include <vector>
 
 ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Geometry *);
@@ -25,7 +25,7 @@ Geometry::Geometry(DeviceState *s)
 
 Geometry::~Geometry()
 {
-    auto *engine = deviceState()->engine;
+    filament::Engine *engine = deviceState()->engine;
     if (mVertexBuffer)
         engine->destroy(mVertexBuffer);
     if (mIndexBuffer)
@@ -34,13 +34,13 @@ Geometry::~Geometry()
 
 void Geometry::commitParameters()
 {
-    auto *engine = deviceState()->engine;
+    filament::Engine *engine = deviceState()->engine;
 
-    auto *posArray =
+    helium::Array1D *posArray =
         getParamObject<helium::Array1D>("vertex.position");
-    auto *colArray =
+    helium::Array1D *colArray =
         getParamObject<helium::Array1D>("vertex.color");
-    auto *idxArray =
+    helium::Array1D *idxArray =
         getParamObject<helium::Array1D>("primitive.index");
 
     if (!posArray) {
@@ -58,7 +58,7 @@ void Geometry::commitParameters()
         mIndexBuffer = nullptr;
     }
 
-    auto numVertices = static_cast<uint32_t>(posArray->totalSize());
+    uint32_t numVertices = static_cast<uint32_t>(posArray->totalSize());
     mHasColors = colArray != nullptr;
 
     // Generate indices if not provided
@@ -80,17 +80,18 @@ void Geometry::commitParameters()
 
     // Generate tangent frames using SurfaceOrientation (option 4: positions +
     // indices for flat shading)
-    auto *posData = static_cast<const filament::math::float3 *>(
-        posArray->data());
-    auto *triData = reinterpret_cast<const filament::math::uint3 *>(
-        indexData);
+    const filament::math::float3 *posData =
+        static_cast<const filament::math::float3 *>(posArray->data());
+    const filament::math::uint3 *triData =
+        reinterpret_cast<const filament::math::uint3 *>(indexData);
 
-    auto *orientation = filament::geometry::SurfaceOrientation::Builder()
-        .vertexCount(numVertices)
-        .positions(posData)
-        .triangleCount(numTriangles)
-        .triangles(triData)
-        .build();
+    filament::geometry::SurfaceOrientation *orientation =
+        filament::geometry::SurfaceOrientation::Builder()
+            .vertexCount(numVertices)
+            .positions(posData)
+            .triangleCount(numTriangles)
+            .triangles(triData)
+            .build();
 
     std::vector<filament::math::short4> tangents(numVertices);
     orientation->getQuats(tangents.data(), numVertices);
@@ -101,14 +102,15 @@ void Geometry::commitParameters()
     uint8_t colorBuffer = mHasColors ? 2 : 0;
     uint8_t bufferCount = mHasColors ? 3 : 2;
 
-    auto builder = filament::VertexBuffer::Builder()
-        .bufferCount(bufferCount)
-        .vertexCount(numVertices)
-        .attribute(filament::VertexAttribute::POSITION, 0,
-            filament::VertexBuffer::AttributeType::FLOAT3)
-        .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
-            filament::VertexBuffer::AttributeType::SHORT4)
-        .normalized(filament::VertexAttribute::TANGENTS);
+    filament::VertexBuffer::Builder builder =
+        filament::VertexBuffer::Builder()
+            .bufferCount(bufferCount)
+            .vertexCount(numVertices)
+            .attribute(filament::VertexAttribute::POSITION, 0,
+                filament::VertexBuffer::AttributeType::FLOAT3)
+            .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
+                filament::VertexBuffer::AttributeType::SHORT4)
+            .normalized(filament::VertexAttribute::TANGENTS);
 
     if (mHasColors) {
         builder.attribute(filament::VertexAttribute::COLOR, colorBuffer,
@@ -118,13 +120,14 @@ void Geometry::commitParameters()
     mVertexBuffer = builder.build(*engine);
 
     // Upload position data
-    auto posSize = numVertices * sizeof(float) * 3;
+    size_t posSize = numVertices * sizeof(float) * 3;
     mVertexBuffer->setBufferAt(*engine, 0,
         filament::VertexBuffer::BufferDescriptor(
             posData, posSize));
 
     // Upload tangent data (transfer ownership via callback)
-    auto *tangentOwned = new filament::math::short4[numVertices];
+    filament::math::short4 *tangentOwned =
+        new filament::math::short4[numVertices];
     std::memcpy(tangentOwned, tangents.data(),
         numVertices * sizeof(filament::math::short4));
     mVertexBuffer->setBufferAt(*engine, tangentBuffer,
@@ -136,7 +139,7 @@ void Geometry::commitParameters()
             }));
 
     if (mHasColors) {
-        auto colSize = static_cast<uint32_t>(colArray->totalSize())
+        uint32_t colSize = static_cast<uint32_t>(colArray->totalSize())
             * sizeof(float) * 4;
         mVertexBuffer->setBufferAt(*engine, colorBuffer,
             filament::VertexBuffer::BufferDescriptor(
@@ -144,24 +147,7 @@ void Geometry::commitParameters()
     }
 
     // Compute AABB
-    auto *positions = static_cast<const float *>(posArray->data());
-    mAabbMin = {std::numeric_limits<float>::max(),
-        std::numeric_limits<float>::max(),
-        std::numeric_limits<float>::max()};
-    mAabbMax = {std::numeric_limits<float>::lowest(),
-        std::numeric_limits<float>::lowest(),
-        std::numeric_limits<float>::lowest()};
-    for (uint32_t i = 0; i < numVertices; ++i) {
-        float x = positions[i * 3 + 0];
-        float y = positions[i * 3 + 1];
-        float z = positions[i * 3 + 2];
-        mAabbMin.x = std::min(mAabbMin.x, x);
-        mAabbMin.y = std::min(mAabbMin.y, y);
-        mAabbMin.z = std::min(mAabbMin.z, z);
-        mAabbMax.x = std::max(mAabbMax.x, x);
-        mAabbMax.y = std::max(mAabbMax.y, y);
-        mAabbMax.z = std::max(mAabbMax.z, z);
-    }
+    mAabb = computeAabb(posData, numVertices);
 
     // Index buffer
     mIndexBuffer = filament::IndexBuffer::Builder()
