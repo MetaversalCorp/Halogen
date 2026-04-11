@@ -54,6 +54,18 @@ else()
         DESTINATION "${FILAMENT_SDK_DIR}"
     )
 
+    # Some Filament archives contain a single top-level directory — flatten it
+    file(GLOB _FILAMENT_EXTRACTED "${FILAMENT_SDK_DIR}/*")
+    list(LENGTH _FILAMENT_EXTRACTED _FILAMENT_EXTRACTED_COUNT)
+    if(_FILAMENT_EXTRACTED_COUNT EQUAL 1 AND IS_DIRECTORY "${_FILAMENT_EXTRACTED}")
+        file(GLOB _INNER "${_FILAMENT_EXTRACTED}/*")
+        foreach(_ITEM IN LISTS _INNER)
+            get_filename_component(_NAME "${_ITEM}" NAME)
+            file(RENAME "${_ITEM}" "${FILAMENT_SDK_DIR}/${_NAME}")
+        endforeach()
+        file(REMOVE_RECURSE "${_FILAMENT_EXTRACTED}")
+    endif()
+
     # Clean up archive
     file(REMOVE "${_FILAMENT_DOWNLOAD_DIR}/${_FILAMENT_ARCHIVE}")
 

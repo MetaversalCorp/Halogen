@@ -44,7 +44,7 @@ build:windows:
   tags:
     - windows
   script:
-    - '& powershell -File scripts/vcvarsall.ps1'
+    - '. .\scripts\vcvarsall.ps1'
     - cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
     - cmake --build build
   cache:
@@ -57,9 +57,6 @@ test:windows:
   tags:
     - windows
   needs: ["build:windows"]
-  script:
-    - '& powershell -File scripts/vcvarsall.ps1'
-    - ctest --test-dir build --output-on-failure --output-junit Test.xml
 
 # ----- macOS x86_64 -----
 
@@ -124,7 +121,7 @@ test:linux-x86_64:
   image: ubuntu:22.04
   needs: ["build:linux-x86_64"]
   before_script:
-    - apt-get update -qq && apt-get install -y -qq libvulkan-dev libgl-dev > /dev/null
+    - apt-get update -qq && apt-get install -y -qq cmake > /dev/null
 
 # ----- Linux arm64 -----
 
@@ -149,4 +146,4 @@ test:linux-arm64:
   image: ubuntu:22.04
   needs: ["build:linux-arm64"]
   before_script:
-    - apt-get update -qq && apt-get install -y -qq libvulkan-dev libgl-dev > /dev/null
+    - apt-get update -qq && apt-get install -y -qq cmake > /dev/null
