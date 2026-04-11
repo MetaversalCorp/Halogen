@@ -42,7 +42,7 @@ if(WIN32)
         opengl32
         gdi32
     )
-elseif(APPLE)
+elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_link_libraries(anari_library_filament PRIVATE
         filament::bluegl
         filament::bluevk
@@ -54,6 +54,27 @@ elseif(APPLE)
         "-framework CoreGraphics"
         "-framework IOKit"
         "-framework IOSurface"
+    )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    target_link_libraries(anari_library_filament PRIVATE
+        "-framework Foundation"
+        "-framework Metal"
+        "-framework OpenGLES"
+        "-framework CoreVideo"
+        "-framework QuartzCore"
+        "-framework CoreGraphics"
+        "-framework IOKit"
+        "-framework IOSurface"
+        "-framework UIKit"
+    )
+elseif(ANDROID)
+    target_link_libraries(anari_library_filament PRIVATE
+        filament::bluevk
+        EGL
+        GLESv3
+        android
+        log
+        dl
     )
 else()
     target_link_libraries(anari_library_filament PRIVATE
