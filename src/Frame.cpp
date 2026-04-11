@@ -24,23 +24,15 @@ namespace AnariFilament {
 
 Frame::Frame(DeviceState *s)
     : helium::BaseFrame(s)
+    , mView(s->engine, s->engine->createView())
+    , mSwapChain(s->engine, nullptr)
+    , mColorTexture(s->engine, nullptr)
+    , mDepthTexture(s->engine, nullptr)
+    , mRenderTarget(s->engine, nullptr)
 {
-    mView = s->engine->createView();
 }
 
-Frame::~Frame()
-{
-    auto *engine = deviceState()->engine;
-    if (mRenderTarget)
-        engine->destroy(mRenderTarget);
-    if (mColorTexture)
-        engine->destroy(mColorTexture);
-    if (mDepthTexture)
-        engine->destroy(mDepthTexture);
-    if (mSwapChain)
-        engine->destroy(mSwapChain);
-    engine->destroy(mView);
-}
+Frame::~Frame() = default;
 
 bool Frame::isValid() const
 {
@@ -79,7 +71,7 @@ void Frame::renderFrame()
 {
     auto *state = deviceState();
     auto *engine = state->engine;
-    auto *renderer = state->renderer;
+    auto *renderer = state->renderer.get();
 
     state->commitBuffer.flush();
 
@@ -95,23 +87,12 @@ void Frame::renderFrame()
     mView->setAntiAliasing(filament::View::AntiAliasing::NONE);
     mView->setDithering(filament::View::Dithering::NONE);
 
-
-
     // Recreate render target if size changed
-    if (mRenderTarget) {
-        engine->destroy(mRenderTarget);
-        mRenderTarget = nullptr;
-    }
-    if (mColorTexture) {
-        engine->destroy(mColorTexture);
-        mColorTexture = nullptr;
-    }
-    if (mDepthTexture) {
-        engine->destroy(mDepthTexture);
-        mDepthTexture = nullptr;
-    }
+    mRenderTarget.reset();
+    mColorTexture.reset();
+    mDepthTexture.reset();
 
-    mColorTexture = filament::Texture::Builder()
+    mColorTexture.reset(filament::Texture::Builder()
         .width(mWidth)
         .height(mHeight)
         .levels(1)
@@ -119,46 +100,46 @@ void Frame::renderFrame()
         .usage(filament::Texture::Usage::COLOR_ATTACHMENT
             | filament::Texture::Usage::SAMPLEABLE
             | filament::Texture::Usage::BLIT_SRC)
-        .build(*engine);
+        .build(*engine));
 
-    mDepthTexture = filament::Texture::Builder()
+    mDepthTexture.reset(filament::Texture::Builder()
         .width(mWidth)
         .height(mHeight)
         .levels(1)
         .format(filament::Texture::InternalFormat::DEPTH24)
         .usage(filament::Texture::Usage::DEPTH_ATTACHMENT)
-        .build(*engine);
+        .build(*engine));
 
-    mRenderTarget = filament::RenderTarget::Builder()
+    mRenderTarget.reset(filament::RenderTarget::Builder()
         .texture(filament::RenderTarget::AttachmentPoint::COLOR0,
-            mColorTexture)
+            mColorTexture.get())
         .texture(filament::RenderTarget::AttachmentPoint::DEPTH,
-            mDepthTexture)
-        .build(*engine);
+            mDepthTexture.get())
+        .build(*engine));
 
     // Set up the view
     mView->setScene(mWorld->filamentScene());
     mView->setCamera(mCamera->filamentCamera());
     mView->setViewport({0, 0, mWidth, mHeight});
-    mView->setRenderTarget(mRenderTarget);
+    mView->setRenderTarget(mRenderTarget.get());
 
     // Dummy headless swap chain for beginFrame/endFrame
     if (!mSwapChain)
-        mSwapChain = engine->createSwapChain(1, 1, 0);
+        mSwapChain.reset(engine->createSwapChain(1, 1, 0));
 
     // Allocate pixel buffer (RGBA8)
     mPixelBuffer.resize(mWidth * mHeight * 4, 0);
     mFrameReady = false;
 
-    if (renderer->beginFrame(mSwapChain)) {
-        renderer->render(mView);
+    if (renderer->beginFrame(mSwapChain.get())) {
+        renderer->render(mView.get());
 
         using namespace filament::backend;
 
         auto *bufferData = mPixelBuffer.data();
         auto bufferSize = mPixelBuffer.size();
 
-        renderer->readPixels(mRenderTarget, 0, 0, mWidth, mHeight,
+        renderer->readPixels(mRenderTarget.get(), 0, 0, mWidth, mHeight,
             PixelBufferDescriptor(
                 bufferData, bufferSize,
                 PixelDataFormat::RGBA,

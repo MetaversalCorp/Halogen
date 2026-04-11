@@ -12,12 +12,12 @@ namespace AnariFilament {
 
 struct Device : public helium::BaseDevice
 {
-    // Data Arrays ////////////////////////////////////////////////////////////
+    // -- Data Arrays --
 
     void *mapArray(ANARIArray) override;
     void unmapArray(ANARIArray) override;
 
-    // API Objects ////////////////////////////////////////////////////////////
+    // -- API Objects --
 
     ANARIArray1D newArray1D(const void *appMemory,
         ANARIMemoryDeleter deleter,
@@ -52,7 +52,7 @@ struct Device : public helium::BaseDevice
     ANARIVolume newVolume(const char *type) override;
     ANARIWorld newWorld() override;
 
-    // Query functions ////////////////////////////////////////////////////////
+    // -- Query functions --
 
     const char **getObjectSubtypes(ANARIDataType objectType) override;
     const void *getObjectInfo(ANARIDataType objectType,
@@ -66,7 +66,7 @@ struct Device : public helium::BaseDevice
         const char *infoName,
         ANARIDataType infoType) override;
 
-    // Lifecycle //////////////////////////////////////////////////////////////
+    // -- Lifecycle --
 
     Device(ANARIStatusCallback defaultCallback, const void *userPtr);
     Device(ANARILibrary l);

@@ -99,7 +99,7 @@ test:linux-x86_64:
   needs: ["build:linux-x86_64"]
   before_script:
     - apt-get update -qq && apt-get install -y -qq cmake libc++1 libvulkan1 mesa-vulkan-drivers > /dev/null
-    - export LD_LIBRARY_PATH="$PWD/build/external/anari-sdk:$LD_LIBRARY_PATH"
+    - export LD_LIBRARY_PATH="$PWD/build/Release/bin:$LD_LIBRARY_PATH"
 
 # ----- Linux arm64 -----
 
@@ -123,7 +123,7 @@ test:linux-arm64:
   needs: ["build:linux-arm64"]
   before_script:
     - apt-get update -qq && apt-get install -y -qq cmake libc++1 libvulkan1 mesa-vulkan-drivers > /dev/null
-    - export LD_LIBRARY_PATH="$PWD/build/external/anari-sdk:$LD_LIBRARY_PATH"
+    - export LD_LIBRARY_PATH="$PWD/build/Release/bin:$LD_LIBRARY_PATH"
 
 # ----- iOS arm64 (cross-compile on macOS) -----
 

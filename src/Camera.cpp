@@ -52,9 +52,11 @@ void Camera::commitParameters()
 
     mCamera->lookAt(eye, center, upVec);
 
-    // setExposure(1.0f) gives neutral exposure (factor=1.0) so Filament's
-    // rendered luminance maps directly to pixel values.
-    mCamera->setExposure(1.0f);
+    // Neutral exposure by default so Filament's rendered luminance maps
+    // directly to pixel values.  The "exposure" parameter is a Filament
+    // extension (not part of standard ANARI).
+    auto exposure = getParam<float>("exposure", 1.0f);
+    mCamera->setExposure(exposure);
 
     markCommitted();
 }

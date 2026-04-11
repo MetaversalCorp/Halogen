@@ -11,6 +11,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Place all build outputs (executables, shared libraries) in a common directory
+# so that shared libraries are found at runtime without PATH manipulation.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin)
+
 # Match Filament's static CRT on Windows (/MT)
 if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -66,6 +71,15 @@ if(NOT EXISTS "${CMAKE_SOURCE_DIR}/code_gen")
 endif()
 
 add_subdirectory(external/anari-sdk EXCLUDE_FROM_ALL)
+
+# Force ANARI shared library into the common output directory so that tests
+# and our device library can find it at runtime without PATH manipulation.
+if(TARGET anari AND BUILD_SHARED_LIBS)
+    set_target_properties(anari PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
+    )
+endif()
 
 ## Corrade — for testing only
 set(CORRADE_WITH_INTERCONNECT OFF CACHE BOOL "" FORCE)

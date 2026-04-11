@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "FilamentResource.h"
+
 #include <helium/BaseGlobalDeviceState.h>
 
 namespace filament {
@@ -16,8 +18,8 @@ namespace AnariFilament {
 struct DeviceState : public helium::BaseGlobalDeviceState
 {
     filament::Engine *engine = nullptr;
-    filament::Renderer *renderer = nullptr;
-    filament::Material *matteMaterial = nullptr;
+    FilamentResource<filament::Renderer> renderer;
+    FilamentResource<filament::Material> matteMaterial;
 
     DeviceState(ANARIDevice d);
     ~DeviceState() override;

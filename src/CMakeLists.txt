@@ -1,27 +1,46 @@
 ## Copyright 2026 Jonathan Hale
 ## SPDX-License-Identifier: MIT
 
-# --- Material compilation with matc ---
+# Warnings-as-errors for all targets under src/
+add_compile_options(
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    $<$<CXX_COMPILER_ID:MSVC>:/WX>
+    $<$<CXX_COMPILER_ID:MSVC>:/EHsc>
+    $<$<CXX_COMPILER_ID:MSVC>:/external:anglebrackets>
+    $<$<CXX_COMPILER_ID:MSVC>:/external:W0>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wextra>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wpedantic>
+)
+
+# -- Material compilation with matc --
+#
+# matc is a host tool shipped in the Filament desktop SDKs.  Cross-compilation
+# SDKs (iOS, Android) do not include host binaries, and the Linux matc may
+# require a newer glibc than the CI image provides.  When the tool is not
+# available we fall back to a pre-compiled header checked into the repository.
 
 find_program(FILAMENT_MATC matc
     HINTS ${FILAMENT_SDK_DIR}/bin
     NO_DEFAULT_PATH
 )
 
-if(NOT FILAMENT_MATC)
-    message(FATAL_ERROR "matc not found in ${FILAMENT_SDK_DIR}/bin")
-endif()
-
 set(MATTE_MAT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/materials/matte.mat)
 set(MATTE_FILAMAT ${CMAKE_CURRENT_BINARY_DIR}/matte.filamat)
 set(MATTE_MAT_HDR ${CMAKE_CURRENT_BINARY_DIR}/matte_mat.h)
 
-add_custom_command(
-    OUTPUT ${MATTE_FILAMAT}
-    COMMAND ${FILAMENT_MATC} -a all -o ${MATTE_FILAMAT} ${MATTE_MAT_SRC}
-    DEPENDS ${MATTE_MAT_SRC}
-    COMMENT "Compiling matte material"
-)
+if(FILAMENT_MATC)
+    add_custom_command(
+        OUTPUT ${MATTE_FILAMAT}
+        COMMAND ${FILAMENT_MATC} -a all -o ${MATTE_FILAMAT} ${MATTE_MAT_SRC}
+        DEPENDS ${MATTE_MAT_SRC}
+        COMMENT "Compiling matte material"
+    )
+else()
+    message(STATUS "matc not found — using pre-compiled material")
+    set(MATTE_FILAMAT ${CMAKE_CURRENT_SOURCE_DIR}/materials/matte.filamat)
+endif()
 
 add_custom_command(
     OUTPUT ${MATTE_MAT_HDR}
@@ -41,6 +60,8 @@ add_library(anari_library_filament SHARED
     Device.cpp
     DeviceState.h
     DeviceState.cpp
+    FilamentResource.h
+    FilamentResource.cpp
     Object.h
     Camera.h
     Camera.cpp
@@ -142,16 +163,6 @@ endif()
 set_target_properties(anari_library_filament PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     C_VISIBILITY_PRESET hidden
-    # Place alongside test executables so Windows DLL search finds the correct
-    # build.  The unanchored LoadLibrary call from anari also finds this via
-    # the exe-directory search or PATH.
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
-    LIBRARY_OUTPUT_DIRECTORY $<TARGET_FILE_DIR:anari>
-)
-
-target_compile_options(anari_library_filament PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /EHsc /external:anglebrackets /external:W0>
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Werror -Wpedantic>
 )
 
 # --- Install ---

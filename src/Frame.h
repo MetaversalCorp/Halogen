@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Camera.h"
+#include "FilamentResource.h"
 #include "Renderer.h"
 #include "World.h"
 
@@ -58,11 +59,11 @@ private:
     helium::IntrusivePtr<Camera> mCamera;
     helium::IntrusivePtr<World> mWorld;
 
-    filament::View *mView = nullptr;
-    filament::SwapChain *mSwapChain = nullptr;
-    filament::Texture *mColorTexture = nullptr;
-    filament::Texture *mDepthTexture = nullptr;
-    filament::RenderTarget *mRenderTarget = nullptr;
+    FilamentResource<filament::View> mView;
+    FilamentResource<filament::SwapChain> mSwapChain;
+    FilamentResource<filament::Texture> mColorTexture;
+    FilamentResource<filament::Texture> mDepthTexture;
+    FilamentResource<filament::RenderTarget> mRenderTarget;
 
     std::vector<uint8_t> mPixelBuffer;
     bool mFrameReady = false;

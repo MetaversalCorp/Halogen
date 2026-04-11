@@ -4,8 +4,6 @@
 #include "DeviceState.h"
 
 #include <filament/Engine.h>
-#include <filament/Material.h>
-#include <filament/Renderer.h>
 
 namespace AnariFilament {
 
@@ -15,10 +13,8 @@ DeviceState::DeviceState(ANARIDevice d)
 DeviceState::~DeviceState()
 {
     if (engine) {
-        if (matteMaterial)
-            engine->destroy(matteMaterial);
-        if (renderer)
-            engine->destroy(renderer);
+        matteMaterial.reset();
+        renderer.reset();
         filament::Engine::destroy(&engine);
     }
 }

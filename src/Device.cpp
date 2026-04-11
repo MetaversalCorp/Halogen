@@ -25,7 +25,7 @@
 
 namespace AnariFilament {
 
-// Array management ///////////////////////////////////////////////////////////
+// -- Array management --
 
 void *Device::mapArray(ANARIArray a)
 {
@@ -37,7 +37,7 @@ void Device::unmapArray(ANARIArray a)
     helium::BaseDevice::unmapArray(a);
 }
 
-// API Objects ////////////////////////////////////////////////////////////////
+// -- API Objects --
 
 ANARIArray1D Device::newArray1D(const void *appMemory,
     ANARIMemoryDeleter deleter,
@@ -177,7 +177,7 @@ ANARIWorld Device::newWorld()
     return (ANARIWorld) new World(deviceState());
 }
 
-// Query functions ////////////////////////////////////////////////////////////
+// -- Query functions --
 
 const char **Device::getObjectSubtypes(ANARIDataType)
 {
@@ -196,7 +196,7 @@ const void *Device::getParameterInfo(ANARIDataType, const char *,
     return nullptr;
 }
 
-// Lifecycle //////////////////////////////////////////////////////////////////
+// -- Lifecycle --
 
 Device::Device(ANARIStatusCallback cb, const void *userPtr)
     : helium::BaseDevice(cb, userPtr) {}
@@ -228,12 +228,14 @@ void Device::initDevice()
         return;
     }
 
-    state->renderer = state->engine->createRenderer();
+    state->renderer = {state->engine,
+        state->engine->createRenderer()};
 
     // Compile the matte material from the embedded binary
-    state->matteMaterial = filament::Material::Builder()
-        .package(MATTE_MAT_DATA, MATTE_MAT_SIZE)
-        .build(*state->engine);
+    state->matteMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(MATTE_MAT_DATA, MATTE_MAT_SIZE)
+            .build(*state->engine)};
 }
 
 void Device::deviceCommitParameters()
