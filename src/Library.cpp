@@ -22,7 +22,8 @@ Library::Library(void *lib, ANARIStatusCallback defaultStatusCB,
     : anari::LibraryImpl(lib, defaultStatusCB, statusCBPtr) {}
 
 ANARIDevice Library::newDevice(const char *) {
-    return (ANARIDevice) new Device(this_library());
+    auto *d = new Device(this_library());
+    return d->this_device();
 }
 
 const char **Library::getDeviceExtensions(const char *) {

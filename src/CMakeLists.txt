@@ -1,12 +1,64 @@
 ## Copyright 2026 Jonathan Hale
 ## SPDX-License-Identifier: MIT
 
+# --- Material compilation with matc ---
+
+find_program(FILAMENT_MATC matc
+    HINTS ${FILAMENT_SDK_DIR}/bin
+    NO_DEFAULT_PATH
+)
+
+if(NOT FILAMENT_MATC)
+    message(FATAL_ERROR "matc not found in ${FILAMENT_SDK_DIR}/bin")
+endif()
+
+set(MATTE_MAT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/materials/matte.mat)
+set(MATTE_FILAMAT ${CMAKE_CURRENT_BINARY_DIR}/matte.filamat)
+set(MATTE_MAT_HDR ${CMAKE_CURRENT_BINARY_DIR}/matte_mat.h)
+
+add_custom_command(
+    OUTPUT ${MATTE_FILAMAT}
+    COMMAND ${FILAMENT_MATC} -a all -o ${MATTE_FILAMAT} ${MATTE_MAT_SRC}
+    DEPENDS ${MATTE_MAT_SRC}
+    COMMENT "Compiling matte material"
+)
+
+add_custom_command(
+    OUTPUT ${MATTE_MAT_HDR}
+    COMMAND ${CMAKE_COMMAND}
+        -DINPUT=${MATTE_FILAMAT}
+        -DOUTPUT=${MATTE_MAT_HDR}
+        -DVAR=MATTE_MAT
+        -P ${CMAKE_SOURCE_DIR}/cmake/BinaryToHeader.cmake
+    DEPENDS ${MATTE_FILAMAT}
+    COMMENT "Generating matte material header"
+)
+
 # --- Filament ANARI device shared library ---
 
 add_library(anari_library_filament SHARED
     Device.h
     Device.cpp
+    DeviceState.h
+    DeviceState.cpp
+    Object.h
+    Camera.h
+    Camera.cpp
+    Frame.h
+    Frame.cpp
+    Geometry.h
+    Geometry.cpp
+    Light.h
+    Light.cpp
+    Material.h
+    Material.cpp
+    Renderer.h
+    Surface.h
+    Surface.cpp
+    World.h
+    World.cpp
     Library.cpp
+    ${MATTE_MAT_HDR}
 )
 
 include(GenerateExportHeader)
@@ -26,8 +78,10 @@ target_link_libraries(anari_library_filament
     PUBLIC anari
     PRIVATE
         anari_backend
+        helium
         filament::filament
         filament::backend
+        filament::geometry
         filament::utils
         filament::filabridge
         filament::filaflat
@@ -88,8 +142,10 @@ endif()
 set_target_properties(anari_library_filament PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     C_VISIBILITY_PRESET hidden
-    # Place alongside libanari so ANARI's anchor-based library lookup works
-    RUNTIME_OUTPUT_DIRECTORY $<TARGET_FILE_DIR:anari>
+    # Place alongside test executables so Windows DLL search finds the correct
+    # build.  The unanchored LoadLibrary call from anari also finds this via
+    # the exe-directory search or PATH.
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
     LIBRARY_OUTPUT_DIRECTORY $<TARGET_FILE_DIR:anari>
 )
 

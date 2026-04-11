@@ -1,27 +1,28 @@
 # Filament ANARI Implementation
 
+[![pipeline](https://gitlab.com/wonderland-gmbh/filament-anari-implementation/badges/master/pipeline.svg)](https://gitlab.com/wonderland-gmbh/filament-anari-implementation/-/pipelines)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![ANARI](https://img.shields.io/badge/ANARI-0.16.0-green.svg)](https://www.khronos.org/anari/)
+[![Filament](https://img.shields.io/badge/Filament-1.71.0-orange.svg)](https://github.com/google/filament)
+
 An [ANARI](https://www.khronos.org/anari/) device implementation powered by
 Google's [Filament](https://github.com/google/filament) physically-based
 rendering engine.
 
-## Overview
-
-This project provides an ANARI-compliant rendering device that delegates all
-rendering operations to Filament. Applications using the ANARI API can
-transparently use Filament as their rendering backend.
-
-**Status**: Early development — device initialization and shutdown only.
+Any application using the ANARI API can use this library to render through
+Filament's real-time PBR pipeline — simply load `"filament"` as the ANARI
+library.
 
 ## Supported Platforms
 
-| Platform | Architecture | Status |
-|----------|-------------|--------|
-| Windows | x86_64 | CI ✓ |
-| macOS | x86_64 | CI ✓ |
-| macOS | arm64 | CI ✓ |
-| Linux | x86_64 | Planned |
-| Android | arm64 | Planned |
-| iOS | arm64 | Planned |
+| Platform | Architecture | Build | Test |
+|----------|-------------|-------|------|
+| Windows  | x86_64      | ✅    | ✅   |
+| macOS    | arm64       | ✅    | ✅   |
+| Linux    | x86_64      | ✅    | ✅   |
+| Linux    | arm64       | ✅    | ✅   |
+| iOS      | arm64       | ✅    | —    |
+| Android  | arm64       | ✅    | —    |
 
 ## Quick Start
 
@@ -59,25 +60,43 @@ ctest --test-dir build-ninja --output-on-failure
 Filament precompiled libraries are downloaded automatically during the CMake
 configure step if not already present.
 
+### Usage
+
+Set the `ANARI_LIBRARY` environment variable or load programmatically:
+
+```c
+ANARILibrary lib = anariLoadLibrary("filament", statusFunc);
+ANARIDevice dev = anariNewDevice(lib, "default");
+```
+
+Any ANARI application — including the SDK examples and the
+[Blender addon](https://github.com/KhronosGroup/anari-blender-addon) — can use
+this device without code changes.
+
 ## Project Structure
 
 ```
-├── .github/              # Copilot instructions
-├── .gitlab-ci.yml        # CI configuration
-├── CMakeLists.txt        # Root CMake
-├── docs/                 # Build documentation
-├── examples/             # Usage examples (see also ANARI SDK examples)
+├── CMakeLists.txt          # Root build
+├── ROADMAP.md              # Feature roadmap & milestones
 ├── external/
-│   ├── anari-sdk/        # ANARI SDK (git submodule)
-│   ├── corrade/          # Corrade (git submodule, testing only)
-│   └── filament/         # Filament SDK (auto-downloaded, git-ignored)
-├── scripts/              # Build helper scripts
+│   ├── anari-sdk/          # ANARI SDK (git submodule)
+│   ├── corrade/            # Corrade (git submodule, testing only)
+│   └── filament/           # Filament SDK (auto-downloaded, gitignored)
+├── cmake/                  # CMake helpers (Filament download, etc.)
+├── scripts/                # Build helper scripts
 └── src/
-    ├── CMakeLists.txt    # Library & test targets
-    ├── Device.h/cpp      # Main ANARI device implementation
-    ├── Library.cpp       # ANARI library entry point
-    └── Test/             # Corrade TestSuite tests
+    ├── Device.h/cpp        # ANARI device implementation
+    ├── Library.cpp         # ANARI library entry point
+    └── Test/               # Corrade TestSuite tests
 ```
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the full feature plan. Current status:
+
+- **Milestone 0** ✅ Device skeleton, CI on all platforms
+- **Milestone 1** 🔄 Tutorial — triangle, matte material, camera, light
+- **Milestone 2–6** Planned — test scenes, viewer, Blender addon
 
 ## Documentation
 
@@ -86,38 +105,6 @@ See [docs/building.md](docs/building.md) for detailed build instructions.
 ## License
 
 MIT — see [LICENSE](LICENSE).
-# Filament
-
-This package contains several executables and libraries you can use to build applications using
-Filament. Latest versions are available on the [project page](https://github.com/google/filament).
-
-## Binaries
-
-- `cmgen`, Image-based lighting asset generator
-- `filamesh`, Mesh converter
-- `glslminifier`, Tool to minify GLSL shaders
-- `gltf_viewer`, glTF 2.0 viewer that lets you explore many features of Filament
-- `matc`, Material compiler
-- `material_sandbox`, simple mesh viewer that lets you explore material and lighting features
-- `matinfo`, Displays information about materials compiled with `matc`
-- `mipgen`, Generates a series of miplevels from a source image.
-- `normal-blending`, Tool to blend normal maps
-- `resgen`, Tool to convert files into binary resources to be embedded at compie time
-- `roughness-prefilter`, Pre-filters a roughness map from a normal map to reduce aliasing
-- `specular-color`, Computes the specular color of conductors based on spectral data
-
-You can refer to the individual documentation files in `docs/` for more information.
-
-## Libraries
-
-Filament is distributed as a set of static libraries you must link against:
-
-- `backend`, Required, implements all backends
-- `bluegl`, Required to render with OpenGL or OpenGL ES
-- `bluevk`, Required to render with Vulkan
-- `filabridge`, Support library for Filament
-- `filaflat`, Support library for Filament
-- `filament`, Main Filament library
 - `backend`, Filament render backend library
 - `ibl`, Image-based lighting support library
 - `utils`, Support library for Filament
