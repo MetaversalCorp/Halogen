@@ -52,6 +52,11 @@ consistency with the rendering backend.
 - **CMake minimum**: 3.22.
 - **Build directory convention**: `build-ninja/` for local development.
 - **Testing**: `ctest --output-on-failure` after building.
+- **Warnings policy**: Zero warnings. Our targets compile with warnings-as-errors
+  (`/W4 /WX` on MSVC, `-Wall -Wextra -Werror -Wpedantic` on GCC/Clang).
+  External headers are silenced via MSVC `/external:anglebrackets /external:W0`
+  and CMake `SYSTEM` include directories. All new code must compile without
+  warnings on all platforms.
 
 ## Dependencies
 
@@ -72,4 +77,4 @@ consistency with the rendering backend.
 
 - CI runs on GitLab. Merge requests are created via `glab mr create`.
 - All MRs must pass CI before merge.
-- Target platforms: Windows x86_64, macOS x86_64/arm64 (more planned).
+- Target platforms: Windows x86_64, macOS arm64, Linux x86_64/arm64.

@@ -44,21 +44,34 @@ if(WIN32)
     )
 elseif(APPLE)
     target_link_libraries(anari_library_filament PRIVATE
+        filament::bluegl
         filament::bluevk
         "-framework Cocoa"
         "-framework Metal"
         "-framework CoreVideo"
+        "-framework OpenGL"
+        "-framework QuartzCore"
+        "-framework CoreGraphics"
+        "-framework IOKit"
+        "-framework IOSurface"
     )
 else()
     target_link_libraries(anari_library_filament PRIVATE
         filament::bluegl
         filament::bluevk
+        dl
+        pthread
     )
 endif()
 
 set_target_properties(anari_library_filament PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     C_VISIBILITY_PRESET hidden
+)
+
+target_compile_options(anari_library_filament PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /EHsc /external:anglebrackets /external:W0>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Werror -Wpedantic>
 )
 
 # --- Install ---

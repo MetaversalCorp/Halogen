@@ -14,8 +14,8 @@ workflow:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_COMMIT_TAG
-    - if: $CI_PIPELINE_SOURCE != "merge_request_event"
-      when: always
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push"
 
 # ----- Templates -----
 
@@ -32,8 +32,7 @@ workflow:
 .test-template:
   stage: test
   script:
-    - cd build
-    - ctest --output-on-failure --output-junit ../Test.xml
+    - ctest --test-dir build --output-on-failure --output-junit Test.xml
   artifacts:
     reports:
       junit: Test.xml
@@ -44,10 +43,10 @@ build:windows:
   extends: .build-template
   tags:
     - windows
-  variables:
-    VCVARS64: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
-  before_script:
-    - "& powershell -File scripts/vcvarsall.ps1"
+  script:
+    - '. .\scripts\vcvarsall.ps1'
+    - cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+    - cmake --build build
   cache:
     key: filament-windows-${FILAMENT_VERSION}
     paths:
@@ -58,30 +57,6 @@ test:windows:
   tags:
     - windows
   needs: ["build:windows"]
-  before_script:
-    - "& powershell -File scripts/vcvarsall.ps1"
-
-# ----- macOS x86_64 -----
-
-build:macos-x86_64:
-  extends: .build-template
-  tags:
-    - macos
-  variables:
-    CMAKE_OSX_ARCHITECTURES: "x86_64"
-  script:
-    - cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
-    - cmake --build build
-  cache:
-    key: filament-macos-${FILAMENT_VERSION}
-    paths:
-      - external/filament/
-
-test:macos-x86_64:
-  extends: .test-template
-  tags:
-    - macos
-  needs: ["build:macos-x86_64"]
 
 # ----- macOS arm64 -----
 
@@ -90,9 +65,6 @@ build:macos-arm64:
   tags:
     - macos
     - arm64
-  script:
-    - cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
-    - cmake --build build
   cache:
     key: filament-macos-arm64-${FILAMENT_VERSION}
     paths:
@@ -104,3 +76,53 @@ test:macos-arm64:
     - macos
     - arm64
   needs: ["build:macos-arm64"]
+
+# ----- Linux x86_64 -----
+
+build:linux-x86_64:
+  extends: .build-template
+  allow_failure: true
+  tags:
+    - saas-linux-small-amd64
+  image: ubuntu:22.04
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq cmake ninja-build g++ python3 libgl-dev libvulkan-dev > /dev/null
+  cache:
+    key: filament-linux-${FILAMENT_VERSION}
+    paths:
+      - external/filament/
+
+test:linux-x86_64:
+  extends: .test-template
+  allow_failure: true
+  tags:
+    - saas-linux-small-amd64
+  image: ubuntu:22.04
+  needs: ["build:linux-x86_64"]
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq cmake > /dev/null
+
+# ----- Linux arm64 -----
+
+build:linux-arm64:
+  extends: .build-template
+  allow_failure: true
+  tags:
+    - saas-linux-medium-arm64
+  image: ubuntu:22.04
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq cmake ninja-build g++ python3 libgl-dev libvulkan-dev > /dev/null
+  cache:
+    key: filament-linux-arm64-${FILAMENT_VERSION}
+    paths:
+      - external/filament/
+
+test:linux-arm64:
+  extends: .test-template
+  allow_failure: true
+  tags:
+    - saas-linux-medium-arm64
+  image: ubuntu:22.04
+  needs: ["build:linux-arm64"]
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq cmake > /dev/null
