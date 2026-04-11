@@ -20,6 +20,7 @@ struct DeviceState : public helium::BaseGlobalDeviceState
     filament::Engine *engine = nullptr;
     FilamentResource<filament::Renderer> renderer;
     FilamentResource<filament::Material> matteMaterial;
+    FilamentResource<filament::Material> physicallyBasedMaterial;
 
     DeviceState(ANARIDevice d);
     ~DeviceState() override;

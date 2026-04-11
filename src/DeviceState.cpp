@@ -13,6 +13,7 @@ DeviceState::DeviceState(ANARIDevice d)
 DeviceState::~DeviceState()
 {
     if (engine) {
+        physicallyBasedMaterial.reset();
         matteMaterial.reset();
         renderer.reset();
         filament::Engine::destroy(&engine);

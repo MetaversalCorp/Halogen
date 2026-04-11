@@ -72,6 +72,18 @@ endif()
 
 add_subdirectory(external/anari-sdk EXCLUDE_FROM_ALL)
 
+# Mark ANARI SDK include directories as SYSTEM so that warnings in external
+# headers do not trigger -Werror in our targets.
+foreach(_tgt anari anari_backend helium)
+    if(TARGET ${_tgt})
+        get_target_property(_dirs ${_tgt} INTERFACE_INCLUDE_DIRECTORIES)
+        if(_dirs)
+            set_property(TARGET ${_tgt} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "")
+            target_include_directories(${_tgt} SYSTEM INTERFACE ${_dirs})
+        endif()
+    endif()
+endforeach()
+
 # Force ANARI shared library into the common output directory so that tests
 # and our device library can find it at runtime without PATH manipulation.
 if(TARGET anari AND BUILD_SHARED_LIBS)
@@ -90,6 +102,18 @@ set(CORRADE_BUILD_DEPRECATED OFF CACHE BOOL "" FORCE)
 if(BUILD_TESTS)
     add_subdirectory(external/corrade EXCLUDE_FROM_ALL)
     set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/external/corrade/modules/" ${CMAKE_MODULE_PATH})
+
+    # Mark Corrade includes as SYSTEM (same treatment as ANARI SDK above)
+    foreach(_tgt CorradeUtility CorradeTestSuite)
+        if(TARGET ${_tgt})
+            get_target_property(_dirs ${_tgt} INTERFACE_INCLUDE_DIRECTORIES)
+            if(_dirs)
+                set_property(TARGET ${_tgt} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "")
+                target_include_directories(${_tgt} SYSTEM INTERFACE ${_dirs})
+            endif()
+        endif()
+    endforeach()
+
     enable_testing()
 endif()
 

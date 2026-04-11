@@ -6,8 +6,6 @@ add_compile_options(
     $<$<CXX_COMPILER_ID:MSVC>:/W4>
     $<$<CXX_COMPILER_ID:MSVC>:/WX>
     $<$<CXX_COMPILER_ID:MSVC>:/EHsc>
-    $<$<CXX_COMPILER_ID:MSVC>:/external:anglebrackets>
-    $<$<CXX_COMPILER_ID:MSVC>:/external:W0>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wextra>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror>
@@ -26,32 +24,54 @@ find_program(FILAMENT_MATC matc
     NO_DEFAULT_PATH
 )
 
-set(MATTE_MAT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/materials/matte.mat)
-set(MATTE_FILAMAT ${CMAKE_CURRENT_BINARY_DIR}/matte.filamat)
-set(MATTE_MAT_HDR ${CMAKE_CURRENT_BINARY_DIR}/matte_mat.h)
-
+# Verify matc can actually run — on Linux the prebuilt binary may require a
+# newer glibc than the build environment provides.
 if(FILAMENT_MATC)
-    add_custom_command(
-        OUTPUT ${MATTE_FILAMAT}
-        COMMAND ${FILAMENT_MATC} -a all -o ${MATTE_FILAMAT} ${MATTE_MAT_SRC}
-        DEPENDS ${MATTE_MAT_SRC}
-        COMMENT "Compiling matte material"
+    execute_process(
+        COMMAND ${FILAMENT_MATC} --help
+        RESULT_VARIABLE _matc_result
+        OUTPUT_QUIET ERROR_QUIET
     )
-else()
-    message(STATUS "matc not found — using pre-compiled material")
-    set(MATTE_FILAMAT ${CMAKE_CURRENT_SOURCE_DIR}/materials/matte.filamat)
+    if(NOT _matc_result EQUAL 0)
+        message(STATUS "matc found at ${FILAMENT_MATC} but cannot execute (exit code ${_matc_result})")
+        set(FILAMENT_MATC "" CACHE FILEPATH "" FORCE)
+    endif()
 endif()
 
-add_custom_command(
-    OUTPUT ${MATTE_MAT_HDR}
-    COMMAND ${CMAKE_COMMAND}
-        -DINPUT=${MATTE_FILAMAT}
-        -DOUTPUT=${MATTE_MAT_HDR}
-        -DVAR=MATTE_MAT
-        -P ${CMAKE_SOURCE_DIR}/cmake/BinaryToHeader.cmake
-    DEPENDS ${MATTE_FILAMAT}
-    COMMENT "Generating matte material header"
-)
+set(MATERIAL_NAMES matte physicallyBased)
+set(MATERIAL_HEADERS "")
+
+foreach(_mat ${MATERIAL_NAMES})
+    set(_mat_src ${CMAKE_CURRENT_SOURCE_DIR}/materials/${_mat}.mat)
+    set(_filamat ${CMAKE_CURRENT_BINARY_DIR}/${_mat}.filamat)
+    set(_hdr ${CMAKE_CURRENT_BINARY_DIR}/${_mat}_mat.h)
+    string(TOUPPER ${_mat} _var)
+
+    if(FILAMENT_MATC)
+        add_custom_command(
+            OUTPUT ${_filamat}
+            COMMAND ${FILAMENT_MATC} -a all -o ${_filamat} ${_mat_src}
+            DEPENDS ${_mat_src}
+            COMMENT "Compiling ${_mat} material"
+        )
+    else()
+        message(STATUS "matc not found — using pre-compiled ${_mat} material")
+        set(_filamat ${CMAKE_CURRENT_SOURCE_DIR}/materials/${_mat}.filamat)
+    endif()
+
+    add_custom_command(
+        OUTPUT ${_hdr}
+        COMMAND ${CMAKE_COMMAND}
+            -DINPUT=${_filamat}
+            -DOUTPUT=${_hdr}
+            -DVAR=${_var}_MAT
+            -P ${CMAKE_SOURCE_DIR}/cmake/BinaryToHeader.cmake
+        DEPENDS ${_filamat}
+        COMMENT "Generating ${_mat} material header"
+    )
+
+    list(APPEND MATERIAL_HEADERS ${_hdr})
+endforeach()
 
 # --- Filament ANARI device shared library ---
 
@@ -79,7 +99,7 @@ add_library(anari_library_filament SHARED
     World.h
     World.cpp
     Library.cpp
-    ${MATTE_MAT_HDR}
+    ${MATERIAL_HEADERS}
 )
 
 include(GenerateExportHeader)

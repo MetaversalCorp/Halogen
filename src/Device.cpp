@@ -22,6 +22,7 @@
 #include <helium/array/ObjectArray.h>
 
 #include "matte_mat.h"
+#include "physicallyBased_mat.h"
 
 namespace AnariFilament {
 
@@ -135,10 +136,10 @@ ANARILight Device::newLight(const char *)
     return (ANARILight) new Light(deviceState());
 }
 
-ANARIMaterial Device::newMaterial(const char *)
+ANARIMaterial Device::newMaterial(const char *subtype)
 {
     initDevice();
-    return (ANARIMaterial) new Material(deviceState());
+    return (ANARIMaterial) new Material(deviceState(), subtype);
 }
 
 ANARIRenderer Device::newRenderer(const char *)
@@ -231,10 +232,14 @@ void Device::initDevice()
     state->renderer = {state->engine,
         state->engine->createRenderer()};
 
-    // Compile the matte material from the embedded binary
     state->matteMaterial = {state->engine,
         filament::Material::Builder()
             .package(MATTE_MAT_DATA, MATTE_MAT_SIZE)
+            .build(*state->engine)};
+
+    state->physicallyBasedMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(PHYSICALLYBASED_MAT_DATA, PHYSICALLYBASED_MAT_SIZE)
             .build(*state->engine)};
 }
 

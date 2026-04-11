@@ -5,6 +5,8 @@
 
 #include "Object.h"
 
+#include <string>
+
 namespace filament {
 class MaterialInstance;
 }
@@ -13,7 +15,7 @@ namespace AnariFilament {
 
 struct Material : public Object
 {
-    Material(DeviceState *s);
+    Material(DeviceState *s, const char *subtype);
     ~Material() override;
 
     void commitParameters() override;
@@ -26,6 +28,7 @@ struct Material : public Object
     bool usesVertexColors() const { return mUsesVertexColors; }
 
 private:
+    std::string mSubtype;
     filament::MaterialInstance *mMaterialInstance = nullptr;
     bool mUsesVertexColors = false;
 };

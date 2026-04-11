@@ -12,8 +12,9 @@ ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Material *);
 
 namespace AnariFilament {
 
-Material::Material(DeviceState *s)
-    : Object(ANARI_MATERIAL, s) {}
+Material::Material(DeviceState *s, const char *subtype)
+    : Object(ANARI_MATERIAL, s)
+    , mSubtype(subtype ? subtype : "matte") {}
 
 Material::~Material()
 {
@@ -31,13 +32,20 @@ void Material::commitParameters()
         mMaterialInstance = nullptr;
     }
 
-    if (!state->matteMaterial) {
+    filament::Material *baseMaterial = nullptr;
+    if (mSubtype == "physicallyBased") {
+        baseMaterial = state->physicallyBasedMaterial.get();
+    } else {
+        baseMaterial = state->matteMaterial.get();
+    }
+
+    if (!baseMaterial) {
         reportMessage(ANARI_SEVERITY_ERROR,
-            "matte material not compiled");
+            "%s material not compiled", mSubtype.c_str());
         return;
     }
 
-    mMaterialInstance = state->matteMaterial->createInstance();
+    mMaterialInstance = baseMaterial->createInstance();
 
     auto colorStr = getParamString("color", "");
     if (colorStr == "color") {
@@ -53,6 +61,13 @@ void Material::commitParameters()
         auto c3 = getParam<float3>("color", float3(c4[0], c4[1], c4[2]));
         mMaterialInstance->setParameter("baseColor",
             filament::math::float4{c3[0], c3[1], c3[2], c4[3]});
+    }
+
+    if (mSubtype == "physicallyBased") {
+        auto metallic = getParam<float>("metallic", 1.0f);
+        auto roughness = getParam<float>("roughness", 1.0f);
+        mMaterialInstance->setParameter("metallic", metallic);
+        mMaterialInstance->setParameter("roughness", roughness);
     }
 
     markCommitted();
