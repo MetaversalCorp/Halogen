@@ -50,6 +50,10 @@ elseif(APPLE)
         "-framework Metal"
         "-framework CoreVideo"
         "-framework OpenGL"
+        "-framework QuartzCore"
+        "-framework CoreGraphics"
+        "-framework IOKit"
+        "-framework IOSurface"
     )
 else()
     target_link_libraries(anari_library_filament PRIVATE
