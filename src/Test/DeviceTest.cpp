@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <Corrade/TestSuite/Tester.h>
+#include <Corrade/Utility/Debug.h>
 
 #include <anari/anari.h>
 
@@ -19,7 +20,12 @@ DeviceTest::DeviceTest() {
 
 void DeviceTest::createDestroy() {
     /* Loading and creating a device through the ANARI API should work */
-    ANARILibrary library = anariLoadLibrary("filament", nullptr);
+    auto statusFunc = [](const void *, ANARIDevice, ANARIObject,
+        ANARIDataType, ANARIStatusSeverity, ANARIStatusCode,
+        const char *message) {
+        Corrade::Utility::Debug{} << "ANARI:" << message;
+    };
+    ANARILibrary library = anariLoadLibrary("filament", statusFunc);
     CORRADE_VERIFY(library);
 
     ANARIDevice device = anariNewDevice(library, "default");
