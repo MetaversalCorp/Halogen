@@ -6,9 +6,12 @@
 #include "Camera.h"
 #include "Frame.h"
 #include "Geometry.h"
+#include "Group.h"
+#include "Instance.h"
 #include "Light.h"
 #include "Material.h"
 #include "Renderer.h"
+#include "Sampler.h"
 #include "Surface.h"
 #include "World.h"
 
@@ -111,23 +114,22 @@ ANARIFrame Device::newFrame()
     return reinterpret_cast<ANARIFrame>(new Frame(deviceState()));
 }
 
-ANARIGeometry Device::newGeometry(const char *)
+ANARIGeometry Device::newGeometry(const char *subtype)
 {
     initDevice();
-    return reinterpret_cast<ANARIGeometry>(new Geometry(deviceState()));
+    return reinterpret_cast<ANARIGeometry>(new Geometry(deviceState(), subtype));
 }
 
 ANARIGroup Device::newGroup()
 {
     initDevice();
-    return reinterpret_cast<ANARIGroup>(new UnknownObject(ANARI_GROUP, deviceState()));
+    return reinterpret_cast<ANARIGroup>(new Group(deviceState()));
 }
 
 ANARIInstance Device::newInstance(const char *)
 {
     initDevice();
-    return reinterpret_cast<ANARIInstance>(new UnknownObject(
-        ANARI_INSTANCE, deviceState()));
+    return reinterpret_cast<ANARIInstance>(new Instance(deviceState()));
 }
 
 ANARILight Device::newLight(const char *)
@@ -150,8 +152,8 @@ ANARIRenderer Device::newRenderer(const char *)
 
 ANARISampler Device::newSampler(const char *)
 {
-    return reinterpret_cast<ANARISampler>(new UnknownObject(
-        ANARI_SAMPLER, deviceState()));
+    initDevice();
+    return reinterpret_cast<ANARISampler>(new Sampler(deviceState()));
 }
 
 ANARISpatialField Device::newSpatialField(const char *)

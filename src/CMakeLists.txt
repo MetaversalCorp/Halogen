@@ -92,11 +92,17 @@ add_library(anari_library_filament SHARED
     Frame.cpp
     Geometry.h
     Geometry.cpp
+    Group.h
+    Group.cpp
+    Instance.h
+    Instance.cpp
     Light.h
     Light.cpp
     Material.h
     Material.cpp
     Renderer.h
+    Sampler.h
+    Sampler.cpp
     Surface.h
     Surface.cpp
     World.h
