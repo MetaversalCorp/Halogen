@@ -2,6 +2,7 @@
 ## SPDX-License-Identifier: MIT
 
 stages:
+  - prepare
   - build
   - test
 
@@ -36,6 +37,30 @@ workflow:
   artifacts:
     reports:
       junit: Test.xml
+
+# ----- Material compilation (host matc required) -----
+
+compile:materials:
+  stage: prepare
+  tags:
+    - macos
+    - arm64
+  script:
+    - cmake -B build-matc -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+    - |
+      for mat in src/materials/*.mat; do
+        name=$(basename "$mat" .mat)
+        external/filament/bin/matc -a all -o "src/materials/${name}.filamat" "$mat"
+        echo "Compiled: ${name}"
+      done
+  artifacts:
+    paths:
+      - src/materials/*.filamat
+    expire_in: 1 day
+  cache:
+    key: filament-macos-arm64-${FILAMENT_VERSION}
+    paths:
+      - external/filament/
 
 # ----- Windows x86_64 (MSVC) -----
 
@@ -81,6 +106,7 @@ test:macos-arm64:
 
 build:linux-x86_64:
   extends: .build-template
+  needs: ["compile:materials"]
   image: ubuntu:22.04
   before_script:
     - apt-get update -qq && apt-get install -y -qq cmake ninja-build clang libc++-dev libc++abi-dev python3 libgl-dev libvulkan-dev > /dev/null
@@ -99,12 +125,13 @@ test:linux-x86_64:
   needs: ["build:linux-x86_64"]
   before_script:
     - apt-get update -qq && apt-get install -y -qq cmake libc++1 libvulkan1 mesa-vulkan-drivers > /dev/null
-    - export LD_LIBRARY_PATH="$PWD/build/external/anari-sdk:$LD_LIBRARY_PATH"
+    - export LD_LIBRARY_PATH="$PWD/build/Release/bin:$LD_LIBRARY_PATH"
 
 # ----- Linux arm64 -----
 
 build:linux-arm64:
   extends: .build-template
+  needs: ["compile:materials"]
   image: ubuntu:22.04
   before_script:
     - apt-get update -qq && apt-get install -y -qq cmake ninja-build clang libc++-dev libc++abi-dev python3 libgl-dev libvulkan-dev > /dev/null
@@ -123,12 +150,13 @@ test:linux-arm64:
   needs: ["build:linux-arm64"]
   before_script:
     - apt-get update -qq && apt-get install -y -qq cmake libc++1 libvulkan1 mesa-vulkan-drivers > /dev/null
-    - export LD_LIBRARY_PATH="$PWD/build/external/anari-sdk:$LD_LIBRARY_PATH"
+    - export LD_LIBRARY_PATH="$PWD/build/Release/bin:$LD_LIBRARY_PATH"
 
 # ----- iOS arm64 (cross-compile on macOS) -----
 
 build:ios-arm64:
   extends: .build-template
+  needs: ["compile:materials"]
   tags:
     - macos
     - arm64
@@ -144,6 +172,7 @@ build:ios-arm64:
 
 build:android-arm64:
   extends: .build-template
+  needs: ["compile:materials"]
   image: ubuntu:22.04
   before_script:
     - apt-get update -qq && apt-get install -y -qq cmake ninja-build clang libc++-dev libc++abi-dev python3 unzip wget > /dev/null
@@ -162,3 +191,44 @@ build:android-arm64:
     paths:
       - external/filament/
       - android-ndk/
+
+# ----- Code coverage (macOS arm64) -----
+
+coverage:macos-arm64:
+  stage: test
+  tags:
+    - macos
+    - arm64
+  script:
+    - >
+      cmake -B build-cov -G Ninja
+      -DCMAKE_BUILD_TYPE=Debug
+      -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+      -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+      -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate"
+      -DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate"
+    - cmake --build build-cov
+    - export LLVM_PROFILE_FILE="$PWD/build-cov/coverage-%p.profraw"
+    - ctest --test-dir build-cov --output-on-failure
+    - xcrun llvm-profdata merge -sparse build-cov/coverage-*.profraw -o build-cov/coverage.profdata
+    - >
+      xcrun llvm-cov report
+      -instr-profile=build-cov/coverage.profdata
+      -ignore-filename-regex='.*/(external|build-cov)/.*'
+      build-cov/Debug/bin/libanari_library_filament.dylib
+    - >
+      xcrun llvm-cov export
+      -format=lcov
+      -instr-profile=build-cov/coverage.profdata
+      -ignore-filename-regex='.*/(external|build-cov)/.*'
+      build-cov/Debug/bin/libanari_library_filament.dylib
+      > build-cov/coverage.lcov
+  coverage: '/TOTAL.*(\d+\.\d+)%/'
+  artifacts:
+    paths:
+      - build-cov/coverage.lcov
+    expire_in: 1 week
+  cache:
+    key: filament-macos-arm64-${FILAMENT_VERSION}
+    paths:
+      - external/filament/

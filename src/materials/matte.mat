@@ -1,0 +1,22 @@
+material {
+    name : Matte,
+    shadingModel : lit,
+    parameters : [
+        {
+            type : float4,
+            name : baseColor
+        }
+    ],
+    requires : [
+        color
+    ]
+}
+
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        material.baseColor = materialParams.baseColor * getColor();
+        material.roughness = 1.0;
+        material.metallic = 0.0;
+    }
+}

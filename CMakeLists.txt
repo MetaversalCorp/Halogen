@@ -11,6 +11,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Place all build outputs (executables, shared libraries) in a common directory
+# so that shared libraries are found at runtime without PATH manipulation.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin)
+
 # Match Filament's static CRT on Windows (/MT)
 if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -67,15 +72,57 @@ endif()
 
 add_subdirectory(external/anari-sdk EXCLUDE_FROM_ALL)
 
-## Corrade — for testing only
+# Mark ANARI SDK include directories as SYSTEM so that warnings in external
+# headers do not trigger -Werror in our targets.
+foreach(_tgt anari anari_backend helium)
+    if(TARGET ${_tgt})
+        get_target_property(_dirs ${_tgt} INTERFACE_INCLUDE_DIRECTORIES)
+        if(_dirs)
+            set_property(TARGET ${_tgt} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "")
+            target_include_directories(${_tgt} SYSTEM INTERFACE ${_dirs})
+        endif()
+    endif()
+endforeach()
+
+# Force ANARI shared library into the common output directory so that tests
+# and our device library can find it at runtime without PATH manipulation.
+if(TARGET anari AND BUILD_SHARED_LIBS)
+    set_target_properties(anari PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
+    )
+endif()
+
+## Corrade
 set(CORRADE_WITH_INTERCONNECT OFF CACHE BOOL "" FORCE)
 set(CORRADE_WITH_PLUGINMANAGER OFF CACHE BOOL "" FORCE)
-set(CORRADE_WITH_TESTSUITE ON CACHE BOOL "" FORCE)
+if(BUILD_TESTS)
+    set(CORRADE_WITH_TESTSUITE ON CACHE BOOL "" FORCE)
+else()
+    set(CORRADE_WITH_TESTSUITE OFF CACHE BOOL "" FORCE)
+endif()
 set(CORRADE_WITH_UTILITY ON CACHE BOOL "" FORCE)
 set(CORRADE_BUILD_DEPRECATED OFF CACHE BOOL "" FORCE)
+if(CMAKE_CROSSCOMPILING)
+    # We never use Corrade resources, so provide a dummy corrade-rc to
+    # satisfy the cross-compilation check.
+    set(CORRADE_RC_EXECUTABLE ${CMAKE_COMMAND} CACHE FILEPATH "" FORCE)
+endif()
+add_subdirectory(external/corrade EXCLUDE_FROM_ALL)
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/external/corrade/modules/" ${CMAKE_MODULE_PATH})
+
+# Mark Corrade includes as SYSTEM (same treatment as ANARI SDK above)
+foreach(_tgt CorradeUtility CorradeTestSuite)
+    if(TARGET ${_tgt})
+        get_target_property(_dirs ${_tgt} INTERFACE_INCLUDE_DIRECTORIES)
+        if(_dirs)
+            set_property(TARGET ${_tgt} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "")
+            target_include_directories(${_tgt} SYSTEM INTERFACE ${_dirs})
+        endif()
+    endif()
+endforeach()
+
 if(BUILD_TESTS)
-    add_subdirectory(external/corrade EXCLUDE_FROM_ALL)
-    set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/external/corrade/modules/" ${CMAKE_MODULE_PATH})
     enable_testing()
 endif()
 
