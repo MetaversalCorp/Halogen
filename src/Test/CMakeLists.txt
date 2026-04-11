@@ -13,14 +13,25 @@ target_include_directories(AabbTest PRIVATE
 target_include_directories(AabbTest SYSTEM PRIVATE
     ${FILAMENT_INCLUDE_DIR})
 
-corrade_add_test(ParameterTest ParameterTest.cpp)
-target_link_libraries(ParameterTest PRIVATE anari)
-add_dependencies(ParameterTest anari_library_filament)
+corrade_add_test(ColorConversionTest ColorConversionTest.cpp)
+target_link_libraries(ColorConversionTest PRIVATE anari)
+target_include_directories(ColorConversionTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_include_directories(ColorConversionTest SYSTEM PRIVATE
+    ${FILAMENT_INCLUDE_DIR})
 
-corrade_add_test(TutorialTest TutorialTest.cpp)
-target_link_libraries(TutorialTest PRIVATE anari)
-add_dependencies(TutorialTest anari_library_filament)
+corrade_add_test(GeometryTest GeometryTest.cpp)
+target_link_libraries(GeometryTest PRIVATE anari)
+add_dependencies(GeometryTest anari_library_filament)
 
-corrade_add_test(Milestone2Test Milestone2Test.cpp)
-target_link_libraries(Milestone2Test PRIVATE anari)
-add_dependencies(Milestone2Test anari_library_filament)
+corrade_add_test(SamplerTest SamplerTest.cpp)
+target_link_libraries(SamplerTest PRIVATE anari)
+add_dependencies(SamplerTest anari_library_filament)
+
+corrade_add_test(MaterialTest MaterialTest.cpp)
+target_link_libraries(MaterialTest PRIVATE anari)
+add_dependencies(MaterialTest anari_library_filament)
+
+corrade_add_test(RenderTest RenderTest.cpp)
+target_link_libraries(RenderTest PRIVATE anari)
+add_dependencies(RenderTest anari_library_filament)

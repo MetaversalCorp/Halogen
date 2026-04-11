@@ -13,6 +13,14 @@ material {
         {
             type : bool,
             name : hasBaseColorMap
+        },
+        {
+            type : mat4,
+            name : colorTransform
+        },
+        {
+            type : bool,
+            name : hasColorTransform
         }
     ],
     requires : [
@@ -27,6 +35,10 @@ fragment {
         float4 color = materialParams.baseColor * getColor();
         if (materialParams.hasBaseColorMap) {
             color *= texture(materialParams_baseColorMap, getUV0());
+        }
+        if (materialParams.hasColorTransform) {
+            float2 uv = getUV0();
+            color = materialParams.colorTransform * float4(uv, 0.0, 1.0);
         }
         material.baseColor = color;
         material.roughness = 1.0;
