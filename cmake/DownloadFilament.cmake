@@ -129,7 +129,7 @@ function(filament_add_library name)
             IMPORTED_LOCATION "${FILAMENT_LIB_DIR}/lib${name}.a"
         )
     endif()
-    target_include_directories(filament::${name} INTERFACE "${FILAMENT_INCLUDE_DIR}")
+    target_include_directories(filament::${name} SYSTEM INTERFACE "${FILAMENT_INCLUDE_DIR}")
 endfunction()
 
 filament_add_library(filament)

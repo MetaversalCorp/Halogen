@@ -5,6 +5,10 @@ find_package(Corrade REQUIRED TestSuite)
 
 corrade_add_test(DeviceTest DeviceTest.cpp)
 target_link_libraries(DeviceTest PRIVATE anari)
+target_compile_options(DeviceTest PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /EHsc /external:anglebrackets /external:W0>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Werror -Wpedantic>
+)
 # Ensure the filament library is built before tests run
 add_dependencies(DeviceTest anari_library_filament)
 

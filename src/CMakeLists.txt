@@ -69,6 +69,11 @@ set_target_properties(anari_library_filament PROPERTIES
     C_VISIBILITY_PRESET hidden
 )
 
+target_compile_options(anari_library_filament PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /EHsc /external:anglebrackets /external:W0>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Werror -Wpedantic>
+)
+
 # --- Install ---
 
 include(GNUInstallDirs)

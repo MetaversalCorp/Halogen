@@ -5,8 +5,6 @@
 
 #include <anari/backend/DeviceImpl.h>
 
-#include "anari_library_filament_export.h"
-
 namespace filament {
 class Engine;
 class Renderer;
@@ -16,7 +14,7 @@ class View;
 
 namespace AnariFilament {
 
-class FILAMENT_ANARI_EXPORT Device : public anari::DeviceImpl {
+class Device : public anari::DeviceImpl {
 public:
     /** Backend values: 0=DEFAULT, 1=OPENGL, 2=VULKAN, 3=METAL, 5=NOOP */
     Device(ANARILibrary library, int backend = 0);
