@@ -17,19 +17,52 @@ material {
         {
             type : float3,
             name : emissive
+        },
+        {
+            type : sampler2d,
+            name : baseColorMap
+        },
+        {
+            type : bool,
+            name : hasBaseColorMap
+        },
+        {
+            type : bool,
+            name : useAttribute0ForMetallic
+        },
+        {
+            type : bool,
+            name : useAttribute1ForRoughness
         }
     ],
     requires : [
-        color
+        color,
+        uv0,
+        uv1
     ]
 }
 
 fragment {
     void material(inout MaterialInputs material) {
         prepareMaterial(material);
-        material.baseColor = materialParams.baseColor * getColor();
-        material.metallic = materialParams.metallic;
-        material.roughness = materialParams.roughness;
+        float4 color = materialParams.baseColor * getColor();
+        if (materialParams.hasBaseColorMap) {
+            color *= texture(materialParams_baseColorMap, getUV0());
+        }
+        material.baseColor = color;
+
+        float m = materialParams.metallic;
+        if (materialParams.useAttribute0ForMetallic) {
+            m = getUV0().x;
+        }
+        material.metallic = m;
+
+        float r = materialParams.roughness;
+        if (materialParams.useAttribute1ForRoughness) {
+            r = getUV1().x;
+        }
+        material.roughness = r;
+
         material.emissive = vec4(materialParams.emissive, 0.0);
     }
 }

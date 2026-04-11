@@ -6,6 +6,8 @@
 #include "Aabb.h"
 #include "Object.h"
 
+#include <Corrade/Containers/String.h>
+
 namespace filament {
 class VertexBuffer;
 class IndexBuffer;
@@ -15,7 +17,7 @@ namespace AnariFilament {
 
 struct Geometry : public Object
 {
-    Geometry(DeviceState *s);
+    Geometry(DeviceState *s, const char *subtype);
     ~Geometry() override;
 
     void commitParameters() override;
@@ -24,14 +26,22 @@ struct Geometry : public Object
     filament::IndexBuffer *indexBuffer() const { return mIndexBuffer; }
     uint32_t indexCount() const { return mIndexCount; }
     bool hasVertexColors() const { return mHasColors; }
+    bool hasUV0() const { return mHasUV0; }
+    bool hasUV1() const { return mHasUV1; }
 
     const Aabb &aabb() const { return mAabb; }
 
 private:
+    void commitTriangle();
+    void commitSphere();
+
+    Corrade::Containers::String mSubtype;
     filament::VertexBuffer *mVertexBuffer = nullptr;
     filament::IndexBuffer *mIndexBuffer = nullptr;
     uint32_t mIndexCount = 0;
     bool mHasColors = false;
+    bool mHasUV0 = false;
+    bool mHasUV1 = false;
     Aabb mAabb;
 };
 

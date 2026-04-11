@@ -4,8 +4,10 @@
 #pragma once
 
 #include "Object.h"
+#include "Sampler.h"
 
 #include <Corrade/Containers/String.h>
+#include <helium/utility/IntrusivePtr.h>
 
 namespace filament {
 class MaterialInstance;
@@ -26,10 +28,12 @@ struct Material : public Object
     }
 
     bool usesVertexColors() const { return mUsesVertexColors; }
+    bool usesTexture() const { return static_cast<bool>(mColorSampler); }
 
 private:
     Corrade::Containers::String mSubtype;
     filament::MaterialInstance *mMaterialInstance = nullptr;
+    helium::IntrusivePtr<Sampler> mColorSampler;
     bool mUsesVertexColors = false;
 };
 

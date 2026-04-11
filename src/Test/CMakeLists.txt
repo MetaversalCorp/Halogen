@@ -20,3 +20,7 @@ add_dependencies(ParameterTest anari_library_filament)
 corrade_add_test(TutorialTest TutorialTest.cpp)
 target_link_libraries(TutorialTest PRIVATE anari)
 add_dependencies(TutorialTest anari_library_filament)
+
+corrade_add_test(Milestone2Test Milestone2Test.cpp)
+target_link_libraries(Milestone2Test PRIVATE anari)
+add_dependencies(Milestone2Test anari_library_filament)

@@ -3,11 +3,13 @@
 
 #pragma once
 
+#include "Instance.h"
 #include "Light.h"
 #include "Surface.h"
 
 #include <Corrade/Containers/Array.h>
 #include <helium/utility/IntrusivePtr.h>
+#include <utils/Entity.h>
 
 namespace filament {
 class Scene;
@@ -25,9 +27,15 @@ struct World : public Object
     filament::Scene *filamentScene() const { return mScene; }
 
 private:
+    void clearInstanceEntities();
+
     filament::Scene *mScene = nullptr;
     Corrade::Containers::Array<helium::IntrusivePtr<Surface>> mSurfaces;
     Corrade::Containers::Array<helium::IntrusivePtr<Light>> mLights;
+    Corrade::Containers::Array<helium::IntrusivePtr<Instance>> mInstances;
+
+    // Entities created for instanced surfaces (owned by this World)
+    Corrade::Containers::Array<utils::Entity> mInstanceEntities;
 };
 
 }

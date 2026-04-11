@@ -21,6 +21,9 @@ struct Surface : public Object
     utils::Entity entity() const { return mEntity; }
     bool isValid() const override;
 
+    Geometry *geometry() const { return mGeometry.ptr; }
+    Material *material() const { return mMaterial.ptr; }
+
 private:
     utils::Entity mEntity;
     helium::IntrusivePtr<Geometry> mGeometry;

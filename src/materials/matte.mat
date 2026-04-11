@@ -5,17 +5,30 @@ material {
         {
             type : float4,
             name : baseColor
+        },
+        {
+            type : sampler2d,
+            name : baseColorMap
+        },
+        {
+            type : bool,
+            name : hasBaseColorMap
         }
     ],
     requires : [
-        color
+        color,
+        uv0
     ]
 }
 
 fragment {
     void material(inout MaterialInputs material) {
         prepareMaterial(material);
-        material.baseColor = materialParams.baseColor * getColor();
+        float4 color = materialParams.baseColor * getColor();
+        if (materialParams.hasBaseColorMap) {
+            color *= texture(materialParams_baseColorMap, getUV0());
+        }
+        material.baseColor = color;
         material.roughness = 1.0;
         material.metallic = 0.0;
     }
