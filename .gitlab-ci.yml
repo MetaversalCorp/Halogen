@@ -81,12 +81,13 @@ test:macos-arm64:
 
 build:linux-x86_64:
   extends: .build-template
-  allow_failure: true
-  tags:
-    - saas-linux-small-amd64
   image: ubuntu:22.04
   before_script:
-    - apt-get update -qq && apt-get install -y -qq cmake ninja-build g++ python3 libgl-dev libvulkan-dev > /dev/null
+    - apt-get update -qq && apt-get install -y -qq cmake ninja-build clang libc++-dev libc++abi-dev python3 libgl-dev libvulkan-dev > /dev/null
+  variables:
+    CC: clang
+    CXX: clang++
+    CXXFLAGS: "-stdlib=libc++"
   cache:
     key: filament-linux-${FILAMENT_VERSION}
     paths:
@@ -94,24 +95,23 @@ build:linux-x86_64:
 
 test:linux-x86_64:
   extends: .test-template
-  allow_failure: true
-  tags:
-    - saas-linux-small-amd64
   image: ubuntu:22.04
   needs: ["build:linux-x86_64"]
   before_script:
-    - apt-get update -qq && apt-get install -y -qq cmake > /dev/null
+    - apt-get update -qq && apt-get install -y -qq cmake libc++1 libvulkan1 mesa-vulkan-drivers > /dev/null
+    - export LD_LIBRARY_PATH="$PWD/build/external/anari-sdk:$LD_LIBRARY_PATH"
 
 # ----- Linux arm64 -----
 
 build:linux-arm64:
   extends: .build-template
-  allow_failure: true
-  tags:
-    - saas-linux-medium-arm64
   image: ubuntu:22.04
   before_script:
-    - apt-get update -qq && apt-get install -y -qq cmake ninja-build g++ python3 libgl-dev libvulkan-dev > /dev/null
+    - apt-get update -qq && apt-get install -y -qq cmake ninja-build clang libc++-dev libc++abi-dev python3 libgl-dev libvulkan-dev > /dev/null
+  variables:
+    CC: clang
+    CXX: clang++
+    CXXFLAGS: "-stdlib=libc++"
   cache:
     key: filament-linux-arm64-${FILAMENT_VERSION}
     paths:
@@ -119,10 +119,8 @@ build:linux-arm64:
 
 test:linux-arm64:
   extends: .test-template
-  allow_failure: true
-  tags:
-    - saas-linux-medium-arm64
   image: ubuntu:22.04
   needs: ["build:linux-arm64"]
   before_script:
-    - apt-get update -qq && apt-get install -y -qq cmake > /dev/null
+    - apt-get update -qq && apt-get install -y -qq cmake libc++1 libvulkan1 mesa-vulkan-drivers > /dev/null
+    - export LD_LIBRARY_PATH="$PWD/build/external/anari-sdk:$LD_LIBRARY_PATH"

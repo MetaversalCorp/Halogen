@@ -67,6 +67,9 @@ endif()
 set_target_properties(anari_library_filament PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     C_VISIBILITY_PRESET hidden
+    # Place alongside libanari so ANARI's anchor-based library lookup works
+    RUNTIME_OUTPUT_DIRECTORY $<TARGET_FILE_DIR:anari>
+    LIBRARY_OUTPUT_DIRECTORY $<TARGET_FILE_DIR:anari>
 )
 
 target_compile_options(anari_library_filament PRIVATE
