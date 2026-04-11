@@ -53,6 +53,8 @@ else()
     target_link_libraries(anari_library_filament PRIVATE
         filament::bluegl
         filament::bluevk
+        dl
+        pthread
     )
 endif()
 
