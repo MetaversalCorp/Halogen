@@ -208,19 +208,19 @@ coverage:macos-arm64:
       -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate"
       -DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate"
     - cmake --build build-cov
-    - cd build-cov
-    - LLVM_PROFILE_FILE="coverage-%p.profraw" ctest --output-on-failure
-    - xcrun llvm-profdata merge -sparse coverage-*.profraw -o coverage.profdata
+    - export LLVM_PROFILE_FILE="$PWD/build-cov/coverage-%p.profraw"
+    - ctest --test-dir build-cov --output-on-failure
+    - xcrun llvm-profdata merge -sparse build-cov/coverage-*.profraw -o build-cov/coverage.profdata
     - >
       xcrun llvm-cov report
-      -instr-profile=coverage.profdata
-      Debug/bin/libanari_library_filament.dylib
+      -instr-profile=build-cov/coverage.profdata
+      build-cov/Debug/bin/libanari_library_filament.dylib
     - >
       xcrun llvm-cov export
       -format=lcov
-      -instr-profile=coverage.profdata
-      Debug/bin/libanari_library_filament.dylib
-      > coverage.lcov
+      -instr-profile=build-cov/coverage.profdata
+      build-cov/Debug/bin/libanari_library_filament.dylib
+      > build-cov/coverage.lcov
   coverage: '/TOTAL.*(\d+\.\d+)%/'
   artifacts:
     paths:
