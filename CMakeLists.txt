@@ -96,9 +96,18 @@ endif()
 ## Corrade
 set(CORRADE_WITH_INTERCONNECT OFF CACHE BOOL "" FORCE)
 set(CORRADE_WITH_PLUGINMANAGER OFF CACHE BOOL "" FORCE)
-set(CORRADE_WITH_TESTSUITE ON CACHE BOOL "" FORCE)
+if(BUILD_TESTS)
+    set(CORRADE_WITH_TESTSUITE ON CACHE BOOL "" FORCE)
+else()
+    set(CORRADE_WITH_TESTSUITE OFF CACHE BOOL "" FORCE)
+endif()
 set(CORRADE_WITH_UTILITY ON CACHE BOOL "" FORCE)
 set(CORRADE_BUILD_DEPRECATED OFF CACHE BOOL "" FORCE)
+if(CMAKE_CROSSCOMPILING)
+    # We never use Corrade resources, so provide a dummy corrade-rc to
+    # satisfy the cross-compilation check.
+    set(CORRADE_RC_EXECUTABLE ${CMAKE_COMMAND} CACHE FILEPATH "" FORCE)
+endif()
 add_subdirectory(external/corrade EXCLUDE_FROM_ALL)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/external/corrade/modules/" ${CMAKE_MODULE_PATH})
 
