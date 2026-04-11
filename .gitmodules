@@ -1,0 +1,6 @@
+[submodule "external/anari-sdk"]
+	path = external/anari-sdk
+	url = https://github.com/KhronosGroup/ANARI-SDK.git
+[submodule "external/corrade"]
+	path = external/corrade
+	url = https://github.com/mosra/corrade.git

@@ -1,0 +1,106 @@
+## Copyright 2026 Jonathan Hale
+## SPDX-License-Identifier: MIT
+
+stages:
+  - build
+  - test
+
+variables:
+  GIT_STRATEGY: fetch
+  GIT_SUBMODULE_STRATEGY: recursive
+  FILAMENT_VERSION: "1.71.0"
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+    - if: $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: always
+
+# ----- Templates -----
+
+.build-template:
+  stage: build
+  script:
+    - cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+    - cmake --build build
+  artifacts:
+    paths:
+      - build/
+    expire_in: 1 day
+
+.test-template:
+  stage: test
+  script:
+    - cd build
+    - ctest --output-on-failure --output-junit ../Test.xml
+  artifacts:
+    reports:
+      junit: Test.xml
+
+# ----- Windows x86_64 (MSVC) -----
+
+build:windows:
+  extends: .build-template
+  tags:
+    - windows
+  variables:
+    VCVARS64: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
+  before_script:
+    - "& powershell -File scripts/vcvarsall.ps1"
+  cache:
+    key: filament-windows-${FILAMENT_VERSION}
+    paths:
+      - external/filament/
+
+test:windows:
+  extends: .test-template
+  tags:
+    - windows
+  needs: ["build:windows"]
+  before_script:
+    - "& powershell -File scripts/vcvarsall.ps1"
+
+# ----- macOS x86_64 -----
+
+build:macos-x86_64:
+  extends: .build-template
+  tags:
+    - macos
+  variables:
+    CMAKE_OSX_ARCHITECTURES: "x86_64"
+  script:
+    - cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
+    - cmake --build build
+  cache:
+    key: filament-macos-${FILAMENT_VERSION}
+    paths:
+      - external/filament/
+
+test:macos-x86_64:
+  extends: .test-template
+  tags:
+    - macos
+  needs: ["build:macos-x86_64"]
+
+# ----- macOS arm64 -----
+
+build:macos-arm64:
+  extends: .build-template
+  tags:
+    - macos
+    - arm64
+  script:
+    - cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+    - cmake --build build
+  cache:
+    key: filament-macos-arm64-${FILAMENT_VERSION}
+    paths:
+      - external/filament/
+
+test:macos-arm64:
+  extends: .test-template
+  tags:
+    - macos
+    - arm64
+  needs: ["build:macos-arm64"]

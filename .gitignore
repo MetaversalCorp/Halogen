@@ -1,0 +1,46 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# CMake
+/build*/
+/CMakeUserPresets.json
+compile_commands.json
+
+# IDE
+.vs/
+.vscode/settings.json
+*.user
+*.suo
+
+# Downloaded Filament SDK (auto-downloaded by CMake during configure)
+/external/filament/
+
+# Junction for ANARI SDK code_gen (created during configure)
+/code_gen/
+
+# OS files
+.DS_Store
+Thumbs.db
