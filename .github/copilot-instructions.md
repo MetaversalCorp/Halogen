@@ -72,4 +72,4 @@ consistency with the rendering backend.
 
 - CI runs on GitLab. Merge requests are created via `glab mr create`.
 - All MRs must pass CI before merge.
-- Target platforms: Windows x86_64, macOS x86_64/arm64 (more planned).
+- Target platforms: Windows x86_64, macOS arm64, Linux x86_64/arm64.

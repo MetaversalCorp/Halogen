@@ -44,10 +44,12 @@ if(WIN32)
     )
 elseif(APPLE)
     target_link_libraries(anari_library_filament PRIVATE
+        filament::bluegl
         filament::bluevk
         "-framework Cocoa"
         "-framework Metal"
         "-framework CoreVideo"
+        "-framework OpenGL"
     )
 else()
     target_link_libraries(anari_library_filament PRIVATE
