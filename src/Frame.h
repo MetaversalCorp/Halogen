@@ -11,7 +11,7 @@
 #include <helium/BaseFrame.h>
 #include <helium/utility/IntrusivePtr.h>
 
-#include <vector>
+#include <Corrade/Containers/Array.h>
 
 namespace filament {
 class RenderTarget;
@@ -65,7 +65,7 @@ private:
     FilamentResource<filament::Texture> mDepthTexture;
     FilamentResource<filament::RenderTarget> mRenderTarget;
 
-    std::vector<uint8_t> mPixelBuffer;
+    Corrade::Containers::Array<char> mPixelBuffer;
     bool mFrameReady = false;
 };
 

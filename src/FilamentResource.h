@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <functional>
-#include <utility>
+#include <Corrade/Containers/Function.h>
+#include <Corrade/Utility/Move.h>
 
 namespace filament {
 class Engine;
@@ -15,13 +15,13 @@ namespace AnariFilament {
 template <typename T>
 class FilamentResource {
 public:
-    using Deleter = std::function<void()>;
+    using Deleter = Corrade::Containers::Function<void()>;
 
     FilamentResource() = default;
     FilamentResource(filament::Engine *engine, T *ptr)
         : mEngine(engine), mPtr(ptr) {}
-    FilamentResource(filament::Engine *engine, T *ptr, Deleter deleter)
-        : mEngine(engine), mPtr(ptr), mDeleter(std::move(deleter)) {}
+    FilamentResource(filament::Engine *engine, T *ptr, Deleter &&deleter)
+        : mEngine(engine), mPtr(ptr), mDeleter(Corrade::Utility::move(deleter)) {}
 
     ~FilamentResource() { destroy(); }
 
@@ -30,14 +30,18 @@ public:
 
     FilamentResource(FilamentResource &&o) noexcept
         : mEngine(o.mEngine)
-        , mPtr(std::exchange(o.mPtr, nullptr))
-        , mDeleter(std::move(o.mDeleter)) {}
+        , mPtr(Corrade::Utility::move(o.mPtr))
+        , mDeleter(Corrade::Utility::move(o.mDeleter))
+    {
+        o.mPtr = nullptr;
+    }
 
     FilamentResource &operator=(FilamentResource &&o) noexcept {
         destroy();
         mEngine = o.mEngine;
-        mPtr = std::exchange(o.mPtr, nullptr);
-        mDeleter = std::move(o.mDeleter);
+        mPtr = Corrade::Utility::move(o.mPtr);
+        o.mPtr = nullptr;
+        mDeleter = Corrade::Utility::move(o.mDeleter);
         return *this;
     }
 

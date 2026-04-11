@@ -123,6 +123,7 @@ target_link_libraries(anari_library_filament
     PRIVATE
         anari_backend
         helium
+        CorradeUtility
         filament::filament
         filament::backend
         filament::geometry

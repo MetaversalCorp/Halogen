@@ -6,6 +6,7 @@
 #include "Light.h"
 #include "Surface.h"
 
+#include <Corrade/Containers/Array.h>
 #include <helium/utility/IntrusivePtr.h>
 
 namespace filament {
@@ -25,8 +26,8 @@ struct World : public Object
 
 private:
     filament::Scene *mScene = nullptr;
-    std::vector<helium::IntrusivePtr<Surface>> mSurfaces;
-    std::vector<helium::IntrusivePtr<Light>> mLights;
+    Corrade::Containers::Array<helium::IntrusivePtr<Surface>> mSurfaces;
+    Corrade::Containers::Array<helium::IntrusivePtr<Light>> mLights;
 };
 
 }

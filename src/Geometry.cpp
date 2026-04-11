@@ -13,8 +13,9 @@
 
 #include <helium/array/Array1D.h>
 
+#include <Corrade/Containers/Array.h>
+
 #include <cstring>
-#include <vector>
 
 ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Geometry *);
 
@@ -63,7 +64,7 @@ void Geometry::commitParameters()
 
     // Generate indices if not provided
     uint32_t numTriangles = 0;
-    std::vector<uint32_t> generatedIndices;
+    Corrade::Containers::Array<uint32_t> generatedIndices;
     const uint32_t *indexData = nullptr;
 
     if (idxArray) {
@@ -71,7 +72,8 @@ void Geometry::commitParameters()
         indexData = static_cast<const uint32_t *>(idxArray->data());
     } else {
         numTriangles = numVertices / 3;
-        generatedIndices.resize(numVertices);
+        generatedIndices = Corrade::Containers::Array<uint32_t>{
+            Corrade::NoInit, numVertices};
         for (uint32_t i = 0; i < numVertices; ++i)
             generatedIndices[i] = i;
         indexData = generatedIndices.data();
@@ -93,7 +95,8 @@ void Geometry::commitParameters()
             .triangles(triData)
             .build();
 
-    std::vector<filament::math::short4> tangents(numVertices);
+    Corrade::Containers::Array<filament::math::short4> tangents{
+        Corrade::NoInit, numVertices};
     orientation->getQuats(tangents.data(), numVertices);
     delete orientation;
 

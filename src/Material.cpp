@@ -8,6 +8,8 @@
 #include <filament/Material.h>
 #include <filament/MaterialInstance.h>
 
+#include <Corrade/Containers/StringStl.h>
+
 ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Material *);
 
 namespace AnariFilament {
@@ -41,13 +43,13 @@ void Material::commitParameters()
 
     if (!baseMaterial) {
         reportMessage(ANARI_SEVERITY_ERROR,
-            "%s material not compiled", mSubtype.c_str());
+            "%s material not compiled", mSubtype.data());
         return;
     }
 
     mMaterialInstance = baseMaterial->createInstance();
 
-    std::string colorStr = getParamString("color", "");
+    Corrade::Containers::String colorStr = getParamString("color", "");
     if (colorStr == "color") {
         mUsesVertexColors = true;
         mMaterialInstance->setParameter("baseColor",

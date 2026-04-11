@@ -34,20 +34,32 @@ void World::commitParameters()
     for (const helium::IntrusivePtr<Light> &light : mLights)
         mScene->remove(light->entity());
 
-    mSurfaces.clear();
-    mLights.clear();
+    mSurfaces = {};
+    mLights = {};
 
     // Surfaces
     helium::ObjectArray *surfaceArray =
         getParamObject<helium::ObjectArray>("surface");
     if (surfaceArray) {
-        helium::BaseObject **surfaces = surfaceArray->handlesBegin();
-        size_t count = surfaceArray->totalSize();
-        for (size_t i = 0; i < count; ++i) {
-            Surface *surface = static_cast<Surface *>(surfaces[i]);
-            if (surface && surface->isValid()) {
-                mSurfaces.emplace_back(surface);
-                mScene->addEntity(surface->entity());
+        helium::BaseObject **handles = surfaceArray->handlesBegin();
+        size_t total = surfaceArray->totalSize();
+
+        // Count valid surfaces, then allocate
+        size_t validCount = 0;
+        for (size_t i = 0; i < total; ++i) {
+            Surface *s = static_cast<Surface *>(handles[i]);
+            if (s && s->isValid())
+                ++validCount;
+        }
+
+        mSurfaces = Corrade::Containers::Array<helium::IntrusivePtr<Surface>>{
+            Corrade::NoInit, validCount};
+        size_t idx = 0;
+        for (size_t i = 0; i < total; ++i) {
+            Surface *s = static_cast<Surface *>(handles[i]);
+            if (s && s->isValid()) {
+                new (&mSurfaces[idx++]) helium::IntrusivePtr<Surface>{s};
+                mScene->addEntity(s->entity());
             }
         }
     }
@@ -56,13 +68,23 @@ void World::commitParameters()
     helium::ObjectArray *lightArray =
         getParamObject<helium::ObjectArray>("light");
     if (lightArray) {
-        helium::BaseObject **lights = lightArray->handlesBegin();
-        size_t count = lightArray->totalSize();
-        for (size_t i = 0; i < count; ++i) {
-            Light *light = static_cast<Light *>(lights[i]);
-            if (light) {
-                mLights.emplace_back(light);
-                mScene->addEntity(light->entity());
+        helium::BaseObject **handles = lightArray->handlesBegin();
+        size_t total = lightArray->totalSize();
+
+        size_t validCount = 0;
+        for (size_t i = 0; i < total; ++i) {
+            if (handles[i])
+                ++validCount;
+        }
+
+        mLights = Corrade::Containers::Array<helium::IntrusivePtr<Light>>{
+            Corrade::NoInit, validCount};
+        size_t idx = 0;
+        for (size_t i = 0; i < total; ++i) {
+            Light *l = static_cast<Light *>(handles[i]);
+            if (l) {
+                new (&mLights[idx++]) helium::IntrusivePtr<Light>{l};
+                mScene->addEntity(l->entity());
             }
         }
     }

@@ -5,7 +5,7 @@
 
 #include "Object.h"
 
-#include <string>
+#include <Corrade/Containers/String.h>
 
 namespace filament {
 class MaterialInstance;
@@ -28,7 +28,7 @@ struct Material : public Object
     bool usesVertexColors() const { return mUsesVertexColors; }
 
 private:
-    std::string mSubtype;
+    Corrade::Containers::String mSubtype;
     filament::MaterialInstance *mMaterialInstance = nullptr;
     bool mUsesVertexColors = false;
 };

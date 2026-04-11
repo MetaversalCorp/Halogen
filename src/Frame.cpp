@@ -128,7 +128,8 @@ void Frame::renderFrame()
         mSwapChain.reset(engine->createSwapChain(1, 1, 0));
 
     // Allocate pixel buffer (RGBA8)
-    mPixelBuffer.resize(mWidth * mHeight * 4, 0);
+    mPixelBuffer = Corrade::Containers::Array<char>{
+        Corrade::ValueInit, mWidth * mHeight * 4};
     mFrameReady = false;
 
     if (renderer->beginFrame(mSwapChain.get())) {
@@ -136,7 +137,8 @@ void Frame::renderFrame()
 
         using namespace filament::backend;
 
-        uint8_t *bufferData = mPixelBuffer.data();
+        uint8_t *bufferData =
+            reinterpret_cast<uint8_t *>(mPixelBuffer.data());
         size_t bufferSize = mPixelBuffer.size();
 
         renderer->readPixels(mRenderTarget.get(), 0, 0, mWidth, mHeight,
