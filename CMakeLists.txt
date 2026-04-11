@@ -16,7 +16,12 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-option(BUILD_TESTS "Build tests" ON)
+# Disable tests for mobile cross-compilation targets
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS" OR ANDROID)
+    option(BUILD_TESTS "Build tests" OFF)
+else()
+    option(BUILD_TESTS "Build tests" ON)
+endif()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -28,7 +33,11 @@ set(FILAMENT_SDK_DIR "${CMAKE_SOURCE_DIR}/external/filament" CACHE PATH "Path to
 include(DownloadFilament)
 
 ## ANARI SDK — as subproject, minimal build
-set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS" OR ANDROID)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+else()
+    set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+endif()
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_CTS OFF CACHE BOOL "" FORCE)
