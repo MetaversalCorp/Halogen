@@ -25,12 +25,11 @@ namespace {
 
 void writePng(const char *path, const uint8_t *rgba, uint32_t w, uint32_t h)
 {
-    /* Flip vertically (Filament framebuffer is bottom-up) and drop alpha */
+    /* Drop alpha channel (RGBA -> RGB) */
     std::vector<uint8_t> rgb(size_t(w) * h * 3);
     for (uint32_t y = 0; y < h; ++y) {
-        const uint32_t srcY = h - 1 - y;
         for (uint32_t x = 0; x < w; ++x) {
-            const uint32_t si = (srcY * w + x) * 4;
+            const uint32_t si = (y * w + x) * 4;
             const uint32_t di = (y * w + x) * 3;
             rgb[di + 0] = rgba[si + 0];
             rgb[di + 1] = rgba[si + 1];
@@ -60,6 +59,7 @@ struct ScreenshotTest : Corrade::TestSuite::Tester {
     void instancedTriangle();
     void sphereScene();
     void curveScene();
+    void pbrSpheres();
     void float32Frame();
     void introspection();
 
@@ -88,9 +88,8 @@ void ScreenshotTest::verifyAgainstGolden(
     uint32_t mismatchCount = 0;
     int maxDiff = 0;
     for (uint32_t y = 0; y < h; ++y) {
-        const uint32_t srcY = h - 1 - y;
         for (uint32_t x = 0; x < w; ++x) {
-            const uint32_t fbIdx = (srcY * w + x) * 4;
+            const uint32_t fbIdx = (y * w + x) * 4;
             const uint32_t goldenIdx = (y * w + x) * 3;
             for (int c = 0; c < 3; ++c) {
                 const int diff =
@@ -120,6 +119,7 @@ ScreenshotTest::ScreenshotTest()
         &ScreenshotTest::instancedTriangle,
         &ScreenshotTest::sphereScene,
         &ScreenshotTest::curveScene,
+        &ScreenshotTest::pbrSpheres,
         &ScreenshotTest::float32Frame,
         &ScreenshotTest::introspection});
 }
@@ -152,10 +152,10 @@ void ScreenshotTest::coloredQuad()
         -1,  1, -3,
          1,  1, -3};
     const float color[] = {
-        0.9f, 0.5f, 0.5f, 1,
-        0.8f, 0.8f, 0.8f, 1,
-        0.8f, 0.8f, 0.8f, 1,
-        0.5f, 0.9f, 0.5f, 1};
+        0.8f, 0.1f, 0.1f, 1,
+        0.1f, 0.8f, 0.1f, 1,
+        0.1f, 0.1f, 0.8f, 1,
+        0.8f, 0.8f, 0.1f, 1};
     const uint32_t index[] = {0, 1, 2, 1, 3, 2};
 
     ANARIArray1D posArr = anariNewArray1D(
@@ -430,6 +430,12 @@ void ScreenshotTest::sphereScene()
     anariCommitParameters(device, camera);
 
     ANARIRenderer renderer = anariNewRenderer(device, "default");
+    const float sphAmbientColor[] = {1, 1, 1};
+    const float sphAmbientRadiance = 0.2f;
+    anariSetParameter(device, renderer,
+        "ambientColor", ANARI_FLOAT32_VEC3, sphAmbientColor);
+    anariSetParameter(device, renderer,
+        "ambientRadiance", ANARI_FLOAT32, &sphAmbientRadiance);
     anariCommitParameters(device, renderer);
 
     ANARIFrame frame = anariNewFrame(device);
@@ -540,6 +546,12 @@ void ScreenshotTest::curveScene()
     anariCommitParameters(device, camera);
 
     ANARIRenderer renderer = anariNewRenderer(device, "default");
+    const float crvAmbientColor[] = {1, 1, 1};
+    const float crvAmbientRadiance = 0.2f;
+    anariSetParameter(device, renderer,
+        "ambientColor", ANARI_FLOAT32_VEC3, crvAmbientColor);
+    anariSetParameter(device, renderer,
+        "ambientRadiance", ANARI_FLOAT32, &crvAmbientRadiance);
     anariCommitParameters(device, renderer);
 
     ANARIFrame frame = anariNewFrame(device);
@@ -580,6 +592,213 @@ void ScreenshotTest::curveScene()
     anariUnloadLibrary(library);
 
     verifyAgainstGolden(pixels, width, height, "curveScene");
+}
+
+void ScreenshotTest::pbrSpheres()
+{
+    std::vector<uint8_t> pixels;
+    uint32_t width = 0, height = 0;
+
+    ANARILibrary library = anariLoadLibrary("filament", makeStatusCallback());
+    CORRADE_VERIFY(library);
+    ANARIDevice device = anariNewDevice(library, "default");
+    CORRADE_VERIFY(device);
+    anariCommitParameters(device, device);
+
+    // Three spheres with different PBR properties
+    const float positions[] = {
+        -1.5f, 0, -4,
+         0.0f, 0, -4,
+         1.5f, 0, -4};
+    const float radii[] = {0.6f, 0.6f, 0.6f};
+
+    ANARIArray1D posArr = anariNewArray1D(
+        device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 3);
+    ANARIArray1D radArr = anariNewArray1D(
+        device, radii, nullptr, nullptr, ANARI_FLOAT32, 3);
+
+    // Rough red sphere
+    ANARIGeometry geom0 = anariNewGeometry(device, "sphere");
+    {
+        const uint32_t idx = 0;
+        ANARIArray1D pArr = anariNewArray1D(
+            device, &positions[idx * 3], nullptr, nullptr,
+            ANARI_FLOAT32_VEC3, 1);
+        ANARIArray1D rArr = anariNewArray1D(
+            device, &radii[idx], nullptr, nullptr, ANARI_FLOAT32, 1);
+        anariSetParameter(device, geom0,
+            "vertex.position", ANARI_ARRAY1D, &pArr);
+        anariSetParameter(device, geom0,
+            "vertex.radius", ANARI_ARRAY1D, &rArr);
+        anariCommitParameters(device, geom0);
+        anariRelease(device, pArr);
+        anariRelease(device, rArr);
+    }
+    ANARIMaterial mat0 = anariNewMaterial(device, "physicallyBased");
+    {
+        const float color0[] = {0.8f, 0.1f, 0.1f};
+        const float roughness = 0.8f;
+        const float metallic = 0.0f;
+        anariSetParameter(device, mat0,
+            "color", ANARI_FLOAT32_VEC3, color0);
+        anariSetParameter(device, mat0,
+            "roughness", ANARI_FLOAT32, &roughness);
+        anariSetParameter(device, mat0,
+            "metallic", ANARI_FLOAT32, &metallic);
+        anariCommitParameters(device, mat0);
+    }
+    ANARISurface surf0 = anariNewSurface(device);
+    anariSetParameter(device, surf0, "geometry", ANARI_GEOMETRY, &geom0);
+    anariSetParameter(device, surf0, "material", ANARI_MATERIAL, &mat0);
+    anariCommitParameters(device, surf0);
+
+    // Smooth metallic gold sphere
+    ANARIGeometry geom1 = anariNewGeometry(device, "sphere");
+    {
+        const uint32_t idx = 1;
+        ANARIArray1D pArr = anariNewArray1D(
+            device, &positions[idx * 3], nullptr, nullptr,
+            ANARI_FLOAT32_VEC3, 1);
+        ANARIArray1D rArr = anariNewArray1D(
+            device, &radii[idx], nullptr, nullptr, ANARI_FLOAT32, 1);
+        anariSetParameter(device, geom1,
+            "vertex.position", ANARI_ARRAY1D, &pArr);
+        anariSetParameter(device, geom1,
+            "vertex.radius", ANARI_ARRAY1D, &rArr);
+        anariCommitParameters(device, geom1);
+        anariRelease(device, pArr);
+        anariRelease(device, rArr);
+    }
+    ANARIMaterial mat1 = anariNewMaterial(device, "physicallyBased");
+    {
+        const float color1[] = {0.9f, 0.7f, 0.2f};
+        const float roughness = 0.1f;
+        const float metallic = 1.0f;
+        anariSetParameter(device, mat1,
+            "color", ANARI_FLOAT32_VEC3, color1);
+        anariSetParameter(device, mat1,
+            "roughness", ANARI_FLOAT32, &roughness);
+        anariSetParameter(device, mat1,
+            "metallic", ANARI_FLOAT32, &metallic);
+        anariCommitParameters(device, mat1);
+    }
+    ANARISurface surf1 = anariNewSurface(device);
+    anariSetParameter(device, surf1, "geometry", ANARI_GEOMETRY, &geom1);
+    anariSetParameter(device, surf1, "material", ANARI_MATERIAL, &mat1);
+    anariCommitParameters(device, surf1);
+
+    // Medium-rough blue sphere
+    ANARIGeometry geom2 = anariNewGeometry(device, "sphere");
+    {
+        const uint32_t idx = 2;
+        ANARIArray1D pArr = anariNewArray1D(
+            device, &positions[idx * 3], nullptr, nullptr,
+            ANARI_FLOAT32_VEC3, 1);
+        ANARIArray1D rArr = anariNewArray1D(
+            device, &radii[idx], nullptr, nullptr, ANARI_FLOAT32, 1);
+        anariSetParameter(device, geom2,
+            "vertex.position", ANARI_ARRAY1D, &pArr);
+        anariSetParameter(device, geom2,
+            "vertex.radius", ANARI_ARRAY1D, &rArr);
+        anariCommitParameters(device, geom2);
+        anariRelease(device, pArr);
+        anariRelease(device, rArr);
+    }
+    ANARIMaterial mat2 = anariNewMaterial(device, "physicallyBased");
+    {
+        const float color2[] = {0.1f, 0.2f, 0.8f};
+        const float roughness = 0.4f;
+        const float metallic = 0.3f;
+        anariSetParameter(device, mat2,
+            "color", ANARI_FLOAT32_VEC3, color2);
+        anariSetParameter(device, mat2,
+            "roughness", ANARI_FLOAT32, &roughness);
+        anariSetParameter(device, mat2,
+            "metallic", ANARI_FLOAT32, &metallic);
+        anariCommitParameters(device, mat2);
+    }
+    ANARISurface surf2 = anariNewSurface(device);
+    anariSetParameter(device, surf2, "geometry", ANARI_GEOMETRY, &geom2);
+    anariSetParameter(device, surf2, "material", ANARI_MATERIAL, &mat2);
+    anariCommitParameters(device, surf2);
+
+    ANARISurface surfaces[] = {surf0, surf1, surf2};
+    ANARIWorld world = anariNewWorld(device);
+    ANARIArray1D surfArr = anariNewArray1D(
+        device, surfaces, nullptr, nullptr, ANARI_SURFACE, 3);
+    anariSetParameter(device, world, "surface", ANARI_ARRAY1D, &surfArr);
+    ANARILight light = anariNewLight(device, "directional");
+    const float lightDir[] = {-0.3f, -1, -0.3f};
+    anariSetParameter(device, light, "direction", ANARI_FLOAT32_VEC3, lightDir);
+    anariCommitParameters(device, light);
+    ANARIArray1D lightArr = anariNewArray1D(
+        device, &light, nullptr, nullptr, ANARI_LIGHT, 1);
+    anariSetParameter(device, world, "light", ANARI_ARRAY1D, &lightArr);
+    anariCommitParameters(device, world);
+
+    ANARICamera camera = anariNewCamera(device, "perspective");
+    const float aspect = 1.0f;
+    anariSetParameter(device, camera, "aspect", ANARI_FLOAT32, &aspect);
+    const float cam_pos[] = {0, 0, 0};
+    const float cam_dir[] = {0, 0, -1};
+    const float cam_up[] = {0, 1, 0};
+    anariSetParameter(device, camera, "position", ANARI_FLOAT32_VEC3, cam_pos);
+    anariSetParameter(device, camera, "direction", ANARI_FLOAT32_VEC3, cam_dir);
+    anariSetParameter(device, camera, "up", ANARI_FLOAT32_VEC3, cam_up);
+    anariCommitParameters(device, camera);
+
+    ANARIRenderer renderer = anariNewRenderer(device, "default");
+    const float pbrAmbientColor[] = {1, 1, 1};
+    const float pbrAmbientRadiance = 0.3f;
+    anariSetParameter(device, renderer,
+        "ambientColor", ANARI_FLOAT32_VEC3, pbrAmbientColor);
+    anariSetParameter(device, renderer,
+        "ambientRadiance", ANARI_FLOAT32, &pbrAmbientRadiance);
+    anariCommitParameters(device, renderer);
+
+    ANARIFrame frame = anariNewFrame(device);
+    const uint32_t imgSize[] = {IMG_SIZE, IMG_SIZE};
+    const ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
+    anariSetParameter(device, frame, "size", ANARI_UINT32_VEC2, imgSize);
+    anariSetParameter(
+        device, frame, "channel.color", ANARI_DATA_TYPE, &colorType);
+    anariSetParameter(device, frame, "renderer", ANARI_RENDERER, &renderer);
+    anariSetParameter(device, frame, "camera", ANARI_CAMERA, &camera);
+    anariSetParameter(device, frame, "world", ANARI_WORLD, &world);
+    anariCommitParameters(device, frame);
+
+    anariRenderFrame(device, frame);
+    anariFrameReady(device, frame, ANARI_WAIT);
+
+    ANARIDataType fbType = ANARI_UNKNOWN;
+    auto *fb = static_cast<const uint8_t *>(anariMapFrame(
+        device, frame, "channel.color", &width, &height, &fbType));
+    CORRADE_VERIFY(fb);
+    pixels.assign(fb, fb + width * height * 4);
+    anariUnmapFrame(device, frame, "channel.color");
+
+    anariRelease(device, frame);
+    anariRelease(device, renderer);
+    anariRelease(device, camera);
+    anariRelease(device, lightArr);
+    anariRelease(device, light);
+    anariRelease(device, surfArr);
+    anariRelease(device, world);
+    anariRelease(device, surf2);
+    anariRelease(device, mat2);
+    anariRelease(device, geom2);
+    anariRelease(device, surf1);
+    anariRelease(device, mat1);
+    anariRelease(device, geom1);
+    anariRelease(device, surf0);
+    anariRelease(device, mat0);
+    anariRelease(device, geom0);
+    anariRelease(device, radArr);
+    anariRelease(device, posArr);
+    anariRelease(device, device);
+    anariUnloadLibrary(library);
+
+    verifyAgainstGolden(pixels, width, height, "pbrSpheres");
 }
 
 void ScreenshotTest::float32Frame()

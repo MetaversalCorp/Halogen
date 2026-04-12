@@ -789,11 +789,11 @@ void Geometry::commitCylinder()
             const uint32_t b0 = vBase + (S + 1) + seg;
             const uint32_t b1 = vBase + (S + 1) + seg + 1;
             allIndices[idx++] = a0;
-            allIndices[idx++] = b0;
-            allIndices[idx++] = a1;
             allIndices[idx++] = a1;
             allIndices[idx++] = b0;
+            allIndices[idx++] = a1;
             allIndices[idx++] = b1;
+            allIndices[idx++] = b0;
         }
 
         // Caps
@@ -1064,11 +1064,11 @@ void Geometry::commitCurve()
             const uint32_t b0 = vBase + (S + 1) + seg;
             const uint32_t b1 = vBase + (S + 1) + seg + 1;
             allIndices[idx++] = a0;
-            allIndices[idx++] = b0;
-            allIndices[idx++] = a1;
             allIndices[idx++] = a1;
             allIndices[idx++] = b0;
+            allIndices[idx++] = a1;
             allIndices[idx++] = b1;
+            allIndices[idx++] = b0;
         }
     }
 
@@ -1553,11 +1553,11 @@ void Geometry::commitCone()
             const uint32_t b0 = vBase + (S + 1) + seg;
             const uint32_t b1 = vBase + (S + 1) + seg + 1;
             allIndices[idx++] = a0;
-            allIndices[idx++] = b0;
-            allIndices[idx++] = a1;
             allIndices[idx++] = a1;
             allIndices[idx++] = b0;
+            allIndices[idx++] = a1;
             allIndices[idx++] = b1;
+            allIndices[idx++] = b0;
         }
 
         totalVerts += tubeVerts;
