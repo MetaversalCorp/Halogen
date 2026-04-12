@@ -26,7 +26,7 @@ CI on all platforms.
 
 ---
 
-## Milestone 1 — Tutorial (`anariTutorial.c`)
+## Milestone 1 — Tutorial (`anariTutorial.c`) ✅ Done
 
 Render a single triangle with a directional light and perspective camera.
 This is the "hello world" of ANARI.
@@ -52,7 +52,7 @@ This is the "hello world" of ANARI.
 
 ---
 
-## Milestone 2 — Basic Test Scenes
+## Milestone 2 — Basic Test Scenes ✅ Done
 
 Support enough features to render the simpler ANARI SDK test scenes.
 
@@ -88,7 +88,7 @@ Support enough features to render the simpler ANARI SDK test scenes.
 
 ---
 
-## Milestone 3 — Remaining Test Scenes
+## Milestone 3 — Remaining Test Scenes ✅ Done
 
 ### 3a — `random_cylinders`
 
@@ -115,7 +115,7 @@ Support enough features to render the simpler ANARI SDK test scenes.
 
 ---
 
-## Milestone 4 — ANARI Viewer (subset)
+## Milestone 4 — ANARI Viewer (subset) ✅ Done
 
 Support the features needed for the interactive anariViewer application.
 
@@ -129,7 +129,7 @@ Support the features needed for the interactive anariViewer application.
 
 ---
 
-## Milestone 5 — File Loaders & Full Geometry
+## Milestone 5 — Full Geometry & Introspection 🔄 Planned
 
 | ANARI Feature | Filament Mapping | Notes |
 |---------------|-----------------|-------|
@@ -140,9 +140,14 @@ Support the features needed for the interactive anariViewer application.
 
 ---
 
-## Milestone 6 — Blender Addon
+## Milestone 6 — Blender Addon 🔄 Planned
 
 Full support for the [ANARI Blender addon](https://github.com/KhronosGroup/anari-blender-addon).
+
+> **Note:** The `anari` Python package (built from the SDK) is installed and
+> importable in Blender 5.1's bundled Python 3.13. The upstream
+> `CustomAnariRender.py` example calls `anariLoadLibrary()` which was renamed
+> to `loadLibrary()` in a newer SDK — upstream fix pending.
 
 | ANARI Feature | Filament Mapping | Notes |
 |---------------|-----------------|-------|
@@ -174,14 +179,14 @@ These ANARI features have no equivalent in Filament's rasterization pipeline.
 ## Priority Order Summary
 
 1. **Milestone 0** — Device skeleton ✅
-2. **Milestone 1** — Tutorial (triangle, matte, perspective, directional)
-3. **Milestone 2a** — Textured cube (textures, normals)
-4. **Milestone 2b** — Random spheres (sphere mesh generation)
-5. **Milestone 2c** — PBR spheres (physicallyBased material)
-6. **Milestone 2d** — Instanced cubes (instancing)
-7. **Milestone 3a** — Random cylinders (cylinder mesh generation)
-8. **Milestone 3b** — Cornell box (quad light shim)
-9. **Milestone 3c** — Attributes (all sampler types)
-10. **Milestone 4** — Viewer subset (ortho camera, depth, introspection)
-11. **Milestone 5** — Full geometry (cone, curve, quad mesh gen)
-12. **Milestone 6** — Blender addon (accumulation, full vertex attrs)
+2. **Milestone 1** — Tutorial (triangle, matte, perspective, directional) ✅
+3. **Milestone 2a** — Textured cube (textures, normals) ✅
+4. **Milestone 2b** — Random spheres (sphere mesh generation) ✅
+5. **Milestone 2c** — PBR spheres (physicallyBased material) ✅
+6. **Milestone 2d** — Instanced cubes (instancing) ✅
+7. **Milestone 3a** — Random cylinders (cylinder mesh generation) ✅
+8. **Milestone 3b** — Cornell box (quad light shim) ✅
+9. **Milestone 3c** — Attributes (all sampler types) ✅
+10. **Milestone 4** — Viewer subset (ortho camera, depth, introspection) ✅
+11. **Milestone 5** — Full geometry (curve, depth channel, introspection) 🔄
+12. **Milestone 6** — Blender addon (accumulation, full vertex attrs) 🔄
