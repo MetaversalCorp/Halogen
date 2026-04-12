@@ -49,6 +49,8 @@ void Geometry::commitParameters()
         commitSphere();
     else if (mSubtype == "cylinder"_s)
         commitCylinder();
+    else if (mSubtype == "curve"_s)
+        commitCurve();
     else if (mSubtype == "quad"_s)
         commitQuad();
     else if (mSubtype == "cone"_s)
@@ -787,11 +789,11 @@ void Geometry::commitCylinder()
             const uint32_t b0 = vBase + (S + 1) + seg;
             const uint32_t b1 = vBase + (S + 1) + seg + 1;
             allIndices[idx++] = a0;
-            allIndices[idx++] = b0;
-            allIndices[idx++] = a1;
             allIndices[idx++] = a1;
             allIndices[idx++] = b0;
+            allIndices[idx++] = a1;
             allIndices[idx++] = b1;
+            allIndices[idx++] = b0;
         }
 
         // Caps
@@ -922,6 +924,398 @@ void Geometry::commitCylinder()
     delete[] normals;
 
     // Compute AABB
+    mAabb = computeAabb(positions, totalVerts);
+
+    mIndexCount = totalIndices;
+    mIndexBuffer = filament::IndexBuffer::Builder()
+        .indexCount(totalIndices)
+        .bufferType(filament::IndexBuffer::IndexType::UINT)
+        .build(*engine);
+    mIndexBuffer->setBuffer(*engine,
+        filament::IndexBuffer::BufferDescriptor(
+            allIndices, totalIndices * sizeof(uint32_t),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<uint32_t *>(buf);
+            }));
+
+    markCommitted();
+}
+
+// -- Curve tessellation --
+
+void Geometry::commitCurve()
+{
+    filament::Engine *engine = deviceState()->engine;
+
+    helium::Array1D *posArray =
+        getParamObject<helium::Array1D>("vertex.position");
+    helium::Array1D *colArray =
+        getParamObject<helium::Array1D>("vertex.color");
+    helium::Array1D *vertRadiusArray =
+        getParamObject<helium::Array1D>("vertex.radius");
+    helium::Array1D *idxArray =
+        getParamObject<helium::Array1D>("primitive.index");
+
+    if (!posArray) {
+        reportMessage(ANARI_SEVERITY_ERROR,
+            "curve geometry requires 'vertex.position'");
+        return;
+    }
+
+    if (mVertexBuffer) {
+        engine->destroy(mVertexBuffer);
+        mVertexBuffer = nullptr;
+    }
+    if (mIndexBuffer) {
+        engine->destroy(mIndexBuffer);
+        mIndexBuffer = nullptr;
+    }
+
+    const float globalRadius = getParam<float>("radius", 1.0f);
+
+    const uint32_t numPositions = uint32_t(posArray->totalSize());
+    const filament::math::float3 *srcPositions =
+        static_cast<const filament::math::float3 *>(posArray->data());
+    const float *vertRadii = vertRadiusArray
+        ? static_cast<const float *>(vertRadiusArray->data())
+        : nullptr;
+
+    mHasColors = colArray != nullptr;
+    mHasUV0 = false;
+    mHasUV1 = false;
+
+    // Build segment list from primitive.index or sequential pairs
+    Corrade::Containers::Array<uint32_t> segments;
+    if (idxArray) {
+        const uint32_t numPrims = uint32_t(idxArray->totalSize());
+        segments = Corrade::Containers::Array<uint32_t>{
+            Corrade::NoInit, numPrims};
+        std::memcpy(segments.data(), idxArray->data(),
+            numPrims * sizeof(uint32_t));
+    } else {
+        if (numPositions < 2)
+            return;
+        segments = Corrade::Containers::Array<uint32_t>{
+            Corrade::NoInit, numPositions - 1};
+        for (uint32_t i = 0; i + 1 < numPositions; ++i)
+            segments[i] = i;
+    }
+
+    const uint32_t numSegments = uint32_t(segments.size());
+    constexpr uint32_t S = CYLINDER_SEGMENTS;
+    constexpr uint32_t SUBDIVISIONS = 4;
+
+    // Group consecutive segments into chains for smooth, connected tubes.
+    // First pass: count chains and their sizes.
+    uint32_t numChains = 0;
+    for (uint32_t s = 0; s < numSegments; ++s) {
+        const uint32_t i0 = segments[s];
+        const uint32_t i1 = i0 + 1;
+        if (i1 >= numPositions)
+            continue;
+        if (numChains == 0 || segments[s - 1] + 1 != i0)
+            ++numChains;
+    }
+
+    // Build flat control-point array + per-chain offset/length.
+    Corrade::Containers::Array<uint32_t> chainOffset{
+        Corrade::NoInit, numChains};
+    Corrade::Containers::Array<uint32_t> chainLen{
+        Corrade::NoInit, numChains};
+
+    // Second pass: record chain boundaries.
+    {
+        uint32_t ci = 0;
+        uint32_t totalCp = 0;
+        for (uint32_t s = 0; s < numSegments; ++s) {
+            const uint32_t i0 = segments[s];
+            const uint32_t i1 = i0 + 1;
+            if (i1 >= numPositions)
+                continue;
+            if (ci == 0 || segments[s - 1] + 1 != i0) {
+                if (ci > 0)
+                    chainLen[ci - 1] = totalCp;
+                chainOffset[ci] = s;
+                totalCp = 2;
+                ++ci;
+            } else {
+                ++totalCp;
+            }
+        }
+        if (ci > 0)
+            chainLen[ci - 1] = totalCp;
+    }
+
+    // Count total geometry across all chains.
+    // Each chain with N control points produces (N-1)*SUBDIVISIONS+1 rings.
+    uint32_t totalVerts = 0;
+    uint32_t totalIndices = 0;
+    for (uint32_t c = 0; c < numChains; ++c) {
+        const uint32_t nSegs = chainLen[c] - 1;
+        const uint32_t nRings = nSegs * SUBDIVISIONS + 1;
+        totalVerts += nRings * (S + 1);
+        totalIndices += (nRings - 1) * S * 6;
+    }
+
+    if (totalVerts == 0) {
+        markCommitted();
+        return;
+    }
+
+    auto *positions = new filament::math::float3[totalVerts];
+    auto *normals = new filament::math::float3[totalVerts];
+    auto *allIndices = new uint32_t[totalIndices];
+
+    // Per-ring color interpolation data (control-point pair + blend factor)
+    const uint32_t totalRings = totalVerts / (S + 1);
+    Corrade::Containers::Array<uint32_t> ringCp0{
+        Corrade::NoInit, totalRings};
+    Corrade::Containers::Array<uint32_t> ringCp1{
+        Corrade::NoInit, totalRings};
+    Corrade::Containers::Array<float> ringBlend{
+        Corrade::NoInit, totalRings};
+
+    // Catmull-Rom position evaluation
+    auto crPos = [](filament::math::float3 p0, filament::math::float3 p1,
+        filament::math::float3 p2, filament::math::float3 p3,
+        float t) -> filament::math::float3 {
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+        return 0.5f * ((2.0f * p1)
+            + (-p0 + p2) * t
+            + (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t2
+            + (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t3);
+    };
+
+    // Catmull-Rom tangent (first derivative)
+    auto crTan = [](filament::math::float3 p0, filament::math::float3 p1,
+        filament::math::float3 p2, filament::math::float3 p3,
+        float t) -> filament::math::float3 {
+        const float t2 = t * t;
+        return 0.5f * ((-p0 + p2)
+            + (4.0f * p0 - 10.0f * p1 + 8.0f * p2 - 2.0f * p3) * t
+            + (-3.0f * p0 + 9.0f * p1 - 9.0f * p2 + 3.0f * p3) * t2);
+    };
+
+    uint32_t vOff = 0;
+    uint32_t iOff = 0;
+    uint32_t rOff = 0;
+
+    for (uint32_t c = 0; c < numChains; ++c) {
+        const uint32_t nPts = chainLen[c];
+        const uint32_t nOrigSegs = nPts - 1;
+        const uint32_t nRings = nOrigSegs * SUBDIVISIONS + 1;
+
+        // Build control-point index array for this chain
+        const uint32_t firstSeg = chainOffset[c];
+        Corrade::Containers::Array<uint32_t> cp{
+            Corrade::NoInit, nPts};
+        cp[0] = segments[firstSeg];
+        for (uint32_t i = 0; i < nOrigSegs; ++i)
+            cp[i + 1] = segments[firstSeg + i] + 1;
+
+        // Compute ring centers, radii, and unit tangents via Catmull-Rom
+        Corrade::Containers::Array<filament::math::float3> rc{
+            Corrade::NoInit, nRings};
+        Corrade::Containers::Array<float> rr{
+            Corrade::NoInit, nRings};
+        Corrade::Containers::Array<filament::math::float3> rt{
+            Corrade::NoInit, nRings};
+
+        for (uint32_t seg = 0; seg < nOrigSegs; ++seg) {
+            const filament::math::float3 p1 = srcPositions[cp[seg]];
+            const filament::math::float3 p2 = srcPositions[cp[seg + 1]];
+            const filament::math::float3 p0 = (seg > 0)
+                ? srcPositions[cp[seg - 1]]
+                : (2.0f * p1 - p2);
+            const filament::math::float3 p3 = (seg + 2 < nPts)
+                ? srcPositions[cp[seg + 2]]
+                : (2.0f * p2 - p1);
+
+            const float r1 =
+                vertRadii ? vertRadii[cp[seg]] : globalRadius;
+            const float r2 =
+                vertRadii ? vertRadii[cp[seg + 1]] : globalRadius;
+
+            for (uint32_t sub = 0; sub < SUBDIVISIONS; ++sub) {
+                const float t = float(sub) / SUBDIVISIONS;
+                const uint32_t ri = seg * SUBDIVISIONS + sub;
+                rc[ri] = crPos(p0, p1, p2, p3, t);
+                rr[ri] = r1 + (r2 - r1) * t;
+                filament::math::float3 tang = crTan(p0, p1, p2, p3, t);
+                const float tLen = length(tang);
+                rt[ri] = (tLen > 1e-12f) ? tang / tLen
+                    : filament::math::float3{0, 1, 0};
+
+                ringCp0[rOff + ri] = cp[seg];
+                ringCp1[rOff + ri] = cp[seg + 1];
+                ringBlend[rOff + ri] = t;
+            }
+        }
+
+        // Last ring at the final control point
+        {
+            const uint32_t lastSeg = nOrigSegs - 1;
+            const filament::math::float3 p1 = srcPositions[cp[lastSeg]];
+            const filament::math::float3 p2 =
+                srcPositions[cp[lastSeg + 1]];
+            const filament::math::float3 p0 = (lastSeg > 0)
+                ? srcPositions[cp[lastSeg - 1]]
+                : (2.0f * p1 - p2);
+            const filament::math::float3 p3 = (lastSeg + 2 < nPts)
+                ? srcPositions[cp[lastSeg + 2]]
+                : (2.0f * p2 - p1);
+
+            rc[nRings - 1] = srcPositions[cp[nPts - 1]];
+            rr[nRings - 1] = vertRadii
+                ? vertRadii[cp[nPts - 1]] : globalRadius;
+            filament::math::float3 tang = crTan(p0, p1, p2, p3, 1.0f);
+            const float tLen = length(tang);
+            rt[nRings - 1] = (tLen > 1e-12f) ? tang / tLen
+                : filament::math::float3{0, 1, 0};
+
+            ringCp0[rOff + nRings - 1] = cp[nPts - 1];
+            ringCp1[rOff + nRings - 1] = cp[nPts - 1];
+            ringBlend[rOff + nRings - 1] = 0.0f;
+        }
+
+        // Propagate frames along the chain via parallel transport
+        Corrade::Containers::Array<filament::math::float3> ru{
+            Corrade::NoInit, nRings};
+        Corrade::Containers::Array<filament::math::float3> rv{
+            Corrade::NoInit, nRings};
+        buildFrame(rt[0], ru[0], rv[0]);
+
+        for (uint32_t r = 1; r < nRings; ++r) {
+            const filament::math::float3 crossT = cross(rt[r - 1], rt[r]);
+            const float sinA = length(crossT);
+            if (sinA > 1e-6f) {
+                const filament::math::float3 ax = crossT / sinA;
+                const float cosA = dot(rt[r - 1], rt[r]);
+                ru[r] = normalize(
+                    ru[r - 1] * cosA
+                    + cross(ax, ru[r - 1]) * sinA
+                    + ax * dot(ax, ru[r - 1]) * (1.0f - cosA));
+                rv[r] = normalize(cross(rt[r], ru[r]));
+            } else {
+                ru[r] = ru[r - 1];
+                rv[r] = rv[r - 1];
+            }
+        }
+
+        // Generate ring vertices
+        for (uint32_t r = 0; r < nRings; ++r) {
+            for (uint32_t seg = 0; seg <= S; ++seg) {
+                const float theta = 2.0f * Pi * float(seg) / S;
+                const float ct = std::cos(theta);
+                const float st = std::sin(theta);
+                const filament::math::float3 dir = ru[r] * ct + rv[r] * st;
+                const uint32_t vi = vOff + r * (S + 1) + seg;
+                positions[vi] = rc[r] + dir * rr[r];
+                normals[vi] = normalize(dir);
+            }
+        }
+
+        // Connect adjacent rings with triangles
+        for (uint32_t r = 0; r + 1 < nRings; ++r) {
+            const uint32_t rA = vOff + r * (S + 1);
+            const uint32_t rB = vOff + (r + 1) * (S + 1);
+            for (uint32_t seg = 0; seg < S; ++seg) {
+                allIndices[iOff++] = rA + seg;
+                allIndices[iOff++] = rA + seg + 1;
+                allIndices[iOff++] = rB + seg;
+                allIndices[iOff++] = rA + seg + 1;
+                allIndices[iOff++] = rB + seg + 1;
+                allIndices[iOff++] = rB + seg;
+            }
+        }
+
+        vOff += nRings * (S + 1);
+        rOff += nRings;
+    }
+
+    // Generate tangent frames
+    filament::geometry::SurfaceOrientation *orientation =
+        filament::geometry::SurfaceOrientation::Builder()
+            .vertexCount(totalVerts)
+            .normals(normals)
+            .build();
+
+    auto *tangents = new filament::math::short4[totalVerts];
+    orientation->getQuats(tangents, totalVerts);
+    delete orientation;
+
+    // Build vertex buffer
+    uint8_t bufIdx = 0;
+    const uint8_t posBuffer = bufIdx++;
+    const uint8_t tangentBuffer = bufIdx++;
+    const uint8_t colorBuffer = bufIdx++;
+    const uint8_t uv0Buffer = bufIdx++;
+    const uint8_t uv1Buffer = bufIdx++;
+    const uint8_t bufferCount = bufIdx;
+
+    mVertexBuffer = filament::VertexBuffer::Builder()
+        .bufferCount(bufferCount)
+        .vertexCount(totalVerts)
+        .attribute(filament::VertexAttribute::POSITION, posBuffer,
+            filament::VertexBuffer::AttributeType::FLOAT3)
+        .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
+            filament::VertexBuffer::AttributeType::SHORT4)
+        .normalized(filament::VertexAttribute::TANGENTS)
+        .attribute(filament::VertexAttribute::COLOR, colorBuffer,
+            filament::VertexBuffer::AttributeType::FLOAT4)
+        .attribute(filament::VertexAttribute::UV0, uv0Buffer,
+            filament::VertexBuffer::AttributeType::FLOAT2)
+        .attribute(filament::VertexAttribute::UV1, uv1Buffer,
+            filament::VertexBuffer::AttributeType::FLOAT2)
+        .build(*engine);
+
+    mVertexBuffer->setBufferAt(*engine, posBuffer,
+        filament::VertexBuffer::BufferDescriptor(
+            positions, totalVerts * sizeof(filament::math::float3),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<filament::math::float3 *>(buf);
+            }));
+
+    mVertexBuffer->setBufferAt(*engine, tangentBuffer,
+        filament::VertexBuffer::BufferDescriptor(
+            tangents, totalVerts * sizeof(filament::math::short4),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<filament::math::short4 *>(buf);
+            }));
+
+    if (mHasColors) {
+        auto *colors = new filament::math::float4[totalVerts];
+        const filament::math::float4 *srcColors =
+            static_cast<const filament::math::float4 *>(colArray->data());
+        for (uint32_t r = 0; r < totalRings; ++r) {
+            const filament::math::float4 cA =
+                (ringCp0[r] < colArray->totalSize())
+                    ? srcColors[ringCp0[r]]
+                    : filament::math::float4{1, 1, 1, 1};
+            const filament::math::float4 cB =
+                (ringCp1[r] < colArray->totalSize())
+                    ? srcColors[ringCp1[r]]
+                    : filament::math::float4{1, 1, 1, 1};
+            const filament::math::float4 interp =
+                cA * (1.0f - ringBlend[r]) + cB * ringBlend[r];
+            const uint32_t vBase = r * (S + 1);
+            for (uint32_t seg = 0; seg <= S; ++seg)
+                colors[vBase + seg] = interp;
+        }
+        mVertexBuffer->setBufferAt(*engine, colorBuffer,
+            filament::VertexBuffer::BufferDescriptor(
+                colors, totalVerts * sizeof(filament::math::float4),
+                [](void *buf, size_t, void *) {
+                    delete[] static_cast<filament::math::float4 *>(buf);
+                }));
+    }
+
+    fillDefaultAttributes(engine, totalVerts, colorBuffer, uv0Buffer,
+        uv1Buffer);
+
+    delete[] normals;
+
     mAabb = computeAabb(positions, totalVerts);
 
     mIndexCount = totalIndices;
@@ -1320,11 +1714,11 @@ void Geometry::commitCone()
             const uint32_t b0 = vBase + (S + 1) + seg;
             const uint32_t b1 = vBase + (S + 1) + seg + 1;
             allIndices[idx++] = a0;
-            allIndices[idx++] = b0;
-            allIndices[idx++] = a1;
             allIndices[idx++] = a1;
             allIndices[idx++] = b0;
+            allIndices[idx++] = a1;
             allIndices[idx++] = b1;
+            allIndices[idx++] = b0;
         }
 
         totalVerts += tubeVerts;

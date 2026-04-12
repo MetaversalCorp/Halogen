@@ -35,6 +35,7 @@ private:
     void commitTriangle();
     void commitSphere();
     void commitCylinder();
+    void commitCurve();
     void commitQuad();
     void commitCone();
     void fillDefaultAttributes(filament::Engine *engine, uint32_t vertexCount,

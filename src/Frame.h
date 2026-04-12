@@ -55,6 +55,7 @@ private:
     uint32_t mWidth = 0;
     uint32_t mHeight = 0;
     ANARIDataType mColorType = ANARI_UNKNOWN;
+    ANARIDataType mDepthType = ANARI_UNKNOWN;
 
     helium::IntrusivePtr<AnariFilament::Renderer> mRenderer;
     helium::IntrusivePtr<Camera> mCamera;
