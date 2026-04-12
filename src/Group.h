@@ -15,6 +15,7 @@ struct Group : public Object
     Group(DeviceState *s);
 
     void commitParameters() override;
+    void finalize() override;
 
     Corrade::Containers::Array<helium::IntrusivePtr<Surface>> const &
     surfaces() const

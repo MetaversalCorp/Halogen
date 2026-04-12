@@ -43,6 +43,11 @@ void World::clearInstanceEntities()
 
 void World::commitParameters()
 {
+    markCommitted();
+}
+
+void World::finalize()
+{
     filament::Engine * const engine = deviceState()->engine;
 
     // Remove all existing entities from the scene
@@ -187,8 +192,6 @@ void World::commitParameters()
             }
         }
     }
-
-    markCommitted();
 }
 
 }

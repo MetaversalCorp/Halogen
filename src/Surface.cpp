@@ -180,6 +180,11 @@ void Surface::commitParameters()
     mGeometry = getParamObject<Geometry>("geometry");
     mMaterial = getParamObject<Material>("material");
 
+    markCommitted();
+}
+
+void Surface::finalize()
+{
     if (!mGeometry || !mMaterial)
         return;
 
@@ -219,7 +224,6 @@ void Surface::commitParameters()
         .build(*engine, mEntity);
 
     mBuilt = true;
-    markCommitted();
 }
 
 bool Surface::isValid() const

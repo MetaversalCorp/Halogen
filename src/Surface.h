@@ -22,6 +22,7 @@ struct Surface : public Object
     ~Surface() override;
 
     void commitParameters() override;
+    void finalize() override;
 
     utils::Entity entity() const { return mEntity; }
     bool isValid() const override;
