@@ -244,13 +244,13 @@ void Geometry::commitTriangle()
     orientation->getQuats(tangents.data(), numVertices);
     delete orientation;
 
-    // Count buffers: POSITION + TANGENTS + optional COLOR + optional UV0 + optional UV1
+    // Count buffers: POSITION + TANGENTS + COLOR + UV0 + UV1
     uint8_t bufIdx = 0;
     uint8_t posBuffer = bufIdx++;
     uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = mHasColors ? bufIdx++ : 0;
-    uint8_t uv0Buffer = mHasUV0 ? bufIdx++ : 0;
-    uint8_t uv1Buffer = mHasUV1 ? bufIdx++ : 0;
+    uint8_t colorBuffer = bufIdx++;
+    uint8_t uv0Buffer = bufIdx++;
+    uint8_t uv1Buffer = bufIdx++;
     uint8_t bufferCount = bufIdx;
 
     filament::VertexBuffer::Builder builder =
@@ -261,30 +261,13 @@ void Geometry::commitTriangle()
                 filament::VertexBuffer::AttributeType::FLOAT3)
             .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
                 filament::VertexBuffer::AttributeType::SHORT4)
-            .normalized(filament::VertexAttribute::TANGENTS);
-
-    if (mHasColors) {
-        builder.attribute(filament::VertexAttribute::COLOR, colorBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT4);
-    }
-
-    if (mHasUV0) {
-        // Determine attribute0 element type to pick the right format
-        ANARIDataType a0Type = attr0Array->elementType();
-        if (a0Type == ANARI_FLOAT32_VEC2 || a0Type == ANARI_FLOAT64_VEC2) {
-            builder.attribute(filament::VertexAttribute::UV0, uv0Buffer,
+            .normalized(filament::VertexAttribute::TANGENTS)
+            .attribute(filament::VertexAttribute::COLOR, colorBuffer,
+                filament::VertexBuffer::AttributeType::FLOAT4)
+            .attribute(filament::VertexAttribute::UV0, uv0Buffer,
+                filament::VertexBuffer::AttributeType::FLOAT2)
+            .attribute(filament::VertexAttribute::UV1, uv1Buffer,
                 filament::VertexBuffer::AttributeType::FLOAT2);
-        } else {
-            // Scalar float — pack as float2 (value, 0)
-            builder.attribute(filament::VertexAttribute::UV0, uv0Buffer,
-                filament::VertexBuffer::AttributeType::FLOAT2);
-        }
-    }
-
-    if (mHasUV1) {
-        builder.attribute(filament::VertexAttribute::UV1, uv1Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2);
-    }
 
     mVertexBuffer = builder.build(*engine);
 
@@ -396,6 +379,9 @@ void Geometry::commitTriangle()
             }
         }
     }
+
+    fillDefaultAttributes(engine, numVertices, colorBuffer, uv0Buffer,
+        uv1Buffer);
 
     // Compute AABB
     mAabb = computeAabb(posData, numVertices);
@@ -564,9 +550,9 @@ void Geometry::commitSphere()
     uint8_t bufIdx = 0;
     uint8_t posBuffer = bufIdx++;
     uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = mHasColors ? bufIdx++ : 0;
-    uint8_t uv0Buffer = mHasUV0 ? bufIdx++ : 0;
-    uint8_t uv1Buffer = mHasUV1 ? bufIdx++ : 0;
+    uint8_t colorBuffer = bufIdx++;
+    uint8_t uv0Buffer = bufIdx++;
+    uint8_t uv1Buffer = bufIdx++;
     uint8_t bufferCount = bufIdx;
 
     filament::VertexBuffer::Builder builder =
@@ -577,20 +563,13 @@ void Geometry::commitSphere()
                 filament::VertexBuffer::AttributeType::FLOAT3)
             .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
                 filament::VertexBuffer::AttributeType::SHORT4)
-            .normalized(filament::VertexAttribute::TANGENTS);
-
-    if (mHasColors) {
-        builder.attribute(filament::VertexAttribute::COLOR, colorBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT4);
-    }
-    if (mHasUV0) {
-        builder.attribute(filament::VertexAttribute::UV0, uv0Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2);
-    }
-    if (mHasUV1) {
-        builder.attribute(filament::VertexAttribute::UV1, uv1Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2);
-    }
+            .normalized(filament::VertexAttribute::TANGENTS)
+            .attribute(filament::VertexAttribute::COLOR, colorBuffer,
+                filament::VertexBuffer::AttributeType::FLOAT4)
+            .attribute(filament::VertexAttribute::UV0, uv0Buffer,
+                filament::VertexBuffer::AttributeType::FLOAT2)
+            .attribute(filament::VertexAttribute::UV1, uv1Buffer,
+                filament::VertexBuffer::AttributeType::FLOAT2);
 
     mVertexBuffer = builder.build(*engine);
 
@@ -660,6 +639,9 @@ void Geometry::commitSphere()
                     delete[] static_cast<filament::math::float2 *>(buf);
                 }));
     }
+
+    fillDefaultAttributes(engine, totalVerts, colorBuffer, uv0Buffer,
+        uv1Buffer);
 
     // Compute AABB
     // For normals array: we allocated it on heap. Compute AABB from positions.
@@ -867,7 +849,9 @@ void Geometry::commitCylinder()
     uint8_t bufIdx = 0;
     uint8_t posBuffer = bufIdx++;
     uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = mHasColors ? bufIdx++ : 0;
+    uint8_t colorBuffer = bufIdx++;
+    uint8_t uv0Buffer = bufIdx++;
+    uint8_t uv1Buffer = bufIdx++;
     uint8_t bufferCount = bufIdx;
 
     auto vbBuilder = filament::VertexBuffer::Builder()
@@ -877,12 +861,13 @@ void Geometry::commitCylinder()
             filament::VertexBuffer::AttributeType::FLOAT3)
         .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
             filament::VertexBuffer::AttributeType::SHORT4)
-        .normalized(filament::VertexAttribute::TANGENTS);
-
-    if (mHasColors) {
-        vbBuilder.attribute(filament::VertexAttribute::COLOR, colorBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT4);
-    }
+        .normalized(filament::VertexAttribute::TANGENTS)
+        .attribute(filament::VertexAttribute::COLOR, colorBuffer,
+            filament::VertexBuffer::AttributeType::FLOAT4)
+        .attribute(filament::VertexAttribute::UV0, uv0Buffer,
+            filament::VertexBuffer::AttributeType::FLOAT2)
+        .attribute(filament::VertexAttribute::UV1, uv1Buffer,
+            filament::VertexBuffer::AttributeType::FLOAT2);
 
     mVertexBuffer = vbBuilder.build(*engine);
 
@@ -933,6 +918,9 @@ void Geometry::commitCylinder()
                     delete[] static_cast<filament::math::float4 *>(buf);
                 }));
     }
+
+    fillDefaultAttributes(engine, totalVerts, colorBuffer, uv0Buffer,
+        uv1Buffer);
 
     delete[] normals;
 
@@ -1087,9 +1075,9 @@ void Geometry::commitQuad()
     uint8_t bufIdx = 0;
     uint8_t posBuffer = bufIdx++;
     uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = mHasColors ? bufIdx++ : 0;
-    uint8_t uv0Buffer = mHasUV0 ? bufIdx++ : 0;
-    uint8_t uv1Buffer = mHasUV1 ? bufIdx++ : 0;
+    uint8_t colorBuffer = bufIdx++;
+    uint8_t uv0Buffer = bufIdx++;
+    uint8_t uv1Buffer = bufIdx++;
     uint8_t bufferCount = bufIdx;
 
     filament::VertexBuffer::Builder builder =
@@ -1100,20 +1088,13 @@ void Geometry::commitQuad()
                 filament::VertexBuffer::AttributeType::FLOAT3)
             .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
                 filament::VertexBuffer::AttributeType::SHORT4)
-            .normalized(filament::VertexAttribute::TANGENTS);
-
-    if (mHasColors) {
-        builder.attribute(filament::VertexAttribute::COLOR, colorBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT4);
-    }
-    if (mHasUV0) {
-        builder.attribute(filament::VertexAttribute::UV0, uv0Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2);
-    }
-    if (mHasUV1) {
-        builder.attribute(filament::VertexAttribute::UV1, uv1Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2);
-    }
+            .normalized(filament::VertexAttribute::TANGENTS)
+            .attribute(filament::VertexAttribute::COLOR, colorBuffer,
+                filament::VertexBuffer::AttributeType::FLOAT4)
+            .attribute(filament::VertexAttribute::UV0, uv0Buffer,
+                filament::VertexBuffer::AttributeType::FLOAT2)
+            .attribute(filament::VertexAttribute::UV1, uv1Buffer,
+                filament::VertexBuffer::AttributeType::FLOAT2);
 
     mVertexBuffer = builder.build(*engine);
 
@@ -1206,6 +1187,9 @@ void Geometry::commitQuad()
                     }));
         }
     }
+
+    fillDefaultAttributes(engine, numVertices, colorBuffer, uv0Buffer,
+        uv1Buffer);
 
     mAabb = computeAabb(posData, numVertices);
 
@@ -1404,7 +1388,9 @@ void Geometry::commitCone()
     uint8_t bufIdx = 0;
     uint8_t posBuffer = bufIdx++;
     uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = mHasColors ? bufIdx++ : 0;
+    uint8_t colorBuffer = bufIdx++;
+    uint8_t uv0Buffer = bufIdx++;
+    uint8_t uv1Buffer = bufIdx++;
     uint8_t bufferCount = bufIdx;
 
     auto vbBuilder = filament::VertexBuffer::Builder()
@@ -1414,12 +1400,13 @@ void Geometry::commitCone()
             filament::VertexBuffer::AttributeType::FLOAT3)
         .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
             filament::VertexBuffer::AttributeType::SHORT4)
-        .normalized(filament::VertexAttribute::TANGENTS);
-
-    if (mHasColors) {
-        vbBuilder.attribute(filament::VertexAttribute::COLOR, colorBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT4);
-    }
+        .normalized(filament::VertexAttribute::TANGENTS)
+        .attribute(filament::VertexAttribute::COLOR, colorBuffer,
+            filament::VertexBuffer::AttributeType::FLOAT4)
+        .attribute(filament::VertexAttribute::UV0, uv0Buffer,
+            filament::VertexBuffer::AttributeType::FLOAT2)
+        .attribute(filament::VertexAttribute::UV1, uv1Buffer,
+            filament::VertexBuffer::AttributeType::FLOAT2);
 
     mVertexBuffer = vbBuilder.build(*engine);
 
@@ -1483,6 +1470,9 @@ void Geometry::commitCone()
                 }));
     }
 
+    fillDefaultAttributes(engine, totalVerts, colorBuffer, uv0Buffer,
+        uv1Buffer);
+
     mAabb = computeAabb(allPositions.data(), totalVerts);
 
     mIndexCount = totalIndices;
@@ -1500,6 +1490,43 @@ void Geometry::commitCone()
             }));
 
     markCommitted();
+}
+
+void Geometry::fillDefaultAttributes(filament::Engine *engine,
+    uint32_t vertexCount, uint8_t colorBuffer, uint8_t uv0Buffer,
+    uint8_t uv1Buffer)
+{
+    if (!mHasColors) {
+        auto *colors = new filament::math::float4[vertexCount];
+        for (uint32_t i = 0; i < vertexCount; ++i)
+            colors[i] = {1.0f, 1.0f, 1.0f, 1.0f};
+        mVertexBuffer->setBufferAt(*engine, colorBuffer,
+            filament::VertexBuffer::BufferDescriptor(
+                colors, vertexCount * sizeof(filament::math::float4),
+                [](void *buf, size_t, void *) {
+                    delete[] static_cast<filament::math::float4 *>(buf);
+                }));
+    }
+    if (!mHasUV0) {
+        auto *uvs = new filament::math::float2[vertexCount];
+        std::memset(uvs, 0, vertexCount * sizeof(filament::math::float2));
+        mVertexBuffer->setBufferAt(*engine, uv0Buffer,
+            filament::VertexBuffer::BufferDescriptor(
+                uvs, vertexCount * sizeof(filament::math::float2),
+                [](void *buf, size_t, void *) {
+                    delete[] static_cast<filament::math::float2 *>(buf);
+                }));
+    }
+    if (!mHasUV1) {
+        auto *uvs = new filament::math::float2[vertexCount];
+        std::memset(uvs, 0, vertexCount * sizeof(filament::math::float2));
+        mVertexBuffer->setBufferAt(*engine, uv1Buffer,
+            filament::VertexBuffer::BufferDescriptor(
+                uvs, vertexCount * sizeof(filament::math::float2),
+                [](void *buf, size_t, void *) {
+                    delete[] static_cast<filament::math::float2 *>(buf);
+                }));
+    }
 }
 
 }

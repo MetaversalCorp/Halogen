@@ -85,11 +85,16 @@ void Frame::renderFrame()
     // Ensure all pending GPU uploads are complete before rendering
     engine->flushAndWait();
 
-    // Disable post-processing for linear output; camera exposure handles
-    // the intensity mapping via setExposure(1.0f) (neutral).
-    mView->setPostProcessingEnabled(false);
-    mView->setAntiAliasing(filament::View::AntiAliasing::NONE);
-    mView->setDithering(filament::View::Dithering::NONE);
+    // Enable high-quality rendering defaults:
+    // post-processing (tone mapping, HDR), FXAA, temporal dithering, bloom
+    mView->setPostProcessingEnabled(true);
+    mView->setAntiAliasing(filament::View::AntiAliasing::FXAA);
+    mView->setDithering(filament::View::Dithering::TEMPORAL);
+
+    filament::View::BloomOptions bloomOptions;
+    bloomOptions.enabled = true;
+    bloomOptions.strength = 0.10f;
+    mView->setBloomOptions(bloomOptions);
 
     // Set up ambient (indirect) lighting from renderer parameters
     mIndirectLight.reset();
