@@ -44,7 +44,7 @@ void Material::commitParameters()
 
     filament::Material *baseMaterial = nullptr;
     if (mSubtype == "physicallyBased"_s) {
-        Corrade::Containers::String alphaMode =
+        const Corrade::Containers::String alphaMode =
             getParamString("alphaMode", "opaque");
         if (alphaMode == "blend"_s)
             baseMaterial = state->physicallyBasedBlendMaterial.get();
@@ -53,7 +53,7 @@ void Material::commitParameters()
         else
             baseMaterial = state->physicallyBasedMaterial.get();
     } else {
-        Corrade::Containers::String alphaMode =
+        const Corrade::Containers::String alphaMode =
             getParamString("alphaMode", "opaque");
         if (alphaMode == "blend"_s)
             baseMaterial = state->matteBlendMaterial.get();
@@ -75,8 +75,8 @@ void Material::commitParameters()
     mColorSampler = getParamObject<Sampler>("color");
     mUsesPrimitiveSampler = false;
 
-    bool isMatte = (mSubtype != "physicallyBased"_s);
-    Corrade::Containers::String colorStr = getParamString("color", "");
+    const bool isMatte = (mSubtype != "physicallyBased"_s);
+    const Corrade::Containers::String colorStr = getParamString("color", "");
     if (isMatte && mColorSampler && mColorSampler->isTransform()) {
         // Transform sampler: apply 4x4 matrix to UV in the shader
         mUsesVertexColors = false;
@@ -126,8 +126,8 @@ void Material::commitParameters()
         using float3 = anari::math::float3;
         using float4 = anari::math::float4;
 
-        float4 c4 = getParam<float4>("color", float4(1.0f, 1.0f, 1.0f, 1.0f));
-        float3 c3 = getParam<float3>("color", float3(c4[0], c4[1], c4[2]));
+        const float4 c4 = getParam<float4>("color", float4(1.0f, 1.0f, 1.0f, 1.0f));
+        const float3 c3 = getParam<float3>("color", float3(c4[0], c4[1], c4[2]));
         mMaterialInstance->setParameter("baseColor",
             filament::math::float4{c3[0], c3[1], c3[2], c4[3]});
         mMaterialInstance->setParameter("hasBaseColorMap", false);
@@ -136,7 +136,7 @@ void Material::commitParameters()
     }
 
     // Opacity
-    float opacity = getParam<float>("opacity", 1.0f);
+    const float opacity = getParam<float>("opacity", 1.0f);
     mMaterialInstance->setParameter("opacity", opacity);
 
     // Bind dummy texture to unused sampler parameters (required by Metal)
@@ -146,41 +146,41 @@ void Material::commitParameters()
         mMaterialInstance->setParameter("baseColorMap", dummy, dummySampler);
 
     // Alpha cutoff for masked mode
-    Corrade::Containers::String alphaMode =
+    const Corrade::Containers::String alphaMode =
         getParamString("alphaMode", "opaque");
     if (alphaMode == "mask"_s) {
-        float alphaCutoff = getParam<float>("alphaCutoff", 0.5f);
+        const float alphaCutoff = getParam<float>("alphaCutoff", 0.5f);
         mMaterialInstance->setMaskThreshold(alphaCutoff);
     }
 
     if (mSubtype == "physicallyBased"_s) {
         // Metallic: can be float or "attribute0"
-        Corrade::Containers::String metallicStr =
+        const Corrade::Containers::String metallicStr =
             getParamString("metallic", "");
         if (metallicStr == "attribute0"_s) {
             mMaterialInstance->setParameter("useAttribute0ForMetallic", true);
             mMaterialInstance->setParameter("metallic", 0.0f);
         } else {
             mMaterialInstance->setParameter("useAttribute0ForMetallic", false);
-            float metallic = getParam<float>("metallic", 1.0f);
+            const float metallic = getParam<float>("metallic", 1.0f);
             mMaterialInstance->setParameter("metallic", metallic);
         }
 
         // Roughness: can be float or "attribute1"
-        Corrade::Containers::String roughnessStr =
+        const Corrade::Containers::String roughnessStr =
             getParamString("roughness", "");
         if (roughnessStr == "attribute1"_s) {
             mMaterialInstance->setParameter("useAttribute1ForRoughness", true);
             mMaterialInstance->setParameter("roughness", 0.0f);
         } else {
             mMaterialInstance->setParameter("useAttribute1ForRoughness", false);
-            float roughness = getParam<float>("roughness", 1.0f);
+            const float roughness = getParam<float>("roughness", 1.0f);
             mMaterialInstance->setParameter("roughness", roughness);
         }
 
         // Emissive color
         using float3 = anari::math::float3;
-        float3 emissive = getParam<float3>(
+        const float3 emissive = getParam<float3>(
             "emissive", float3(0.0f, 0.0f, 0.0f));
         mMaterialInstance->setParameter("emissive",
             filament::math::float3{emissive[0], emissive[1], emissive[2]});

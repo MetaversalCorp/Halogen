@@ -5,6 +5,7 @@
 
 #include "Aabb.h"
 #include "ColorConversion.h"
+#include "Constants.h"
 
 #include <filament/Engine.h>
 #include <filament/IndexBuffer.h>
@@ -423,16 +424,14 @@ void generateUnitSphere(
     indices = Corrade::Containers::Array<uint32_t>{
         Corrade::NoInit, idxCount};
 
-    constexpr float pi = 3.14159265358979323846f;
-
     uint32_t v = 0;
     for (uint32_t ring = 0; ring <= SPHERE_RINGS; ++ring) {
-        float phi = pi * static_cast<float>(ring) / SPHERE_RINGS;
+        float phi = AnariFilament::Pi * static_cast<float>(ring) / SPHERE_RINGS;
         float sinPhi = std::sin(phi);
         float cosPhi = std::cos(phi);
 
         for (uint32_t seg = 0; seg <= SPHERE_SEGMENTS; ++seg) {
-            float theta = 2.0f * pi * static_cast<float>(seg) / SPHERE_SEGMENTS;
+            float theta = 2.0f * AnariFilament::Pi * static_cast<float>(seg) / SPHERE_SEGMENTS;
             float sinTheta = std::sin(theta);
             float cosTheta = std::cos(theta);
 
@@ -746,8 +745,6 @@ void Geometry::commitCylinder()
     auto *normals = new filament::math::float3[totalVerts];
     auto *allIndices = new uint32_t[totalIndices];
 
-    constexpr float pi = 3.14159265358979323846f;
-
     for (uint32_t c = 0; c < numCylinders; ++c) {
         filament::math::float3 A = endpoints[c * 2 + 0];
         filament::math::float3 B = endpoints[c * 2 + 1];
@@ -768,7 +765,7 @@ void Geometry::commitCylinder()
 
         // Generate tube vertices: ring at A, then ring at B
         for (uint32_t seg = 0; seg <= S; ++seg) {
-            float theta = 2.0f * pi * static_cast<float>(seg) / S;
+            float theta = 2.0f * Pi * static_cast<float>(seg) / S;
             float ct = std::cos(theta);
             float st = std::sin(theta);
             filament::math::float3 n = u * ct + v * st;
@@ -804,7 +801,7 @@ void Geometry::commitCylinder()
             positions[capBase] = A;
             normals[capBase] = -axis;
             for (uint32_t seg = 0; seg < S; ++seg) {
-                float theta = 2.0f * pi * static_cast<float>(seg) / S;
+                float theta = 2.0f * Pi * static_cast<float>(seg) / S;
                 positions[capBase + 1 + seg] = A
                     + (u * std::cos(theta) + v * std::sin(theta)) * r;
                 normals[capBase + 1 + seg] = -axis;
@@ -820,7 +817,7 @@ void Geometry::commitCylinder()
             positions[capBBase] = B;
             normals[capBBase] = axis;
             for (uint32_t seg = 0; seg < S; ++seg) {
-                float theta = 2.0f * pi * static_cast<float>(seg) / S;
+                float theta = 2.0f * Pi * static_cast<float>(seg) / S;
                 positions[capBBase + 1 + seg] = B
                     + (u * std::cos(theta) + v * std::sin(theta)) * r;
                 normals[capBBase + 1 + seg] = axis;
@@ -1252,7 +1249,6 @@ void Geometry::commitCone()
 
     bool globalCaps = (capsStr != "none"_s);
     constexpr uint32_t S = CYLINDER_SEGMENTS;
-    constexpr float pi = 3.14159265358979323846f;
 
     // Per cone: tube same as cylinder, plus optional caps at each end
     uint32_t tubeVerts = (S + 1) * 2;
@@ -1301,7 +1297,7 @@ void Geometry::commitCone()
 
         // Generate tube vertices
         for (uint32_t seg = 0; seg <= S; ++seg) {
-            float theta = 2.0f * pi * static_cast<float>(seg) / S;
+            float theta = 2.0f * Pi * static_cast<float>(seg) / S;
             float ct = std::cos(theta);
             float st = std::sin(theta);
             filament::math::float3 circleDir = u * ct + v * st;
@@ -1340,7 +1336,7 @@ void Geometry::commitCone()
             allPositions[capBase] = A;
             allNormals[capBase] = -axis;
             for (uint32_t seg = 0; seg < S; ++seg) {
-                float theta = 2.0f * pi * static_cast<float>(seg) / S;
+                float theta = 2.0f * Pi * static_cast<float>(seg) / S;
                 allPositions[capBase + 1 + seg] = A
                     + (u * std::cos(theta) + v * std::sin(theta)) * rA;
                 allNormals[capBase + 1 + seg] = -axis;
@@ -1359,7 +1355,7 @@ void Geometry::commitCone()
             allPositions[capBase] = B;
             allNormals[capBase] = axis;
             for (uint32_t seg = 0; seg < S; ++seg) {
-                float theta = 2.0f * pi * static_cast<float>(seg) / S;
+                float theta = 2.0f * Pi * static_cast<float>(seg) / S;
                 allPositions[capBase + 1 + seg] = B
                     + (u * std::cos(theta) + v * std::sin(theta)) * rB;
                 allNormals[capBase + 1 + seg] = axis;
@@ -1497,32 +1493,36 @@ void Geometry::fillDefaultAttributes(filament::Engine *engine,
     uint8_t uv1Buffer)
 {
     if (!mHasColors) {
-        auto *colors = new filament::math::float4[vertexCount];
+        Corrade::Containers::Array<filament::math::float4> colors{
+            Corrade::NoInit, vertexCount};
         for (uint32_t i = 0; i < vertexCount; ++i)
             colors[i] = {1.0f, 1.0f, 1.0f, 1.0f};
+        auto *released = colors.release();
         mVertexBuffer->setBufferAt(*engine, colorBuffer,
             filament::VertexBuffer::BufferDescriptor(
-                colors, vertexCount * sizeof(filament::math::float4),
+                released, vertexCount * sizeof(filament::math::float4),
                 [](void *buf, size_t, void *) {
                     delete[] static_cast<filament::math::float4 *>(buf);
                 }));
     }
     if (!mHasUV0) {
-        auto *uvs = new filament::math::float2[vertexCount];
-        std::memset(uvs, 0, vertexCount * sizeof(filament::math::float2));
+        Corrade::Containers::Array<filament::math::float2> uvs{
+            Corrade::ValueInit, vertexCount};
+        auto *released = uvs.release();
         mVertexBuffer->setBufferAt(*engine, uv0Buffer,
             filament::VertexBuffer::BufferDescriptor(
-                uvs, vertexCount * sizeof(filament::math::float2),
+                released, vertexCount * sizeof(filament::math::float2),
                 [](void *buf, size_t, void *) {
                     delete[] static_cast<filament::math::float2 *>(buf);
                 }));
     }
     if (!mHasUV1) {
-        auto *uvs = new filament::math::float2[vertexCount];
-        std::memset(uvs, 0, vertexCount * sizeof(filament::math::float2));
+        Corrade::Containers::Array<filament::math::float2> uvs{
+            Corrade::ValueInit, vertexCount};
+        auto *released = uvs.release();
         mVertexBuffer->setBufferAt(*engine, uv1Buffer,
             filament::VertexBuffer::BufferDescriptor(
-                uvs, vertexCount * sizeof(filament::math::float2),
+                released, vertexCount * sizeof(filament::math::float2),
                 [](void *buf, size_t, void *) {
                     delete[] static_cast<filament::math::float2 *>(buf);
                 }));

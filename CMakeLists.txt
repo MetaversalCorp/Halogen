@@ -127,3 +127,7 @@ if(BUILD_TESTS)
 endif()
 
 add_subdirectory(src)
+
+if(NOT CMAKE_CROSSCOMPILING AND BUILD_TESTS)
+    add_subdirectory(examples)
+endif()

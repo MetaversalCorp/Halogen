@@ -58,7 +58,7 @@ void Frame::commitParameters()
     mCamera = getParamObject<Camera>("camera");
     mWorld = getParamObject<World>("world");
 
-    anari::math::uint2 imgSize = getParam<anari::math::uint2>(
+    const anari::math::uint2 imgSize = getParam<anari::math::uint2>(
         "size", anari::math::uint2(0u, 0u));
     mWidth = imgSize[0];
     mHeight = imgSize[1];
@@ -99,15 +99,15 @@ void Frame::renderFrame()
     // Set up ambient (indirect) lighting from renderer parameters
     mIndirectLight.reset();
     if (mRenderer && mRenderer->ambientRadiance() > 0.0f) {
-        anari::math::float3 ac = mRenderer->ambientColor();
-        float ar = mRenderer->ambientRadiance();
+        const anari::math::float3 ac = mRenderer->ambientColor();
+        const float ar = mRenderer->ambientRadiance();
 
         // Single-band spherical harmonics for uniform ambient irradiance.
         // The SH DC coefficient for a constant irradiance E is:
         //   L00 = E / pi  (since irradiance = pi * L00 for SH)
         // Filament's IndirectLight.Builder().irradiance(bands, sh) expects
         // the SH coefficient directly; the intensity() multiplier scales it.
-        filament::math::float3 sh[1] = {
+        const filament::math::float3 sh[1] = {
             {ac[0], ac[1], ac[2]}};
         mIndirectLight.reset(
             filament::IndirectLight::Builder()
@@ -167,7 +167,7 @@ void Frame::renderFrame()
     if (renderer->beginFrame(mSwapChain.get())) {
         // Set the background/clear color from the renderer parameters
         if (mRenderer) {
-            anari::math::float4 bg = mRenderer->backgroundColor();
+            const anari::math::float4 bg = mRenderer->backgroundColor();
             filament::Renderer::ClearOptions clearOpts;
             clearOpts.clearColor = {bg[0], bg[1], bg[2], bg[3]};
             clearOpts.clear = true;
@@ -181,7 +181,7 @@ void Frame::renderFrame()
 
         uint8_t *bufferData =
             reinterpret_cast<uint8_t *>(mPixelBuffer.data());
-        size_t bufferSize = mPixelBuffer.size();
+        const size_t bufferSize = mPixelBuffer.size();
 
         renderer->readPixels(mRenderTarget.get(), 0, 0, mWidth, mHeight,
             PixelBufferDescriptor(

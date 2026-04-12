@@ -52,7 +52,7 @@ void Surface::buildPrimitiveSamplerBuffers()
         mOwnedIB = nullptr;
     }
 
-    Sampler *sampler = mMaterial->colorSampler();
+    const Sampler *sampler = mMaterial->colorSampler();
     if (!sampler)
         return;
 
@@ -71,7 +71,7 @@ void Surface::buildPrimitiveSamplerBuffers()
 
     const filament::math::float3 *srcPos =
         static_cast<const filament::math::float3 *>(posArray->data());
-    uint32_t numSrcVerts = static_cast<uint32_t>(posArray->totalSize());
+    const uint32_t numSrcVerts = static_cast<uint32_t>(posArray->totalSize());
 
     // Build index list
     uint32_t numTris = 0;
@@ -90,17 +90,17 @@ void Surface::buildPrimitiveSamplerBuffers()
         srcIdx = genIdx.data();
     }
 
-    uint32_t expandedCount = numTris * 3;
+    const uint32_t expandedCount = numTris * 3;
 
     // Expand positions, generate normals, and set per-vertex colors
     auto *positions = new filament::math::float3[expandedCount];
     auto *colors = new filament::math::float4[expandedCount];
 
     for (uint32_t t = 0; t < numTris; ++t) {
-        uint32_t i0 = srcIdx[t * 3 + 0];
-        uint32_t i1 = srcIdx[t * 3 + 1];
-        uint32_t i2 = srcIdx[t * 3 + 2];
-        uint32_t base = t * 3;
+        const uint32_t i0 = srcIdx[t * 3 + 0];
+        const uint32_t i1 = srcIdx[t * 3 + 1];
+        const uint32_t i2 = srcIdx[t * 3 + 2];
+        const uint32_t base = t * 3;
 
         positions[base + 0] = srcPos[i0];
         positions[base + 1] = srcPos[i1];
@@ -207,7 +207,7 @@ void Surface::commitParameters()
     }
 
     const Aabb &geomAabb = mGeometry->aabb();
-    filament::Box box = {geomAabb.center(), geomAabb.halfExtent()};
+    const filament::Box box = {geomAabb.center(), geomAabb.halfExtent()};
 
     filament::RenderableManager::Builder(1)
         .geometry(0, filament::RenderableManager::PrimitiveType::TRIANGLES,
