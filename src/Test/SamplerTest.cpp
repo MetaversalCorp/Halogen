@@ -197,7 +197,7 @@ void SamplerTest::image1DSampler()
 
     uint8_t texData[16 * 4];
     for (int i = 0; i < 16; ++i) {
-        float t = static_cast<float>(i) / 15.0f;
+        float t = float(i) / 15.0f;
         texData[i * 4 + 0] = static_cast<uint8_t>((1.0f - t) * 255);
         texData[i * 4 + 1] = static_cast<uint8_t>(t * 255);
         texData[i * 4 + 2] = 128;

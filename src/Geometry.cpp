@@ -126,7 +126,7 @@ void Geometry::commitTriangle()
     Corrade::Containers::Array<uint32_t> expandedIndices;
 
     if (primColArray) {
-        uint32_t expVerts = numTriangles * 3;
+        const uint32_t expVerts = numTriangles * 3;
         expandedPos = Corrade::Containers::Array<filament::math::float3>{
             Corrade::NoInit, expVerts};
         expandedIndices = Corrade::Containers::Array<uint32_t>{
@@ -151,7 +151,7 @@ void Geometry::commitTriangle()
                 Corrade::NoInit, expVerts};
         }
 
-        ANARIDataType primColType = primColArray->elementType();
+        const ANARIDataType primColType = primColArray->elementType();
         const void *primColData = primColArray->data();
 
         Corrade::Containers::Array<filament::math::float4> primColConverted{
@@ -160,10 +160,10 @@ void Geometry::commitTriangle()
             numTriangles);
 
         for (uint32_t t = 0; t < numTriangles; ++t) {
-            uint32_t i0 = indexData[t * 3 + 0];
-            uint32_t i1 = indexData[t * 3 + 1];
-            uint32_t i2 = indexData[t * 3 + 2];
-            uint32_t base = t * 3;
+            const uint32_t i0 = indexData[t * 3 + 0];
+            const uint32_t i1 = indexData[t * 3 + 1];
+            const uint32_t i2 = indexData[t * 3 + 2];
+            const uint32_t base = t * 3;
 
             expandedPos[base + 0] = posData[i0];
             expandedPos[base + 1] = posData[i1];
@@ -176,7 +176,7 @@ void Geometry::commitTriangle()
             }
 
             if (attr0Array) {
-                ANARIDataType a0Type = attr0Array->elementType();
+                const ANARIDataType a0Type = attr0Array->elementType();
                 const float *uvSrc =
                     static_cast<const float *>(attr0Array->data());
                 if (a0Type == ANARI_FLOAT32_VEC2) {
@@ -190,7 +190,7 @@ void Geometry::commitTriangle()
                 }
             }
             if (attr1Array) {
-                ANARIDataType a1Type = attr1Array->elementType();
+                const ANARIDataType a1Type = attr1Array->elementType();
                 const float *uvSrc =
                     static_cast<const float *>(attr1Array->data());
                 if (a1Type == ANARI_FLOAT32_VEC2) {
@@ -204,7 +204,7 @@ void Geometry::commitTriangle()
                 }
             }
 
-            filament::math::float4 primColor = primColConverted[t];
+            const filament::math::float4 primColor = primColConverted[t];
             expandedColors[base + 0] = primColor;
             expandedColors[base + 1] = primColor;
             expandedColors[base + 2] = primColor;
@@ -247,12 +247,12 @@ void Geometry::commitTriangle()
 
     // Count buffers: POSITION + TANGENTS + COLOR + UV0 + UV1
     uint8_t bufIdx = 0;
-    uint8_t posBuffer = bufIdx++;
-    uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = bufIdx++;
-    uint8_t uv0Buffer = bufIdx++;
-    uint8_t uv1Buffer = bufIdx++;
-    uint8_t bufferCount = bufIdx;
+    const uint8_t posBuffer = bufIdx++;
+    const uint8_t tangentBuffer = bufIdx++;
+    const uint8_t colorBuffer = bufIdx++;
+    const uint8_t uv0Buffer = bufIdx++;
+    const uint8_t uv1Buffer = bufIdx++;
+    const uint8_t bufferCount = bufIdx;
 
     filament::VertexBuffer::Builder builder =
         filament::VertexBuffer::Builder()
@@ -273,7 +273,7 @@ void Geometry::commitTriangle()
     mVertexBuffer = builder.build(*engine);
 
     // Upload position data
-    size_t posSize = numVertices * sizeof(float) * 3;
+    const size_t posSize = numVertices * sizeof(float) * 3;
     mVertexBuffer->setBufferAt(*engine, posBuffer,
         filament::VertexBuffer::BufferDescriptor(
             posData, posSize));
@@ -330,7 +330,7 @@ void Geometry::commitTriangle()
                     expandedUV0.data(),
                     numVertices * sizeof(filament::math::float2)));
         } else {
-            ANARIDataType a0Type = attr0Array->elementType();
+            const ANARIDataType a0Type = attr0Array->elementType();
             if (a0Type == ANARI_FLOAT32_VEC2) {
                 mVertexBuffer->setBufferAt(*engine, uv0Buffer,
                     filament::VertexBuffer::BufferDescriptor(
@@ -359,7 +359,7 @@ void Geometry::commitTriangle()
                     expandedUV1.data(),
                     numVertices * sizeof(filament::math::float2)));
         } else {
-            ANARIDataType a1Type = attr1Array->elementType();
+            const ANARIDataType a1Type = attr1Array->elementType();
             if (a1Type == ANARI_FLOAT32_VEC2) {
                 mVertexBuffer->setBufferAt(*engine, uv1Buffer,
                     filament::VertexBuffer::BufferDescriptor(
@@ -416,8 +416,8 @@ void generateUnitSphere(
     Corrade::Containers::Array<SphereVertex> &verts,
     Corrade::Containers::Array<uint32_t> &indices)
 {
-    uint32_t vertCount = (SPHERE_RINGS + 1) * (SPHERE_SEGMENTS + 1);
-    uint32_t idxCount = SPHERE_RINGS * SPHERE_SEGMENTS * 6;
+    const uint32_t vertCount = (SPHERE_RINGS + 1) * (SPHERE_SEGMENTS + 1);
+    const uint32_t idxCount = SPHERE_RINGS * SPHERE_SEGMENTS * 6;
 
     verts = Corrade::Containers::Array<SphereVertex>{
         Corrade::NoInit, vertCount};
@@ -426,16 +426,16 @@ void generateUnitSphere(
 
     uint32_t v = 0;
     for (uint32_t ring = 0; ring <= SPHERE_RINGS; ++ring) {
-        float phi = AnariFilament::Pi * static_cast<float>(ring) / SPHERE_RINGS;
-        float sinPhi = std::sin(phi);
-        float cosPhi = std::cos(phi);
+        const float phi = AnariFilament::Pi * float(ring) / SPHERE_RINGS;
+        const float sinPhi = std::sin(phi);
+        const float cosPhi = std::cos(phi);
 
         for (uint32_t seg = 0; seg <= SPHERE_SEGMENTS; ++seg) {
-            float theta = 2.0f * AnariFilament::Pi * static_cast<float>(seg) / SPHERE_SEGMENTS;
-            float sinTheta = std::sin(theta);
-            float cosTheta = std::cos(theta);
+            const float theta = 2.0f * AnariFilament::Pi * float(seg) / SPHERE_SEGMENTS;
+            const float sinTheta = std::sin(theta);
+            const float cosTheta = std::cos(theta);
 
-            filament::math::float3 n = {
+            const filament::math::float3 n = {
                 sinPhi * cosTheta, cosPhi, sinPhi * sinTheta};
             verts[v++] = {n, n};
         }
@@ -444,8 +444,8 @@ void generateUnitSphere(
     uint32_t idx = 0;
     for (uint32_t ring = 0; ring < SPHERE_RINGS; ++ring) {
         for (uint32_t seg = 0; seg < SPHERE_SEGMENTS; ++seg) {
-            uint32_t a = ring * (SPHERE_SEGMENTS + 1) + seg;
-            uint32_t b = a + SPHERE_SEGMENTS + 1;
+            const uint32_t a = ring * (SPHERE_SEGMENTS + 1) + seg;
+            const uint32_t b = a + SPHERE_SEGMENTS + 1;
 
             indices[idx++] = a;
             indices[idx++] = b;
@@ -489,8 +489,8 @@ void Geometry::commitSphere()
         mIndexBuffer = nullptr;
     }
 
-    float globalRadius = getParam<float>("radius", 0.01f);
-    uint32_t numSpheres = static_cast<uint32_t>(posArray->totalSize());
+    const float globalRadius = getParam<float>("radius", 0.01f);
+    const uint32_t numSpheres = static_cast<uint32_t>(posArray->totalSize());
     const filament::math::float3 *centers =
         static_cast<const filament::math::float3 *>(posArray->data());
     const float *radii = radiusArray
@@ -506,10 +506,10 @@ void Geometry::commitSphere()
     Corrade::Containers::Array<uint32_t> unitIndices;
     generateUnitSphere(unitVerts, unitIndices);
 
-    uint32_t vertsPerSphere = static_cast<uint32_t>(unitVerts.size());
-    uint32_t indicesPerSphere = static_cast<uint32_t>(unitIndices.size());
-    uint32_t totalVerts = numSpheres * vertsPerSphere;
-    uint32_t totalIndices = numSpheres * indicesPerSphere;
+    const uint32_t vertsPerSphere = static_cast<uint32_t>(unitVerts.size());
+    const uint32_t indicesPerSphere = static_cast<uint32_t>(unitIndices.size());
+    const uint32_t totalVerts = numSpheres * vertsPerSphere;
+    const uint32_t totalIndices = numSpheres * indicesPerSphere;
 
     // Build position and normal arrays for all spheres
     auto *positions = new filament::math::float3[totalVerts];
@@ -517,10 +517,10 @@ void Geometry::commitSphere()
     auto *allIndices = new uint32_t[totalIndices];
 
     for (uint32_t s = 0; s < numSpheres; ++s) {
-        float r = radii ? radii[s] : globalRadius;
-        filament::math::float3 c = centers[s];
-        uint32_t vBase = s * vertsPerSphere;
-        uint32_t iBase = s * indicesPerSphere;
+        const float r = radii ? radii[s] : globalRadius;
+        const filament::math::float3 c = centers[s];
+        const uint32_t vBase = s * vertsPerSphere;
+        const uint32_t iBase = s * indicesPerSphere;
 
         for (uint32_t v = 0; v < vertsPerSphere; ++v) {
             positions[vBase + v] = {
@@ -547,12 +547,12 @@ void Geometry::commitSphere()
 
     // Build vertex buffer
     uint8_t bufIdx = 0;
-    uint8_t posBuffer = bufIdx++;
-    uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = bufIdx++;
-    uint8_t uv0Buffer = bufIdx++;
-    uint8_t uv1Buffer = bufIdx++;
-    uint8_t bufferCount = bufIdx;
+    const uint8_t posBuffer = bufIdx++;
+    const uint8_t tangentBuffer = bufIdx++;
+    const uint8_t colorBuffer = bufIdx++;
+    const uint8_t uv0Buffer = bufIdx++;
+    const uint8_t uv1Buffer = bufIdx++;
+    const uint8_t bufferCount = bufIdx;
 
     filament::VertexBuffer::Builder builder =
         filament::VertexBuffer::Builder()
@@ -710,11 +710,11 @@ void Geometry::commitCylinder()
         mIndexBuffer = nullptr;
     }
 
-    float globalRadius = getParam<float>("radius", 1.0f);
-    Corrade::Containers::String capsStr = getParamString("caps", "none");
+    const float globalRadius = getParam<float>("radius", 1.0f);
+    const Corrade::Containers::String capsStr = getParamString("caps", "none");
 
-    uint32_t numEndpoints = static_cast<uint32_t>(posArray->totalSize());
-    uint32_t numCylinders = numEndpoints / 2;
+    const uint32_t numEndpoints = static_cast<uint32_t>(posArray->totalSize());
+    const uint32_t numCylinders = numEndpoints / 2;
     const filament::math::float3 *endpoints =
         static_cast<const filament::math::float3 *>(posArray->data());
     const float *primRadii = primRadiusArray
@@ -725,33 +725,33 @@ void Geometry::commitCylinder()
     mHasUV0 = false;
     mHasUV1 = false;
 
-    bool addCaps = (capsStr != "none"_s);
+    const bool addCaps = (capsStr != "none"_s);
     constexpr uint32_t S = CYLINDER_SEGMENTS;
 
     // Per cylinder:
     //   Tube: (S + 1) * 2 vertices, S * 2 triangles (6 indices)
     //   Caps: S + 1 vertices per cap (center + S rim), S triangles per cap
-    uint32_t tubeVerts = (S + 1) * 2;
-    uint32_t tubeIndices = S * 6;
-    uint32_t capVerts = addCaps ? (S + 1) * 2 : 0;
-    uint32_t capIndices = addCaps ? S * 3 * 2 : 0;
-    uint32_t vertsPerCyl = tubeVerts + capVerts;
-    uint32_t indicesPerCyl = tubeIndices + capIndices;
+    const uint32_t tubeVerts = (S + 1) * 2;
+    const uint32_t tubeIndices = S * 6;
+    const uint32_t capVerts = addCaps ? (S + 1) * 2 : 0;
+    const uint32_t capIndices = addCaps ? S * 3 * 2 : 0;
+    const uint32_t vertsPerCyl = tubeVerts + capVerts;
+    const uint32_t indicesPerCyl = tubeIndices + capIndices;
 
-    uint32_t totalVerts = numCylinders * vertsPerCyl;
-    uint32_t totalIndices = numCylinders * indicesPerCyl;
+    const uint32_t totalVerts = numCylinders * vertsPerCyl;
+    const uint32_t totalIndices = numCylinders * indicesPerCyl;
 
     auto *positions = new filament::math::float3[totalVerts];
     auto *normals = new filament::math::float3[totalVerts];
     auto *allIndices = new uint32_t[totalIndices];
 
     for (uint32_t c = 0; c < numCylinders; ++c) {
-        filament::math::float3 A = endpoints[c * 2 + 0];
-        filament::math::float3 B = endpoints[c * 2 + 1];
-        float r = primRadii ? primRadii[c] : globalRadius;
+        const filament::math::float3 A = endpoints[c * 2 + 0];
+        const filament::math::float3 B = endpoints[c * 2 + 1];
+        const float r = primRadii ? primRadii[c] : globalRadius;
 
         filament::math::float3 axis = B - A;
-        float len = length(axis);
+        const float len = length(axis);
         if (len < 1e-12f)
             axis = {0.0f, 1.0f, 0.0f};
         else
@@ -760,19 +760,19 @@ void Geometry::commitCylinder()
         filament::math::float3 u, v;
         buildFrame(axis, u, v);
 
-        uint32_t vBase = c * vertsPerCyl;
-        uint32_t iBase = c * indicesPerCyl;
+        const uint32_t vBase = c * vertsPerCyl;
+        const uint32_t iBase = c * indicesPerCyl;
 
         // Generate tube vertices: ring at A, then ring at B
         for (uint32_t seg = 0; seg <= S; ++seg) {
-            float theta = 2.0f * Pi * static_cast<float>(seg) / S;
-            float ct = std::cos(theta);
-            float st = std::sin(theta);
-            filament::math::float3 n = u * ct + v * st;
-            filament::math::float3 rim = n * r;
+            const float theta = 2.0f * Pi * float(seg) / S;
+            const float ct = std::cos(theta);
+            const float st = std::sin(theta);
+            const filament::math::float3 n = u * ct + v * st;
+            const filament::math::float3 rim = n * r;
 
-            uint32_t iA = vBase + seg;
-            uint32_t iB = vBase + (S + 1) + seg;
+            const uint32_t iA = vBase + seg;
+            const uint32_t iB = vBase + (S + 1) + seg;
             positions[iA] = A + rim;
             normals[iA] = n;
             positions[iB] = B + rim;
@@ -782,10 +782,10 @@ void Geometry::commitCylinder()
         // Tube indices
         uint32_t idx = iBase;
         for (uint32_t seg = 0; seg < S; ++seg) {
-            uint32_t a0 = vBase + seg;
-            uint32_t a1 = vBase + seg + 1;
-            uint32_t b0 = vBase + (S + 1) + seg;
-            uint32_t b1 = vBase + (S + 1) + seg + 1;
+            const uint32_t a0 = vBase + seg;
+            const uint32_t a1 = vBase + seg + 1;
+            const uint32_t b0 = vBase + (S + 1) + seg;
+            const uint32_t b1 = vBase + (S + 1) + seg + 1;
             allIndices[idx++] = a0;
             allIndices[idx++] = b0;
             allIndices[idx++] = a1;
@@ -796,12 +796,12 @@ void Geometry::commitCylinder()
 
         // Caps
         if (addCaps) {
-            uint32_t capBase = vBase + tubeVerts;
+            const uint32_t capBase = vBase + tubeVerts;
             // Cap A (center + rim)
             positions[capBase] = A;
             normals[capBase] = -axis;
             for (uint32_t seg = 0; seg < S; ++seg) {
-                float theta = 2.0f * Pi * static_cast<float>(seg) / S;
+                const float theta = 2.0f * Pi * float(seg) / S;
                 positions[capBase + 1 + seg] = A
                     + (u * std::cos(theta) + v * std::sin(theta)) * r;
                 normals[capBase + 1 + seg] = -axis;
@@ -813,11 +813,11 @@ void Geometry::commitCylinder()
                 allIndices[idx++] = capBase + 1 + seg;
             }
             // Cap B
-            uint32_t capBBase = capBase + S + 1;
+            const uint32_t capBBase = capBase + S + 1;
             positions[capBBase] = B;
             normals[capBBase] = axis;
             for (uint32_t seg = 0; seg < S; ++seg) {
-                float theta = 2.0f * Pi * static_cast<float>(seg) / S;
+                const float theta = 2.0f * Pi * float(seg) / S;
                 positions[capBBase + 1 + seg] = B
                     + (u * std::cos(theta) + v * std::sin(theta)) * r;
                 normals[capBBase + 1 + seg] = axis;
@@ -844,12 +844,12 @@ void Geometry::commitCylinder()
 
     // Build vertex buffer
     uint8_t bufIdx = 0;
-    uint8_t posBuffer = bufIdx++;
-    uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = bufIdx++;
-    uint8_t uv0Buffer = bufIdx++;
-    uint8_t uv1Buffer = bufIdx++;
-    uint8_t bufferCount = bufIdx;
+    const uint8_t posBuffer = bufIdx++;
+    const uint8_t tangentBuffer = bufIdx++;
+    const uint8_t colorBuffer = bufIdx++;
+    const uint8_t uv0Buffer = bufIdx++;
+    const uint8_t uv1Buffer = bufIdx++;
+    const uint8_t bufferCount = bufIdx;
 
     auto vbBuilder = filament::VertexBuffer::Builder()
         .bufferCount(bufferCount)
@@ -890,9 +890,9 @@ void Geometry::commitCylinder()
         const filament::math::float4 *srcColors =
             static_cast<const filament::math::float4 *>(colArray->data());
         for (uint32_t c = 0; c < numCylinders; ++c) {
-            filament::math::float4 cA = srcColors[c * 2 + 0];
-            filament::math::float4 cB = srcColors[c * 2 + 1];
-            uint32_t vBase = c * vertsPerCyl;
+            const filament::math::float4 cA = srcColors[c * 2 + 0];
+            const filament::math::float4 cB = srcColors[c * 2 + 1];
+            const uint32_t vBase = c * vertsPerCyl;
             // Tube: first ring gets colorA, second ring gets colorB
             for (uint32_t seg = 0; seg <= S; ++seg) {
                 colors[vBase + seg] = cA;
@@ -900,10 +900,10 @@ void Geometry::commitCylinder()
             }
             // Caps: cap A gets colorA, cap B gets colorB
             if (addCaps) {
-                uint32_t capBase = vBase + tubeVerts;
+                const uint32_t capBase = vBase + tubeVerts;
                 for (uint32_t i = 0; i <= S; ++i)
                     colors[capBase + i] = cA;
-                uint32_t capBBase = capBase + S + 1;
+                const uint32_t capBBase = capBase + S + 1;
                 for (uint32_t i = 0; i <= S; ++i)
                     colors[capBBase + i] = cB;
             }
@@ -972,10 +972,10 @@ void Geometry::commitQuad()
     }
 
     // Each group of 4 consecutive vertices forms a quad.
-    uint32_t numSrcVertices = static_cast<uint32_t>(posArray->totalSize());
-    uint32_t numQuads = numSrcVertices / 4;
+    const uint32_t numSrcVertices = static_cast<uint32_t>(posArray->totalSize());
+    const uint32_t numQuads = numSrcVertices / 4;
     uint32_t numVertices = numSrcVertices;
-    uint32_t numTriangles = numQuads * 2;
+    const uint32_t numTriangles = numQuads * 2;
 
     mHasColors = colArray != nullptr || primColArray != nullptr;
     mHasUV0 = attr0Array != nullptr;
@@ -988,8 +988,8 @@ void Geometry::commitQuad()
     Corrade::Containers::Array<uint32_t> indices{
         Corrade::NoInit, numTriangles * 3};
     for (uint32_t q = 0; q < numQuads; ++q) {
-        uint32_t base = q * 4;
-        uint32_t idx = q * 6;
+        const uint32_t base = q * 4;
+        const uint32_t idx = q * 6;
         indices[idx + 0] = base + 0;
         indices[idx + 1] = base + 1;
         indices[idx + 2] = base + 2;
@@ -1007,7 +1007,7 @@ void Geometry::commitQuad()
     Corrade::Containers::Array<uint32_t> expandedIndices;
 
     if (primColArray) {
-        uint32_t expVerts = numTriangles * 3;
+        const uint32_t expVerts = numTriangles * 3;
         expandedPos = Corrade::Containers::Array<filament::math::float3>{
             Corrade::NoInit, expVerts};
         expandedColors = Corrade::Containers::Array<filament::math::float4>{
@@ -1021,16 +1021,16 @@ void Geometry::commitQuad()
             primColArray->elementType(), numQuads);
 
         for (uint32_t t = 0; t < numTriangles; ++t) {
-            uint32_t i0 = indexData[t * 3 + 0];
-            uint32_t i1 = indexData[t * 3 + 1];
-            uint32_t i2 = indexData[t * 3 + 2];
-            uint32_t base = t * 3;
+            const uint32_t i0 = indexData[t * 3 + 0];
+            const uint32_t i1 = indexData[t * 3 + 1];
+            const uint32_t i2 = indexData[t * 3 + 2];
+            const uint32_t base = t * 3;
 
             expandedPos[base + 0] = posData[i0];
             expandedPos[base + 1] = posData[i1];
             expandedPos[base + 2] = posData[i2];
 
-            filament::math::float4 primColor = primColConverted[t / 2];
+            const filament::math::float4 primColor = primColConverted[t / 2];
             expandedColors[base + 0] = primColor;
             expandedColors[base + 1] = primColor;
             expandedColors[base + 2] = primColor;
@@ -1070,12 +1070,12 @@ void Geometry::commitQuad()
 
     // Build vertex buffer
     uint8_t bufIdx = 0;
-    uint8_t posBuffer = bufIdx++;
-    uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = bufIdx++;
-    uint8_t uv0Buffer = bufIdx++;
-    uint8_t uv1Buffer = bufIdx++;
-    uint8_t bufferCount = bufIdx;
+    const uint8_t posBuffer = bufIdx++;
+    const uint8_t tangentBuffer = bufIdx++;
+    const uint8_t colorBuffer = bufIdx++;
+    const uint8_t uv0Buffer = bufIdx++;
+    const uint8_t uv1Buffer = bufIdx++;
+    const uint8_t bufferCount = bufIdx;
 
     filament::VertexBuffer::Builder builder =
         filament::VertexBuffer::Builder()
@@ -1142,7 +1142,7 @@ void Geometry::commitQuad()
     }
 
     if (mHasUV0) {
-        ANARIDataType a0Type = attr0Array->elementType();
+        const ANARIDataType a0Type = attr0Array->elementType();
         if (a0Type == ANARI_FLOAT32_VEC2) {
             mVertexBuffer->setBufferAt(*engine, uv0Buffer,
                 filament::VertexBuffer::BufferDescriptor(
@@ -1164,7 +1164,7 @@ void Geometry::commitQuad()
     }
 
     if (mHasUV1) {
-        ANARIDataType a1Type = attr1Array->elementType();
+        const ANARIDataType a1Type = attr1Array->elementType();
         if (a1Type == ANARI_FLOAT32_VEC2) {
             mVertexBuffer->setBufferAt(*engine, uv1Buffer,
                 filament::VertexBuffer::BufferDescriptor(
@@ -1229,11 +1229,11 @@ void Geometry::commitCone()
         mIndexBuffer = nullptr;
     }
 
-    float globalRadius = getParam<float>("radius", 1.0f);
-    Corrade::Containers::String capsStr = getParamString("caps", "none");
+    const float globalRadius = getParam<float>("radius", 1.0f);
+    const Corrade::Containers::String capsStr = getParamString("caps", "none");
 
-    uint32_t numEndpoints = static_cast<uint32_t>(posArray->totalSize());
-    uint32_t numCones = numEndpoints / 2;
+    const uint32_t numEndpoints = static_cast<uint32_t>(posArray->totalSize());
+    const uint32_t numCones = numEndpoints / 2;
     const filament::math::float3 *endpoints =
         static_cast<const filament::math::float3 *>(posArray->data());
     const float *radii = radiusArray
@@ -1247,16 +1247,16 @@ void Geometry::commitCone()
     mHasUV0 = false;
     mHasUV1 = false;
 
-    bool globalCaps = (capsStr != "none"_s);
+    const bool globalCaps = (capsStr != "none"_s);
     constexpr uint32_t S = CYLINDER_SEGMENTS;
 
     // Per cone: tube same as cylinder, plus optional caps at each end
-    uint32_t tubeVerts = (S + 1) * 2;
-    uint32_t tubeIndices = S * 6;
-    uint32_t maxCapVerts = (S + 1) * 2;
-    uint32_t maxCapIndices = S * 3 * 2;
-    uint32_t maxVertsPerCone = tubeVerts + maxCapVerts;
-    uint32_t maxIndicesPerCone = tubeIndices + maxCapIndices;
+    const uint32_t tubeVerts = (S + 1) * 2;
+    const uint32_t tubeIndices = S * 6;
+    const uint32_t maxCapVerts = (S + 1) * 2;
+    const uint32_t maxCapIndices = S * 3 * 2;
+    const uint32_t maxVertsPerCone = tubeVerts + maxCapVerts;
+    const uint32_t maxIndicesPerCone = tubeIndices + maxCapIndices;
 
     // Allocate for worst case, then trim
     Corrade::Containers::Array<filament::math::float3> allPositions{
@@ -1270,16 +1270,16 @@ void Geometry::commitCone()
     uint32_t totalIndices = 0;
 
     for (uint32_t c = 0; c < numCones; ++c) {
-        filament::math::float3 A = endpoints[c * 2 + 0];
-        filament::math::float3 B = endpoints[c * 2 + 1];
-        float rA = radii ? radii[c * 2 + 0] : globalRadius;
-        float rB = radii ? radii[c * 2 + 1] : globalRadius;
+        const filament::math::float3 A = endpoints[c * 2 + 0];
+        const filament::math::float3 B = endpoints[c * 2 + 1];
+        const float rA = radii ? radii[c * 2 + 0] : globalRadius;
+        const float rB = radii ? radii[c * 2 + 1] : globalRadius;
 
-        bool capA = globalCaps || (caps && (caps[c * 2 + 0] != 0));
-        bool capB = globalCaps || (caps && (caps[c * 2 + 1] != 0));
+        const bool capA = globalCaps || (caps && (caps[c * 2 + 0] != 0));
+        const bool capB = globalCaps || (caps && (caps[c * 2 + 1] != 0));
 
         filament::math::float3 axis = B - A;
-        float len = length(axis);
+        const float len = length(axis);
         if (len < 1e-12f)
             axis = {0.0f, 1.0f, 0.0f};
         else
@@ -1289,21 +1289,21 @@ void Geometry::commitCone()
         buildFrame(axis, u, v);
 
         // Compute normal slope for cone surface
-        float dr = rA - rB;
-        float slope = (len > 1e-12f) ? dr / len : 0.0f;
+        const float dr = rA - rB;
+        const float slope = (len > 1e-12f) ? dr / len : 0.0f;
 
-        uint32_t vBase = totalVerts;
-        uint32_t iBase = totalIndices;
+        const uint32_t vBase = totalVerts;
+        const uint32_t iBase = totalIndices;
 
         // Generate tube vertices
         for (uint32_t seg = 0; seg <= S; ++seg) {
-            float theta = 2.0f * Pi * static_cast<float>(seg) / S;
-            float ct = std::cos(theta);
-            float st = std::sin(theta);
-            filament::math::float3 circleDir = u * ct + v * st;
+            const float theta = 2.0f * Pi * float(seg) / S;
+            const float ct = std::cos(theta);
+            const float st = std::sin(theta);
+            const filament::math::float3 circleDir = u * ct + v * st;
 
             // Normal: perpendicular to surface, accounting for cone slope
-            filament::math::float3 n = normalize(circleDir + axis * slope);
+            const filament::math::float3 n = normalize(circleDir + axis * slope);
 
             allPositions[vBase + seg] = A + circleDir * rA;
             allNormals[vBase + seg] = n;
@@ -1315,10 +1315,10 @@ void Geometry::commitCone()
         // Tube indices
         uint32_t idx = iBase;
         for (uint32_t seg = 0; seg < S; ++seg) {
-            uint32_t a0 = vBase + seg;
-            uint32_t a1 = vBase + seg + 1;
-            uint32_t b0 = vBase + (S + 1) + seg;
-            uint32_t b1 = vBase + (S + 1) + seg + 1;
+            const uint32_t a0 = vBase + seg;
+            const uint32_t a1 = vBase + seg + 1;
+            const uint32_t b0 = vBase + (S + 1) + seg;
+            const uint32_t b1 = vBase + (S + 1) + seg + 1;
             allIndices[idx++] = a0;
             allIndices[idx++] = b0;
             allIndices[idx++] = a1;
@@ -1332,11 +1332,11 @@ void Geometry::commitCone()
 
         // Cap A
         if (capA && rA > 1e-12f) {
-            uint32_t capBase = totalVerts;
+            const uint32_t capBase = totalVerts;
             allPositions[capBase] = A;
             allNormals[capBase] = -axis;
             for (uint32_t seg = 0; seg < S; ++seg) {
-                float theta = 2.0f * Pi * static_cast<float>(seg) / S;
+                const float theta = 2.0f * Pi * float(seg) / S;
                 allPositions[capBase + 1 + seg] = A
                     + (u * std::cos(theta) + v * std::sin(theta)) * rA;
                 allNormals[capBase + 1 + seg] = -axis;
@@ -1351,11 +1351,11 @@ void Geometry::commitCone()
 
         // Cap B
         if (capB && rB > 1e-12f) {
-            uint32_t capBase = totalVerts;
+            const uint32_t capBase = totalVerts;
             allPositions[capBase] = B;
             allNormals[capBase] = axis;
             for (uint32_t seg = 0; seg < S; ++seg) {
-                float theta = 2.0f * Pi * static_cast<float>(seg) / S;
+                const float theta = 2.0f * Pi * float(seg) / S;
                 allPositions[capBase + 1 + seg] = B
                     + (u * std::cos(theta) + v * std::sin(theta)) * rB;
                 allNormals[capBase + 1 + seg] = axis;
@@ -1382,12 +1382,12 @@ void Geometry::commitCone()
 
     // Build vertex buffer
     uint8_t bufIdx = 0;
-    uint8_t posBuffer = bufIdx++;
-    uint8_t tangentBuffer = bufIdx++;
-    uint8_t colorBuffer = bufIdx++;
-    uint8_t uv0Buffer = bufIdx++;
-    uint8_t uv1Buffer = bufIdx++;
-    uint8_t bufferCount = bufIdx;
+    const uint8_t posBuffer = bufIdx++;
+    const uint8_t tangentBuffer = bufIdx++;
+    const uint8_t colorBuffer = bufIdx++;
+    const uint8_t uv0Buffer = bufIdx++;
+    const uint8_t uv1Buffer = bufIdx++;
+    const uint8_t bufferCount = bufIdx;
 
     auto vbBuilder = filament::VertexBuffer::Builder()
         .bufferCount(bufferCount)
@@ -1432,12 +1432,12 @@ void Geometry::commitCone()
 
         uint32_t vOff = 0;
         for (uint32_t c = 0; c < numCones; ++c) {
-            filament::math::float4 cA = srcColors[c * 2 + 0];
-            filament::math::float4 cB = srcColors[c * 2 + 1];
-            float rA = radii ? radii[c * 2 + 0] : globalRadius;
-            float rB = radii ? radii[c * 2 + 1] : globalRadius;
-            bool capA = globalCaps || (caps && (caps[c * 2 + 0] != 0));
-            bool capB = globalCaps || (caps && (caps[c * 2 + 1] != 0));
+            const filament::math::float4 cA = srcColors[c * 2 + 0];
+            const filament::math::float4 cB = srcColors[c * 2 + 1];
+            const float rA = radii ? radii[c * 2 + 0] : globalRadius;
+            const float rB = radii ? radii[c * 2 + 1] : globalRadius;
+            const bool capA = globalCaps || (caps && (caps[c * 2 + 0] != 0));
+            const bool capB = globalCaps || (caps && (caps[c * 2 + 1] != 0));
 
             // Tube: ring A gets colorA, ring B gets colorB
             for (uint32_t seg = 0; seg <= S; ++seg)
