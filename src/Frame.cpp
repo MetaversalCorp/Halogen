@@ -204,6 +204,18 @@ void Frame::renderFrame()
     }
 
     engine->flushAndWait();
+
+    // Flip the image vertically — GPU framebuffers store row 0 at the
+    // bottom, while ANARI images expect row 0 at the top.
+    const size_t rowBytes = mWidth * bytesPerPixel;
+    Corrade::Containers::Array<char> rowTmp{Corrade::NoInit, rowBytes};
+    char *buf = mPixelBuffer.data();
+    for (uint32_t top = 0, bot = mHeight - 1; top < bot; ++top, --bot) {
+        std::memcpy(rowTmp.data(), buf + top * rowBytes, rowBytes);
+        std::memcpy(buf + top * rowBytes, buf + bot * rowBytes, rowBytes);
+        std::memcpy(buf + bot * rowBytes, rowTmp.data(), rowBytes);
+    }
+
     mFrameReady = true;
 }
 
