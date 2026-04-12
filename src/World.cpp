@@ -43,6 +43,11 @@ void World::clearInstanceEntities()
 
 void World::commitParameters()
 {
+    markCommitted();
+}
+
+void World::finalize()
+{
     filament::Engine * const engine = deviceState()->engine;
 
     // Remove all existing entities from the scene
@@ -150,8 +155,8 @@ void World::commitParameters()
                         0, geom->indexCount())
                     .material(0, mat->materialInstance())
                     .boundingBox(box)
-                    .receiveShadows(false)
-                    .castShadows(false)
+                    .receiveShadows(true)
+                    .castShadows(true)
                     .build(*engine, e);
 
                 tcm.create(e);
@@ -187,8 +192,6 @@ void World::commitParameters()
             }
         }
     }
-
-    markCommitted();
 }
 
 }

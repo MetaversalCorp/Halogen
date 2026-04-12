@@ -14,14 +14,17 @@ Group::Group(DeviceState *s)
 
 void Group::commitParameters()
 {
+    markCommitted();
+}
+
+void Group::finalize()
+{
     mSurfaces = {};
 
     helium::ObjectArray *surfaceArray =
         getParamObject<helium::ObjectArray>("surface");
-    if (!surfaceArray) {
-        markCommitted();
+    if (!surfaceArray)
         return;
-    }
 
     helium::BaseObject ** const handles = surfaceArray->handlesBegin();
     const size_t total = surfaceArray->totalSize();
@@ -41,8 +44,6 @@ void Group::commitParameters()
         if (s && s->isValid())
             new (&mSurfaces[idx++]) helium::IntrusivePtr<Surface>{s};
     }
-
-    markCommitted();
 }
 
 }

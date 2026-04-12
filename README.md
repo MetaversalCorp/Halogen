@@ -139,7 +139,10 @@ this device without code changes.
 |---------|--------|
 | `backgroundColor` | ✅ |
 | `ambientColor` + `ambientRadiance` | ✅ uniform IBL via spherical harmonics |
+| Default IBL | ✅ 3-band SH from Filament's lightroom_14b environment |
+| Shadows | ✅ PCF soft shadows on all lights and renderables |
 | Frame `color` channel (`FLOAT32_VEC4`, `UFIXED8_VEC4`) | ✅ |
+| Frame `depth` channel | ✅ `FLOAT32` depth readback |
 
 ## Roadmap
 
@@ -150,8 +153,8 @@ See [ROADMAP.md](ROADMAP.md) for the full feature plan. Current status:
 - **Milestone 2** ✅ Sphere geometry, textures (image2D), PBR material, groups and instances
 - **Milestone 3** ✅ Cylinder geometry, all sampler subtypes, per-primitive colors
 - **Milestone 4** ✅ Complete feature coverage — quad/cone geometry, point/spot lights, orthographic camera, ambient lighting, material alpha modes
-- **Milestone 5** 🔄 Planned — curve geometry, frame depth channel, object introspection
-- **Milestone 6** 🔄 Planned — Blender addon integration
+- **Milestone 5** ✅ Full geometry, introspection, screenshot tests, shadows, default IBL
+- **Milestone 6** 🔄 In progress — Blender addon integration (normals, buffer lifetimes, framebuffer flip done)
 
 ## Documentation
 

@@ -23,6 +23,7 @@ struct World : public Object
     ~World() override;
 
     void commitParameters() override;
+    void finalize() override;
 
     filament::Scene *filamentScene() const { return mScene; }
 

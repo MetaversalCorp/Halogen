@@ -274,11 +274,17 @@ void Geometry::commitTriangle()
 
     mVertexBuffer = builder.build(*engine);
 
-    // Upload position data
-    const size_t posSize = numVertices * sizeof(float) * 3;
+    // Upload position data (heap-copy if local — Filament uploads async)
+    auto *posOwned = new filament::math::float3[numVertices];
+    std::memcpy(posOwned, posData,
+        numVertices * sizeof(filament::math::float3));
     mVertexBuffer->setBufferAt(*engine, posBuffer,
         filament::VertexBuffer::BufferDescriptor(
-            posData, posSize));
+            posOwned,
+            numVertices * sizeof(filament::math::float3),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<filament::math::float3 *>(buf);
+            }));
 
     // Upload tangent data (transfer ownership via callback)
     auto *tangentOwned = new filament::math::short4[numVertices];
@@ -327,10 +333,16 @@ void Geometry::commitTriangle()
 
     if (mHasUV0) {
         if (primColArray && expandedUV0.data()) {
+            auto *uv0Owned = new filament::math::float2[numVertices];
+            std::memcpy(uv0Owned, expandedUV0.data(),
+                numVertices * sizeof(filament::math::float2));
             mVertexBuffer->setBufferAt(*engine, uv0Buffer,
                 filament::VertexBuffer::BufferDescriptor(
-                    expandedUV0.data(),
-                    numVertices * sizeof(filament::math::float2)));
+                    uv0Owned,
+                    numVertices * sizeof(filament::math::float2),
+                    [](void *buf, size_t, void *) {
+                        delete[] static_cast<filament::math::float2 *>(buf);
+                    }));
         } else {
             const ANARIDataType a0Type = attr0Array->elementType();
             if (a0Type == ANARI_FLOAT32_VEC2) {
@@ -356,10 +368,16 @@ void Geometry::commitTriangle()
 
     if (mHasUV1) {
         if (primColArray && expandedUV1.data()) {
+            auto *uv1Owned = new filament::math::float2[numVertices];
+            std::memcpy(uv1Owned, expandedUV1.data(),
+                numVertices * sizeof(filament::math::float2));
             mVertexBuffer->setBufferAt(*engine, uv1Buffer,
                 filament::VertexBuffer::BufferDescriptor(
-                    expandedUV1.data(),
-                    numVertices * sizeof(filament::math::float2)));
+                    uv1Owned,
+                    numVertices * sizeof(filament::math::float2),
+                    [](void *buf, size_t, void *) {
+                        delete[] static_cast<filament::math::float2 *>(buf);
+                    }));
         } else {
             const ANARIDataType a1Type = attr1Array->elementType();
             if (a1Type == ANARI_FLOAT32_VEC2) {
@@ -389,14 +407,19 @@ void Geometry::commitTriangle()
     // Compute AABB
     mAabb = computeAabb(posData, numVertices);
 
-    // Index buffer
+    // Index buffer (heap-copy — Filament uploads async)
+    auto *idxOwned = new uint32_t[mIndexCount];
+    std::memcpy(idxOwned, indexData, mIndexCount * sizeof(uint32_t));
     mIndexBuffer = filament::IndexBuffer::Builder()
         .indexCount(mIndexCount)
         .bufferType(filament::IndexBuffer::IndexType::UINT)
         .build(*engine);
     mIndexBuffer->setBuffer(*engine,
         filament::IndexBuffer::BufferDescriptor(
-            indexData, mIndexCount * sizeof(uint32_t)));
+            idxOwned, mIndexCount * sizeof(uint32_t),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<uint32_t *>(buf);
+            }));
 
     markCommitted();
 }
@@ -1489,9 +1512,16 @@ void Geometry::commitQuad()
 
     mVertexBuffer = builder.build(*engine);
 
+    auto *posOwned = new filament::math::float3[numVertices];
+    std::memcpy(posOwned, posData,
+        numVertices * sizeof(filament::math::float3));
     mVertexBuffer->setBufferAt(*engine, posBuffer,
         filament::VertexBuffer::BufferDescriptor(
-            posData, numVertices * sizeof(filament::math::float3)));
+            posOwned,
+            numVertices * sizeof(filament::math::float3),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<filament::math::float3 *>(buf);
+            }));
 
     auto *tangentOwned = new filament::math::short4[numVertices];
     std::memcpy(tangentOwned, tangents.data(),
@@ -1584,13 +1614,18 @@ void Geometry::commitQuad()
 
     mAabb = computeAabb(posData, numVertices);
 
+    auto *idxOwned = new uint32_t[mIndexCount];
+    std::memcpy(idxOwned, indexData, mIndexCount * sizeof(uint32_t));
     mIndexBuffer = filament::IndexBuffer::Builder()
         .indexCount(mIndexCount)
         .bufferType(filament::IndexBuffer::IndexType::UINT)
         .build(*engine);
     mIndexBuffer->setBuffer(*engine,
         filament::IndexBuffer::BufferDescriptor(
-            indexData, mIndexCount * sizeof(uint32_t)));
+            idxOwned, mIndexCount * sizeof(uint32_t),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<uint32_t *>(buf);
+            }));
 
     markCommitted();
 }

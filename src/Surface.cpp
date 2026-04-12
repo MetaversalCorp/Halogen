@@ -180,6 +180,11 @@ void Surface::commitParameters()
     mGeometry = getParamObject<Geometry>("geometry");
     mMaterial = getParamObject<Material>("material");
 
+    markCommitted();
+}
+
+void Surface::finalize()
+{
     if (!mGeometry || !mMaterial)
         return;
 
@@ -214,12 +219,11 @@ void Surface::commitParameters()
             vb, ib, 0, idxCount)
         .material(0, mMaterial->materialInstance())
         .boundingBox(box)
-        .receiveShadows(false)
-        .castShadows(false)
+        .receiveShadows(true)
+        .castShadows(true)
         .build(*engine, mEntity);
 
     mBuilt = true;
-    markCommitted();
 }
 
 bool Surface::isValid() const
