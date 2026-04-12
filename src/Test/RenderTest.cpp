@@ -84,7 +84,7 @@ void RenderTest::cameraExposure()
     ANARICamera camera = anariNewCamera(f.device, "perspective");
     CORRADE_VERIFY(camera);
 
-    float exposure = 2.5f;
+    const float exposure = 2.5f;
     anariSetParameter(
         f.device, camera, "exposure", ANARI_FLOAT32, &exposure);
     anariCommitParameters(f.device, camera);
@@ -100,10 +100,10 @@ void RenderTest::cameraOrthographic()
     ANARICamera camera = anariNewCamera(f.device, "orthographic");
     CORRADE_VERIFY(camera);
 
-    float aspect = 1.0f;
-    float height = 2.0f;
-    float near = 0.01f;
-    float far = 100.0f;
+    const float aspect = 1.0f;
+    const float height = 2.0f;
+    const float near = 0.01f;
+    const float far = 100.0f;
     anariSetParameter(f.device, camera, "aspect", ANARI_FLOAT32, &aspect);
     anariSetParameter(f.device, camera, "height", ANARI_FLOAT32, &height);
     anariSetParameter(f.device, camera, "near", ANARI_FLOAT32, &near);
@@ -118,7 +118,7 @@ void RenderTest::cameraOrthographic()
     anariCommitParameters(f.device, renderer);
 
     ANARIFrame frame = anariNewFrame(f.device);
-    uint32_t imgSize[] = {32, 32};
+    const uint32_t imgSize[] = {32, 32};
     anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
     anariSetParameter(f.device, frame, "renderer", ANARI_RENDERER, &renderer);
     anariSetParameter(f.device, frame, "camera", ANARI_CAMERA, &camera);
@@ -143,8 +143,8 @@ void RenderTest::cameraNearFar()
     ANARICamera camera = anariNewCamera(f.device, "perspective");
     CORRADE_VERIFY(camera);
 
-    float near = 0.5f;
-    float far = 500.0f;
+    const float near = 0.5f;
+    const float far = 500.0f;
     anariSetParameter(f.device, camera, "near", ANARI_FLOAT32, &near);
     anariSetParameter(f.device, camera, "far", ANARI_FLOAT32, &far);
     anariCommitParameters(f.device, camera);
@@ -184,8 +184,8 @@ void RenderTest::frameValidWithAllParams()
     anariCommitParameters(f.device, renderer);
 
     ANARIFrame frame = anariNewFrame(f.device);
-    uint32_t imgSize[] = {64, 64};
-    ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
+    const uint32_t imgSize[] = {64, 64};
+    const ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
     anariSetParameter(
         f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
     anariSetParameter(
@@ -223,28 +223,28 @@ void RenderTest::renderTriangle()
 
     ANARICamera camera = anariNewCamera(f.device, "perspective");
     CORRADE_VERIFY(camera);
-    float aspect = 1024.0f / 768.0f;
+    const float aspect = 1024.0f / 768.0f;
     anariSetParameter(f.device, camera, "aspect", ANARI_FLOAT32, &aspect);
-    float cam_pos[] = {0.0f, 0.0f, 0.0f};
+    const float cam_pos[] = {0.0f, 0.0f, 0.0f};
     anariSetParameter(f.device, camera, "position", ANARI_FLOAT32_VEC3, cam_pos);
-    float cam_dir[] = {0.0f, 0.0f, -1.0f};
+    const float cam_dir[] = {0.0f, 0.0f, -1.0f};
     anariSetParameter(
         f.device, camera, "direction", ANARI_FLOAT32_VEC3, cam_dir);
-    float cam_up[] = {0.0f, 1.0f, 0.0f};
+    const float cam_up[] = {0.0f, 1.0f, 0.0f};
     anariSetParameter(f.device, camera, "up", ANARI_FLOAT32_VEC3, cam_up);
     anariCommitParameters(f.device, camera);
 
-    float vertex[] = {
+    const float vertex[] = {
         -1.0f, -1.0f, -3.0f,
          1.0f, -1.0f, -3.0f,
         -1.0f,  1.0f, -3.0f,
          1.0f,  1.0f, -3.0f};
-    float color[] = {
+    const float color[] = {
         0.9f, 0.5f, 0.5f, 1.0f,
         0.8f, 0.8f, 0.8f, 1.0f,
         0.8f, 0.8f, 0.8f, 1.0f,
         0.5f, 0.9f, 0.5f, 1.0f};
-    uint32_t index[] = {0, 1, 2, 1, 3, 2};
+    const uint32_t index[] = {0, 1, 2, 1, 3, 2};
 
     ANARIArray1D posArray = anariNewArray1D(
         f.device, vertex, nullptr, nullptr, ANARI_FLOAT32_VEC3, 4);
@@ -291,8 +291,8 @@ void RenderTest::renderTriangle()
     anariCommitParameters(f.device, renderer);
 
     ANARIFrame frame = anariNewFrame(f.device);
-    uint32_t imgSize[] = {1024, 768};
-    ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
+    const uint32_t imgSize[] = {1024, 768};
+    const ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
     anariSetParameter(
         f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
     anariSetParameter(
@@ -363,12 +363,12 @@ void RenderTest::groupAndInstance()
     DeviceFixture f;
     CORRADE_VERIFY(f.device);
 
-    float vertex[] = {
+    const float vertex[] = {
         -0.5f, -0.5f, -3.0f,
          0.5f, -0.5f, -3.0f,
          0.0f,  0.5f, -3.0f};
-    uint32_t index[] = {0, 1, 2};
-    float color[] = {
+    const uint32_t index[] = {0, 1, 2};
+    const float color[] = {
         1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 1.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 1.0f};
@@ -411,7 +411,7 @@ void RenderTest::groupAndInstance()
     ANARIInstance inst = anariNewInstance(f.device, "transform");
     CORRADE_VERIFY(inst);
     anariSetParameter(f.device, inst, "group", ANARI_GROUP, &group);
-    float transform[] = {
+    const float transform[] = {
         1, 0, 0, 0,
         0, 1, 0, 0,
         0, 0, 1, 0,
@@ -434,11 +434,11 @@ void RenderTest::groupAndInstance()
     anariCommitParameters(f.device, world);
 
     ANARICamera camera = anariNewCamera(f.device, "perspective");
-    float aspect = 1.0f;
+    const float aspect = 1.0f;
     anariSetParameter(f.device, camera, "aspect", ANARI_FLOAT32, &aspect);
-    float cam_pos[] = {0.0f, 0.0f, 0.0f};
-    float cam_dir[] = {0.0f, 0.0f, -1.0f};
-    float cam_up[] = {0.0f, 1.0f, 0.0f};
+    const float cam_pos[] = {0.0f, 0.0f, 0.0f};
+    const float cam_dir[] = {0.0f, 0.0f, -1.0f};
+    const float cam_up[] = {0.0f, 1.0f, 0.0f};
     anariSetParameter(
         f.device, camera, "position", ANARI_FLOAT32_VEC3, cam_pos);
     anariSetParameter(
@@ -450,8 +450,8 @@ void RenderTest::groupAndInstance()
     anariCommitParameters(f.device, renderer);
 
     ANARIFrame frame = anariNewFrame(f.device);
-    uint32_t imgSize[] = {64, 64};
-    ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
+    const uint32_t imgSize[] = {64, 64};
+    const ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
     anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
     anariSetParameter(
         f.device, frame, "channel.color", ANARI_DATA_TYPE, &colorType);
@@ -511,13 +511,13 @@ void RenderTest::rendererBackgroundColor()
     anariCommitParameters(f.device, world);
 
     ANARIRenderer renderer = anariNewRenderer(f.device, "default");
-    float bg[] = {0.2f, 0.4f, 0.8f, 1.0f};
+    const float bg[] = {0.2f, 0.4f, 0.8f, 1.0f};
     anariSetParameter(
         f.device, renderer, "background", ANARI_FLOAT32_VEC4, bg);
     anariCommitParameters(f.device, renderer);
 
     ANARIFrame frame = anariNewFrame(f.device);
-    uint32_t imgSize[] = {32, 32};
+    const uint32_t imgSize[] = {32, 32};
     anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
     anariSetParameter(f.device, frame, "renderer", ANARI_RENDERER, &renderer);
     anariSetParameter(f.device, frame, "camera", ANARI_CAMERA, &camera);

@@ -57,9 +57,9 @@ void LightTest::directionalLight()
     ANARILight light = anariNewLight(f.device, "directional");
     CORRADE_VERIFY(light);
 
-    float direction[] = {0.0f, -1.0f, 0.0f};
-    float color[] = {1.0f, 0.8f, 0.6f};
-    float irradiance = 2.0f;
+    const float direction[] = {0.0f, -1.0f, 0.0f};
+    const float color[] = {1.0f, 0.8f, 0.6f};
+    const float irradiance = 2.0f;
     anariSetParameter(
         f.device, light, "direction", ANARI_FLOAT32_VEC3, direction);
     anariSetParameter(
@@ -79,9 +79,9 @@ void LightTest::pointLight()
     ANARILight light = anariNewLight(f.device, "point");
     CORRADE_VERIFY(light);
 
-    float position[] = {1.0f, 2.0f, 3.0f};
-    float color[] = {1.0f, 0.0f, 0.0f};
-    float intensity = 10.0f;
+    const float position[] = {1.0f, 2.0f, 3.0f};
+    const float color[] = {1.0f, 0.0f, 0.0f};
+    const float intensity = 10.0f;
     anariSetParameter(
         f.device, light, "position", ANARI_FLOAT32_VEC3, position);
     anariSetParameter(
@@ -101,12 +101,12 @@ void LightTest::spotLight()
     ANARILight light = anariNewLight(f.device, "spot");
     CORRADE_VERIFY(light);
 
-    float position[] = {0.0f, 5.0f, 0.0f};
-    float direction[] = {0.0f, -1.0f, 0.0f};
-    float color[] = {1.0f, 1.0f, 1.0f};
-    float intensity = 50.0f;
-    float openingAngle = 0.785f;
-    float falloffAngle = 0.1f;
+    const float position[] = {0.0f, 5.0f, 0.0f};
+    const float direction[] = {0.0f, -1.0f, 0.0f};
+    const float color[] = {1.0f, 1.0f, 1.0f};
+    const float intensity = 50.0f;
+    const float openingAngle = 0.785f;
+    const float falloffAngle = 0.1f;
     anariSetParameter(
         f.device, light, "position", ANARI_FLOAT32_VEC3, position);
     anariSetParameter(
@@ -130,7 +130,7 @@ void LightTest::pointLightRender()
     CORRADE_VERIFY(f.device);
 
     // Create a simple scene with a point light to verify rendering completes
-    float vertices[] = {
+    const float vertices[] = {
         -1.0f, -1.0f, -3.0f,
          1.0f, -1.0f, -3.0f,
          0.0f,  1.0f, -3.0f};
@@ -160,8 +160,8 @@ void LightTest::pointLightRender()
         f.device, world, "surface", ANARI_ARRAY1D, &surfArr);
 
     ANARILight light = anariNewLight(f.device, "point");
-    float lightPos[] = {0.0f, 2.0f, 0.0f};
-    float intensity = 50.0f;
+    const float lightPos[] = {0.0f, 2.0f, 0.0f};
+    const float intensity = 50.0f;
     anariSetParameter(
         f.device, light, "position", ANARI_FLOAT32_VEC3, lightPos);
     anariSetParameter(
@@ -181,7 +181,7 @@ void LightTest::pointLightRender()
     anariCommitParameters(f.device, renderer);
 
     ANARIFrame frame = anariNewFrame(f.device);
-    uint32_t imgSize[] = {32, 32};
+    const uint32_t imgSize[] = {32, 32};
     anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
     anariSetParameter(f.device, frame, "renderer", ANARI_RENDERER, &renderer);
     anariSetParameter(f.device, frame, "camera", ANARI_CAMERA, &camera);

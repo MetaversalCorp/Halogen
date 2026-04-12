@@ -219,6 +219,7 @@ coverage:macos-arm64:
       -instr-profile=build-cov/coverage.profdata
       -ignore-filename-regex='.*/(external|build-cov)/.*'
       build-cov/Debug/bin/libanari_library_filament.dylib
+      | awk '{print} /^TOTAL/{printf "LINE_COVERAGE: %s\n", $10}'
     - >
       xcrun llvm-cov export
       -format=lcov
@@ -226,7 +227,7 @@ coverage:macos-arm64:
       -ignore-filename-regex='.*/(external|build-cov)/.*'
       build-cov/Debug/bin/libanari_library_filament.dylib
       > build-cov/coverage.lcov
-  coverage: '/TOTAL.*(\d+\.\d+)%/'
+  coverage: '/LINE_COVERAGE: (\d+\.\d+)%/'
   artifacts:
     paths:
       - build-cov/coverage.lcov

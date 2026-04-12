@@ -62,7 +62,7 @@ void MaterialTest::matteVertexColor()
     anariSetParameter(f.device, mat, "color", ANARI_STRING, "color");
     anariCommitParameters(f.device, mat);
 
-    float solidColor[] = {1.0f, 0.0f, 0.0f};
+    const float solidColor[] = {1.0f, 0.0f, 0.0f};
     anariSetParameter(
         f.device, mat, "color", ANARI_FLOAT32_VEC3, solidColor);
     anariCommitParameters(f.device, mat);
@@ -75,9 +75,9 @@ void MaterialTest::pbrMaterial()
     DeviceFixture f;
     CORRADE_VERIFY(f.device);
 
-    float positions[] = {0.0f, 0.0f, -3.0f, 1.0f, 0.0f, -3.0f};
-    float metallic[] = {0.0f, 1.0f};
-    float roughness[] = {0.2f, 0.8f};
+    const float positions[] = {0.0f, 0.0f, -3.0f, 1.0f, 0.0f, -3.0f};
+    const float metallic[] = {0.0f, 1.0f};
+    const float roughness[] = {0.2f, 0.8f};
 
     ANARIArray1D posArr = anariNewArray1D(
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 2);
@@ -93,12 +93,12 @@ void MaterialTest::pbrMaterial()
         f.device, geom, "vertex.attribute0", ANARI_ARRAY1D, &attr0Arr);
     anariSetParameter(
         f.device, geom, "vertex.attribute1", ANARI_ARRAY1D, &attr1Arr);
-    float radius = 0.4f;
+    const float radius = 0.4f;
     anariSetParameter(f.device, geom, "radius", ANARI_FLOAT32, &radius);
     anariCommitParameters(f.device, geom);
 
     ANARIMaterial mat = anariNewMaterial(f.device, "physicallyBased");
-    float baseColor[] = {1.0f, 0.0f, 0.0f};
+    const float baseColor[] = {1.0f, 0.0f, 0.0f};
     anariSetParameter(
         f.device, mat, "baseColor", ANARI_FLOAT32_VEC3, baseColor);
     anariSetParameter(f.device, mat, "metallic", ANARI_STRING, "attribute0");
@@ -126,11 +126,11 @@ void MaterialTest::pbrMaterial()
     anariCommitParameters(f.device, world);
 
     ANARICamera camera = anariNewCamera(f.device, "perspective");
-    float aspect = 1.0f;
+    const float aspect = 1.0f;
     anariSetParameter(f.device, camera, "aspect", ANARI_FLOAT32, &aspect);
-    float cam_pos[] = {0.5f, 0.0f, 0.0f};
-    float cam_dir[] = {0.0f, 0.0f, -1.0f};
-    float cam_up[] = {0.0f, 1.0f, 0.0f};
+    const float cam_pos[] = {0.5f, 0.0f, 0.0f};
+    const float cam_dir[] = {0.0f, 0.0f, -1.0f};
+    const float cam_up[] = {0.0f, 1.0f, 0.0f};
     anariSetParameter(
         f.device, camera, "position", ANARI_FLOAT32_VEC3, cam_pos);
     anariSetParameter(
@@ -142,8 +142,8 @@ void MaterialTest::pbrMaterial()
     anariCommitParameters(f.device, renderer);
 
     ANARIFrame frame = anariNewFrame(f.device);
-    uint32_t imgSize[] = {64, 64};
-    ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
+    const uint32_t imgSize[] = {64, 64};
+    const ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
     anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
     anariSetParameter(
         f.device, frame, "channel.color", ANARI_DATA_TYPE, &colorType);
@@ -196,8 +196,8 @@ void MaterialTest::pbrEmissive()
     ANARIMaterial mat = anariNewMaterial(f.device, "physicallyBased");
     CORRADE_VERIFY(mat);
 
-    float baseColor[] = {0.2f, 0.2f, 0.2f};
-    float emissive[] = {1.0f, 0.5f, 0.0f};
+    const float baseColor[] = {0.2f, 0.2f, 0.2f};
+    const float emissive[] = {1.0f, 0.5f, 0.0f};
     anariSetParameter(
         f.device, mat, "baseColor", ANARI_FLOAT32_VEC3, baseColor);
     anariSetParameter(
@@ -215,8 +215,8 @@ void MaterialTest::matteOpacity()
     ANARIMaterial mat = anariNewMaterial(f.device, "matte");
     CORRADE_VERIFY(mat);
 
-    float color[] = {1.0f, 0.0f, 0.0f};
-    float opacity = 0.5f;
+    const float color[] = {1.0f, 0.0f, 0.0f};
+    const float opacity = 0.5f;
     anariSetParameter(
         f.device, mat, "color", ANARI_FLOAT32_VEC3, color);
     anariSetParameter(
@@ -241,7 +241,7 @@ void MaterialTest::materialAlphaMode()
     // Test blend mode
     ANARIMaterial matBlend = anariNewMaterial(f.device, "physicallyBased");
     CORRADE_VERIFY(matBlend);
-    float opacity = 0.7f;
+    const float opacity = 0.7f;
     anariSetParameter(
         f.device, matBlend, "alphaMode", ANARI_STRING, "blend");
     anariSetParameter(
@@ -251,7 +251,7 @@ void MaterialTest::materialAlphaMode()
     // Test mask mode
     ANARIMaterial matMask = anariNewMaterial(f.device, "physicallyBased");
     CORRADE_VERIFY(matMask);
-    float cutoff = 0.3f;
+    const float cutoff = 0.3f;
     anariSetParameter(
         f.device, matMask, "alphaMode", ANARI_STRING, "mask");
     anariSetParameter(

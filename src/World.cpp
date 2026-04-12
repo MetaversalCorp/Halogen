@@ -43,7 +43,7 @@ void World::clearInstanceEntities()
 
 void World::commitParameters()
 {
-    filament::Engine *engine = deviceState()->engine;
+    filament::Engine * const engine = deviceState()->engine;
 
     // Remove all existing entities from the scene
     for (const helium::IntrusivePtr<Surface> &surf : mSurfaces) {
@@ -62,8 +62,8 @@ void World::commitParameters()
     helium::ObjectArray *surfaceArray =
         getParamObject<helium::ObjectArray>("surface");
     if (surfaceArray) {
-        helium::BaseObject **handles = surfaceArray->handlesBegin();
-        size_t total = surfaceArray->totalSize();
+        helium::BaseObject ** const handles = surfaceArray->handlesBegin();
+        const size_t total = surfaceArray->totalSize();
 
         size_t validCount = 0;
         for (size_t i = 0; i < total; ++i) {
@@ -88,8 +88,8 @@ void World::commitParameters()
     helium::ObjectArray *instanceArray =
         getParamObject<helium::ObjectArray>("instance");
     if (instanceArray) {
-        helium::BaseObject **handles = instanceArray->handlesBegin();
-        size_t total = instanceArray->totalSize();
+        helium::BaseObject ** const handles = instanceArray->handlesBegin();
+        const size_t total = instanceArray->totalSize();
 
         // Count total instance entities needed
         size_t totalEntities = 0;

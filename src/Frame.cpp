@@ -73,9 +73,9 @@ void Frame::finalize() {}
 
 void Frame::renderFrame()
 {
-    DeviceState *state = deviceState();
-    filament::Engine *engine = state->engine;
-    filament::Renderer *renderer = state->renderer.get();
+    DeviceState * const state = deviceState();
+    filament::Engine * const engine = state->engine;
+    filament::Renderer * const renderer = state->renderer.get();
 
     state->commitBuffer.flush();
 

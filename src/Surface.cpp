@@ -41,7 +41,7 @@ Surface::~Surface()
 
 void Surface::buildPrimitiveSamplerBuffers()
 {
-    filament::Engine *engine = deviceState()->engine;
+    filament::Engine * const engine = deviceState()->engine;
 
     if (mOwnedVB) {
         engine->destroy(mOwnedVB);
@@ -71,7 +71,7 @@ void Surface::buildPrimitiveSamplerBuffers()
 
     const filament::math::float3 *srcPos =
         static_cast<const filament::math::float3 *>(posArray->data());
-    const uint32_t numSrcVerts = static_cast<uint32_t>(posArray->totalSize());
+    const uint32_t numSrcVerts = uint32_t(posArray->totalSize());
 
     // Build index list
     uint32_t numTris = 0;
@@ -79,7 +79,7 @@ void Surface::buildPrimitiveSamplerBuffers()
     Corrade::Containers::Array<uint32_t> genIdx;
 
     if (idxArray) {
-        numTris = static_cast<uint32_t>(idxArray->totalSize());
+        numTris = uint32_t(idxArray->totalSize());
         srcIdx = static_cast<const uint32_t *>(idxArray->data());
     } else {
         numTris = numSrcVerts / 3;
@@ -187,7 +187,7 @@ void Surface::commitParameters()
         || !mMaterial->materialInstance())
         return;
 
-    filament::Engine *engine = deviceState()->engine;
+    filament::Engine * const engine = deviceState()->engine;
 
     if (mBuilt)
         engine->getRenderableManager().destroy(mEntity);
@@ -202,7 +202,7 @@ void Surface::commitParameters()
         if (mOwnedVB && mOwnedIB) {
             vb = mOwnedVB;
             ib = mOwnedIB;
-            idxCount = static_cast<uint32_t>(mOwnedIB->getIndexCount());
+            idxCount = uint32_t(mOwnedIB->getIndexCount());
         }
     }
 
