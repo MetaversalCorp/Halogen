@@ -5,13 +5,14 @@
 
 #include "Object.h"
 
+#include <Corrade/Containers/String.h>
 #include <utils/Entity.h>
 
 namespace AnariFilament {
 
 struct Light : public Object
 {
-    Light(DeviceState *s);
+    Light(DeviceState *s, const char *subtype);
     ~Light() override;
 
     void commitParameters() override;
@@ -19,6 +20,7 @@ struct Light : public Object
     utils::Entity entity() const { return mEntity; }
 
 private:
+    Corrade::Containers::String mSubtype;
     utils::Entity mEntity;
     bool mBuilt = false;
 };

@@ -14,6 +14,7 @@
 #include <Corrade/Containers/Array.h>
 
 namespace filament {
+class IndirectLight;
 class RenderTarget;
 class SwapChain;
 class Texture;
@@ -64,6 +65,7 @@ private:
     FilamentResource<filament::Texture> mColorTexture;
     FilamentResource<filament::Texture> mDepthTexture;
     FilamentResource<filament::RenderTarget> mRenderTarget;
+    FilamentResource<filament::IndirectLight> mIndirectLight;
 
     Corrade::Containers::Array<char> mPixelBuffer;
     bool mFrameReady = false;

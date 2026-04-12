@@ -1,6 +1,7 @@
 material {
-    name : PhysicallyBased,
+    name : PhysicallyBasedBlend,
     shadingModel : lit,
+    blending : transparent,
     parameters : [
         {
             type : float4,

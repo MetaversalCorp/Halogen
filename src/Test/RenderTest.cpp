@@ -41,20 +41,26 @@ struct RenderTest : Corrade::TestSuite::Tester {
 
     void cameraDefaults();
     void cameraExposure();
+    void cameraOrthographic();
+    void cameraNearFar();
     void frameInvalidWithoutRequiredParams();
     void frameValidWithAllParams();
     void renderTriangle();
     void groupAndInstance();
+    void rendererBackgroundColor();
 };
 
 RenderTest::RenderTest()
 {
     addTests({&RenderTest::cameraDefaults,
         &RenderTest::cameraExposure,
+        &RenderTest::cameraOrthographic,
+        &RenderTest::cameraNearFar,
         &RenderTest::frameInvalidWithoutRequiredParams,
         &RenderTest::frameValidWithAllParams,
         &RenderTest::renderTriangle,
-        &RenderTest::groupAndInstance});
+        &RenderTest::groupAndInstance,
+        &RenderTest::rendererBackgroundColor});
 }
 
 void RenderTest::cameraDefaults()
@@ -81,6 +87,66 @@ void RenderTest::cameraExposure()
     float exposure = 2.5f;
     anariSetParameter(
         f.device, camera, "exposure", ANARI_FLOAT32, &exposure);
+    anariCommitParameters(f.device, camera);
+
+    anariRelease(f.device, camera);
+}
+
+void RenderTest::cameraOrthographic()
+{
+    DeviceFixture f;
+    CORRADE_VERIFY(f.device);
+
+    ANARICamera camera = anariNewCamera(f.device, "orthographic");
+    CORRADE_VERIFY(camera);
+
+    float aspect = 1.0f;
+    float height = 2.0f;
+    float near = 0.01f;
+    float far = 100.0f;
+    anariSetParameter(f.device, camera, "aspect", ANARI_FLOAT32, &aspect);
+    anariSetParameter(f.device, camera, "height", ANARI_FLOAT32, &height);
+    anariSetParameter(f.device, camera, "near", ANARI_FLOAT32, &near);
+    anariSetParameter(f.device, camera, "far", ANARI_FLOAT32, &far);
+    anariCommitParameters(f.device, camera);
+
+    // Create a minimal scene to verify orthographic rendering completes
+    ANARIWorld world = anariNewWorld(f.device);
+    anariCommitParameters(f.device, world);
+
+    ANARIRenderer renderer = anariNewRenderer(f.device, "default");
+    anariCommitParameters(f.device, renderer);
+
+    ANARIFrame frame = anariNewFrame(f.device);
+    uint32_t imgSize[] = {32, 32};
+    anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
+    anariSetParameter(f.device, frame, "renderer", ANARI_RENDERER, &renderer);
+    anariSetParameter(f.device, frame, "camera", ANARI_CAMERA, &camera);
+    anariSetParameter(f.device, frame, "world", ANARI_WORLD, &world);
+    anariCommitParameters(f.device, frame);
+
+    anariRenderFrame(f.device, frame);
+    int ready = anariFrameReady(f.device, frame, ANARI_WAIT);
+    CORRADE_VERIFY(ready);
+
+    anariRelease(f.device, frame);
+    anariRelease(f.device, renderer);
+    anariRelease(f.device, world);
+    anariRelease(f.device, camera);
+}
+
+void RenderTest::cameraNearFar()
+{
+    DeviceFixture f;
+    CORRADE_VERIFY(f.device);
+
+    ANARICamera camera = anariNewCamera(f.device, "perspective");
+    CORRADE_VERIFY(camera);
+
+    float near = 0.5f;
+    float far = 500.0f;
+    anariSetParameter(f.device, camera, "near", ANARI_FLOAT32, &near);
+    anariSetParameter(f.device, camera, "far", ANARI_FLOAT32, &far);
     anariCommitParameters(f.device, camera);
 
     anariRelease(f.device, camera);
@@ -431,6 +497,57 @@ void RenderTest::groupAndInstance()
     anariRelease(f.device, colArr);
     anariRelease(f.device, posArr);
     anariRelease(f.device, geom);
+}
+
+void RenderTest::rendererBackgroundColor()
+{
+    DeviceFixture f;
+    CORRADE_VERIFY(f.device);
+
+    ANARICamera camera = anariNewCamera(f.device, "perspective");
+    anariCommitParameters(f.device, camera);
+
+    ANARIWorld world = anariNewWorld(f.device);
+    anariCommitParameters(f.device, world);
+
+    ANARIRenderer renderer = anariNewRenderer(f.device, "default");
+    float bg[] = {0.2f, 0.4f, 0.8f, 1.0f};
+    anariSetParameter(
+        f.device, renderer, "background", ANARI_FLOAT32_VEC4, bg);
+    anariCommitParameters(f.device, renderer);
+
+    ANARIFrame frame = anariNewFrame(f.device);
+    uint32_t imgSize[] = {32, 32};
+    anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
+    anariSetParameter(f.device, frame, "renderer", ANARI_RENDERER, &renderer);
+    anariSetParameter(f.device, frame, "camera", ANARI_CAMERA, &camera);
+    anariSetParameter(f.device, frame, "world", ANARI_WORLD, &world);
+    anariCommitParameters(f.device, frame);
+
+    anariRenderFrame(f.device, frame);
+    anariFrameReady(f.device, frame, ANARI_WAIT);
+
+    uint32_t width = 0, height = 0;
+    ANARIDataType fbType = ANARI_UNKNOWN;
+    auto *fb = static_cast<const uint8_t *>(anariMapFrame(
+        f.device, frame, "channel.color", &width, &height, &fbType));
+    CORRADE_VERIFY(fb != nullptr);
+
+    // The background should be visible (non-black) in an empty scene
+    bool hasNonBlack = false;
+    for (uint32_t i = 0; i < width * height * 4; i += 4) {
+        if (fb[i] > 0 || fb[i + 1] > 0 || fb[i + 2] > 0) {
+            hasNonBlack = true;
+            break;
+        }
+    }
+    CORRADE_VERIFY(hasNonBlack);
+
+    anariUnmapFrame(f.device, frame, "channel.color");
+    anariRelease(f.device, frame);
+    anariRelease(f.device, renderer);
+    anariRelease(f.device, world);
+    anariRelease(f.device, camera);
 }
 
 }

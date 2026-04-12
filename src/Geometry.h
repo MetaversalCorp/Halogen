@@ -35,6 +35,8 @@ private:
     void commitTriangle();
     void commitSphere();
     void commitCylinder();
+    void commitQuad();
+    void commitCone();
 
     Corrade::Containers::String mSubtype;
     filament::VertexBuffer *mVertexBuffer = nullptr;

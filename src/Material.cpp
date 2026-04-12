@@ -44,9 +44,23 @@ void Material::commitParameters()
 
     filament::Material *baseMaterial = nullptr;
     if (mSubtype == "physicallyBased"_s) {
-        baseMaterial = state->physicallyBasedMaterial.get();
+        Corrade::Containers::String alphaMode =
+            getParamString("alphaMode", "opaque");
+        if (alphaMode == "blend"_s)
+            baseMaterial = state->physicallyBasedBlendMaterial.get();
+        else if (alphaMode == "mask"_s)
+            baseMaterial = state->physicallyBasedMaskedMaterial.get();
+        else
+            baseMaterial = state->physicallyBasedMaterial.get();
     } else {
-        baseMaterial = state->matteMaterial.get();
+        Corrade::Containers::String alphaMode =
+            getParamString("alphaMode", "opaque");
+        if (alphaMode == "blend"_s)
+            baseMaterial = state->matteBlendMaterial.get();
+        else if (alphaMode == "mask"_s)
+            baseMaterial = state->matteMaskedMaterial.get();
+        else
+            baseMaterial = state->matteMaterial.get();
     }
 
     if (!baseMaterial) {
@@ -121,6 +135,18 @@ void Material::commitParameters()
             mMaterialInstance->setParameter("hasColorTransform", false);
     }
 
+    // Opacity
+    float opacity = getParam<float>("opacity", 1.0f);
+    mMaterialInstance->setParameter("opacity", opacity);
+
+    // Alpha cutoff for masked mode
+    Corrade::Containers::String alphaMode =
+        getParamString("alphaMode", "opaque");
+    if (alphaMode == "mask"_s) {
+        float alphaCutoff = getParam<float>("alphaCutoff", 0.5f);
+        mMaterialInstance->setMaskThreshold(alphaCutoff);
+    }
+
     if (mSubtype == "physicallyBased"_s) {
         // Metallic: can be float or "attribute0"
         Corrade::Containers::String metallicStr =
@@ -144,6 +170,26 @@ void Material::commitParameters()
             mMaterialInstance->setParameter("useAttribute1ForRoughness", false);
             float roughness = getParam<float>("roughness", 1.0f);
             mMaterialInstance->setParameter("roughness", roughness);
+        }
+
+        // Emissive color
+        using float3 = anari::math::float3;
+        float3 emissive = getParam<float3>(
+            "emissive", float3(0.0f, 0.0f, 0.0f));
+        mMaterialInstance->setParameter("emissive",
+            filament::math::float3{emissive[0], emissive[1], emissive[2]});
+
+        // Normal map
+        mNormalSampler = getParamObject<Sampler>("normal");
+        if (mNormalSampler && mNormalSampler->texture()) {
+            mMaterialInstance->setParameter("hasNormalMap", true);
+            filament::TextureSampler normalSampler(
+                filament::TextureSampler::MagFilter::LINEAR);
+            mMaterialInstance->setParameter("normalMap",
+                mNormalSampler->texture(), normalSampler);
+        } else {
+            mNormalSampler = nullptr;
+            mMaterialInstance->setParameter("hasNormalMap", false);
         }
     }
 

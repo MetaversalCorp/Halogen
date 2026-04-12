@@ -1,6 +1,7 @@
 material {
-    name : Matte,
+    name : MatteBlend,
     shadingModel : lit,
+    blending : transparent,
     parameters : [
         {
             type : float4,

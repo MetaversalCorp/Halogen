@@ -25,7 +25,11 @@
 #include <helium/array/ObjectArray.h>
 
 #include "matte_mat.h"
+#include "matteBlend_mat.h"
+#include "matteMasked_mat.h"
 #include "physicallyBased_mat.h"
+#include "physicallyBasedBlend_mat.h"
+#include "physicallyBasedMasked_mat.h"
 
 namespace AnariFilament {
 
@@ -102,10 +106,10 @@ ANARIArray3D Device::newArray3D(const void *appMemory,
     return reinterpret_cast<ANARIArray3D>(new helium::Array3D(deviceState(), md));
 }
 
-ANARICamera Device::newCamera(const char *)
+ANARICamera Device::newCamera(const char *subtype)
 {
     initDevice();
-    return reinterpret_cast<ANARICamera>(new Camera(deviceState()));
+    return reinterpret_cast<ANARICamera>(new Camera(deviceState(), subtype));
 }
 
 ANARIFrame Device::newFrame()
@@ -132,10 +136,10 @@ ANARIInstance Device::newInstance(const char *)
     return reinterpret_cast<ANARIInstance>(new Instance(deviceState()));
 }
 
-ANARILight Device::newLight(const char *)
+ANARILight Device::newLight(const char *subtype)
 {
     initDevice();
-    return reinterpret_cast<ANARILight>(new Light(deviceState()));
+    return reinterpret_cast<ANARILight>(new Light(deviceState(), subtype));
 }
 
 ANARIMaterial Device::newMaterial(const char *subtype)
@@ -239,9 +243,31 @@ void Device::initDevice()
             .package(MATTE_MAT_DATA, MATTE_MAT_SIZE)
             .build(*state->engine)};
 
+    state->matteBlendMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(MATTEBLEND_MAT_DATA, MATTEBLEND_MAT_SIZE)
+            .build(*state->engine)};
+
+    state->matteMaskedMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(MATTEMASKED_MAT_DATA, MATTEMASKED_MAT_SIZE)
+            .build(*state->engine)};
+
     state->physicallyBasedMaterial = {state->engine,
         filament::Material::Builder()
             .package(PHYSICALLYBASED_MAT_DATA, PHYSICALLYBASED_MAT_SIZE)
+            .build(*state->engine)};
+
+    state->physicallyBasedBlendMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(PHYSICALLYBASEDBLEND_MAT_DATA,
+                PHYSICALLYBASEDBLEND_MAT_SIZE)
+            .build(*state->engine)};
+
+    state->physicallyBasedMaskedMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(PHYSICALLYBASEDMASKED_MAT_DATA,
+                PHYSICALLYBASEDMASKED_MAT_SIZE)
             .build(*state->engine)};
 }
 

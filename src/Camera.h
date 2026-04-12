@@ -6,6 +6,7 @@
 #include "FilamentResource.h"
 #include "Object.h"
 
+#include <Corrade/Containers/String.h>
 #include <utils/Entity.h>
 
 namespace filament {
@@ -16,7 +17,7 @@ namespace AnariFilament {
 
 struct Camera : public Object
 {
-    Camera(DeviceState *s);
+    Camera(DeviceState *s, const char *subtype);
     ~Camera() override;
 
     void commitParameters() override;
@@ -25,6 +26,7 @@ struct Camera : public Object
     utils::Entity entity() const { return mEntity; }
 
 private:
+    Corrade::Containers::String mSubtype;
     utils::Entity mEntity;
     FilamentResource<filament::Camera> mCamera;
 };
