@@ -150,10 +150,10 @@ ANARIRenderer Device::newRenderer(const char *)
     return reinterpret_cast<ANARIRenderer>(new AnariFilament::Renderer(deviceState()));
 }
 
-ANARISampler Device::newSampler(const char *)
+ANARISampler Device::newSampler(const char *subtype)
 {
     initDevice();
-    return reinterpret_cast<ANARISampler>(new Sampler(deviceState()));
+    return reinterpret_cast<ANARISampler>(new Sampler(deviceState(), subtype));
 }
 
 ANARISpatialField Device::newSpatialField(const char *)

@@ -34,6 +34,7 @@ struct Geometry : public Object
 private:
     void commitTriangle();
     void commitSphere();
+    void commitCylinder();
 
     Corrade::Containers::String mSubtype;
     filament::VertexBuffer *mVertexBuffer = nullptr;

@@ -29,12 +29,16 @@ struct Material : public Object
 
     bool usesVertexColors() const { return mUsesVertexColors; }
     bool usesTexture() const { return static_cast<bool>(mColorSampler); }
+    bool usesPrimitiveSampler() const { return mUsesPrimitiveSampler; }
+
+    Sampler *colorSampler() const { return mColorSampler.ptr; }
 
 private:
     Corrade::Containers::String mSubtype;
     filament::MaterialInstance *mMaterialInstance = nullptr;
     helium::IntrusivePtr<Sampler> mColorSampler;
     bool mUsesVertexColors = false;
+    bool mUsesPrimitiveSampler = false;
 };
 
 }

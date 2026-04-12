@@ -4,6 +4,7 @@
 #include "Geometry.h"
 
 #include "Aabb.h"
+#include "ColorConversion.h"
 
 #include <filament/Engine.h>
 #include <filament/IndexBuffer.h>
@@ -26,6 +27,8 @@ ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Geometry *);
 
 namespace AnariFilament {
 
+
+
 Geometry::Geometry(DeviceState *s, const char *subtype)
     : Object(ANARI_GEOMETRY, s)
     , mSubtype(subtype ? subtype : "triangle") {}
@@ -43,6 +46,8 @@ void Geometry::commitParameters()
 {
     if (mSubtype == "sphere"_s)
         commitSphere();
+    else if (mSubtype == "cylinder"_s)
+        commitCylinder();
     else
         commitTriangle();
 }
@@ -63,6 +68,8 @@ void Geometry::commitTriangle()
         getParamObject<helium::Array1D>("vertex.attribute0");
     helium::Array1D *attr1Array =
         getParamObject<helium::Array1D>("vertex.attribute1");
+    helium::Array1D *primColArray =
+        getParamObject<helium::Array1D>("primitive.color");
 
     if (!posArray) {
         reportMessage(ANARI_SEVERITY_ERROR,
@@ -80,7 +87,7 @@ void Geometry::commitTriangle()
     }
 
     uint32_t numVertices = static_cast<uint32_t>(posArray->totalSize());
-    mHasColors = colArray != nullptr;
+    mHasColors = colArray != nullptr || primColArray != nullptr;
     mHasUV0 = attr0Array != nullptr;
     mHasUV1 = attr1Array != nullptr;
 
@@ -104,6 +111,109 @@ void Geometry::commitTriangle()
 
     const filament::math::float3 *posData =
         static_cast<const filament::math::float3 *>(posArray->data());
+
+    // Expand geometry for primitive.color — each triangle gets unique vertices
+    Corrade::Containers::Array<filament::math::float3> expandedPos;
+    Corrade::Containers::Array<filament::math::float3> expandedNor;
+    Corrade::Containers::Array<filament::math::float2> expandedUV0;
+    Corrade::Containers::Array<filament::math::float2> expandedUV1;
+    Corrade::Containers::Array<filament::math::float4> expandedColors;
+    Corrade::Containers::Array<uint32_t> expandedIndices;
+
+    if (primColArray) {
+        uint32_t expVerts = numTriangles * 3;
+        expandedPos = Corrade::Containers::Array<filament::math::float3>{
+            Corrade::NoInit, expVerts};
+        expandedIndices = Corrade::Containers::Array<uint32_t>{
+            Corrade::NoInit, expVerts};
+        expandedColors = Corrade::Containers::Array<filament::math::float4>{
+            Corrade::NoInit, expVerts};
+
+        const filament::math::float3 *norData = norArray
+            ? static_cast<const filament::math::float3 *>(norArray->data())
+            : nullptr;
+        if (norData) {
+            expandedNor = Corrade::Containers::Array<filament::math::float3>{
+                Corrade::NoInit, expVerts};
+        }
+
+        if (attr0Array) {
+            expandedUV0 = Corrade::Containers::Array<filament::math::float2>{
+                Corrade::NoInit, expVerts};
+        }
+        if (attr1Array) {
+            expandedUV1 = Corrade::Containers::Array<filament::math::float2>{
+                Corrade::NoInit, expVerts};
+        }
+
+        ANARIDataType primColType = primColArray->elementType();
+        const void *primColData = primColArray->data();
+
+        Corrade::Containers::Array<filament::math::float4> primColConverted{
+            Corrade::NoInit, numTriangles};
+        convertColors(primColConverted.data(), primColData, primColType,
+            numTriangles);
+
+        for (uint32_t t = 0; t < numTriangles; ++t) {
+            uint32_t i0 = indexData[t * 3 + 0];
+            uint32_t i1 = indexData[t * 3 + 1];
+            uint32_t i2 = indexData[t * 3 + 2];
+            uint32_t base = t * 3;
+
+            expandedPos[base + 0] = posData[i0];
+            expandedPos[base + 1] = posData[i1];
+            expandedPos[base + 2] = posData[i2];
+
+            if (norData) {
+                expandedNor[base + 0] = norData[i0];
+                expandedNor[base + 1] = norData[i1];
+                expandedNor[base + 2] = norData[i2];
+            }
+
+            if (attr0Array) {
+                ANARIDataType a0Type = attr0Array->elementType();
+                const float *uvSrc =
+                    static_cast<const float *>(attr0Array->data());
+                if (a0Type == ANARI_FLOAT32_VEC2) {
+                    expandedUV0[base + 0] = {uvSrc[i0 * 2], uvSrc[i0 * 2 + 1]};
+                    expandedUV0[base + 1] = {uvSrc[i1 * 2], uvSrc[i1 * 2 + 1]};
+                    expandedUV0[base + 2] = {uvSrc[i2 * 2], uvSrc[i2 * 2 + 1]};
+                } else {
+                    expandedUV0[base + 0] = {uvSrc[i0], 0.0f};
+                    expandedUV0[base + 1] = {uvSrc[i1], 0.0f};
+                    expandedUV0[base + 2] = {uvSrc[i2], 0.0f};
+                }
+            }
+            if (attr1Array) {
+                ANARIDataType a1Type = attr1Array->elementType();
+                const float *uvSrc =
+                    static_cast<const float *>(attr1Array->data());
+                if (a1Type == ANARI_FLOAT32_VEC2) {
+                    expandedUV1[base + 0] = {uvSrc[i0 * 2], uvSrc[i0 * 2 + 1]};
+                    expandedUV1[base + 1] = {uvSrc[i1 * 2], uvSrc[i1 * 2 + 1]};
+                    expandedUV1[base + 2] = {uvSrc[i2 * 2], uvSrc[i2 * 2 + 1]};
+                } else {
+                    expandedUV1[base + 0] = {uvSrc[i0], 0.0f};
+                    expandedUV1[base + 1] = {uvSrc[i1], 0.0f};
+                    expandedUV1[base + 2] = {uvSrc[i2], 0.0f};
+                }
+            }
+
+            filament::math::float4 primColor = primColConverted[t];
+            expandedColors[base + 0] = primColor;
+            expandedColors[base + 1] = primColor;
+            expandedColors[base + 2] = primColor;
+
+            expandedIndices[base + 0] = base + 0;
+            expandedIndices[base + 1] = base + 1;
+            expandedIndices[base + 2] = base + 2;
+        }
+
+        numVertices = expVerts;
+        posData = expandedPos.data();
+        indexData = expandedIndices.data();
+    }
+
     const filament::math::uint3 *triData =
         reinterpret_cast<const filament::math::uint3 *>(indexData);
 
@@ -115,8 +225,11 @@ void Geometry::commitTriangle()
         .triangles(triData);
 
     if (norArray) {
-        orientBuilder.normals(
-            static_cast<const filament::math::float3 *>(norArray->data()));
+        const filament::math::float3 *norData = primColArray
+            ? expandedNor.data()
+            : static_cast<const filament::math::float3 *>(norArray->data());
+        if (norData)
+            orientBuilder.normals(norData);
     }
 
     filament::geometry::SurfaceOrientation *orientation =
@@ -190,55 +303,93 @@ void Geometry::commitTriangle()
             }));
 
     if (mHasColors) {
-        uint32_t colSize = static_cast<uint32_t>(colArray->totalSize())
-            * sizeof(float) * 4;
-        mVertexBuffer->setBufferAt(*engine, colorBuffer,
-            filament::VertexBuffer::BufferDescriptor(
-                colArray->data(), colSize));
-    }
-
-    if (mHasUV0) {
-        ANARIDataType a0Type = attr0Array->elementType();
-        if (a0Type == ANARI_FLOAT32_VEC2) {
-            mVertexBuffer->setBufferAt(*engine, uv0Buffer,
+        if (primColArray) {
+            // Colors were pre-computed during expansion
+            auto *colorData = new filament::math::float4[numVertices];
+            std::memcpy(colorData, expandedColors.data(),
+                numVertices * sizeof(filament::math::float4));
+            mVertexBuffer->setBufferAt(*engine, colorBuffer,
                 filament::VertexBuffer::BufferDescriptor(
-                    attr0Array->data(),
-                    attr0Array->totalSize() * sizeof(float) * 2));
-        } else if (a0Type == ANARI_FLOAT32) {
-            // Scalar float → pack as float2 (value, 0)
-            auto *uv0Data = new filament::math::float2[numVertices];
-            const float *src =
-                static_cast<const float *>(attr0Array->data());
-            for (uint32_t i = 0; i < numVertices; ++i)
-                uv0Data[i] = {src[i], 0.0f};
-            mVertexBuffer->setBufferAt(*engine, uv0Buffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    uv0Data, numVertices * sizeof(filament::math::float2),
+                    colorData,
+                    numVertices * sizeof(filament::math::float4),
                     [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float2 *>(buf);
+                        delete[] static_cast<filament::math::float4 *>(buf);
+                    }));
+        } else if (colArray->elementType() == ANARI_FLOAT32_VEC4) {
+            mVertexBuffer->setBufferAt(*engine, colorBuffer,
+                filament::VertexBuffer::BufferDescriptor(
+                    colArray->data(),
+                    colArray->totalSize() * sizeof(float) * 4));
+        } else {
+            // Convert from any supported color type to FLOAT4
+            auto *colorData = new filament::math::float4[numVertices];
+            convertColors(colorData, colArray->data(),
+                colArray->elementType(), numVertices);
+            mVertexBuffer->setBufferAt(*engine, colorBuffer,
+                filament::VertexBuffer::BufferDescriptor(
+                    colorData,
+                    numVertices * sizeof(filament::math::float4),
+                    [](void *buf, size_t, void *) {
+                        delete[] static_cast<filament::math::float4 *>(buf);
                     }));
         }
     }
 
+    if (mHasUV0) {
+        if (primColArray && expandedUV0.data()) {
+            mVertexBuffer->setBufferAt(*engine, uv0Buffer,
+                filament::VertexBuffer::BufferDescriptor(
+                    expandedUV0.data(),
+                    numVertices * sizeof(filament::math::float2)));
+        } else {
+            ANARIDataType a0Type = attr0Array->elementType();
+            if (a0Type == ANARI_FLOAT32_VEC2) {
+                mVertexBuffer->setBufferAt(*engine, uv0Buffer,
+                    filament::VertexBuffer::BufferDescriptor(
+                        attr0Array->data(),
+                        attr0Array->totalSize() * sizeof(float) * 2));
+            } else if (a0Type == ANARI_FLOAT32) {
+                auto *uv0Data = new filament::math::float2[numVertices];
+                const float *src =
+                    static_cast<const float *>(attr0Array->data());
+                for (uint32_t i = 0; i < numVertices; ++i)
+                    uv0Data[i] = {src[i], 0.0f};
+                mVertexBuffer->setBufferAt(*engine, uv0Buffer,
+                    filament::VertexBuffer::BufferDescriptor(
+                        uv0Data, numVertices * sizeof(filament::math::float2),
+                        [](void *buf, size_t, void *) {
+                            delete[] static_cast<filament::math::float2 *>(buf);
+                        }));
+            }
+        }
+    }
+
     if (mHasUV1) {
-        ANARIDataType a1Type = attr1Array->elementType();
-        if (a1Type == ANARI_FLOAT32_VEC2) {
+        if (primColArray && expandedUV1.data()) {
             mVertexBuffer->setBufferAt(*engine, uv1Buffer,
                 filament::VertexBuffer::BufferDescriptor(
-                    attr1Array->data(),
-                    attr1Array->totalSize() * sizeof(float) * 2));
-        } else if (a1Type == ANARI_FLOAT32) {
-            auto *uv1Data = new filament::math::float2[numVertices];
-            const float *src =
-                static_cast<const float *>(attr1Array->data());
-            for (uint32_t i = 0; i < numVertices; ++i)
-                uv1Data[i] = {src[i], 0.0f};
-            mVertexBuffer->setBufferAt(*engine, uv1Buffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    uv1Data, numVertices * sizeof(filament::math::float2),
-                    [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float2 *>(buf);
-                    }));
+                    expandedUV1.data(),
+                    numVertices * sizeof(filament::math::float2)));
+        } else {
+            ANARIDataType a1Type = attr1Array->elementType();
+            if (a1Type == ANARI_FLOAT32_VEC2) {
+                mVertexBuffer->setBufferAt(*engine, uv1Buffer,
+                    filament::VertexBuffer::BufferDescriptor(
+                        attr1Array->data(),
+                        attr1Array->totalSize() * sizeof(float) * 2));
+            } else if (a1Type == ANARI_FLOAT32) {
+                auto *uv1Data = new filament::math::float2[numVertices];
+                const float *src =
+                    static_cast<const float *>(attr1Array->data());
+                for (uint32_t i = 0; i < numVertices; ++i)
+                    uv1Data[i] = {src[i], 0.0f};
+                mVertexBuffer->setBufferAt(*engine, uv1Buffer,
+                    filament::VertexBuffer::BufferDescriptor(
+                        uv1Data, numVertices * sizeof(filament::math::float2),
+                        [](void *buf, size_t, void *) {
+                            delete[] static_cast<filament::math::float2 *>(buf);
+                        }));
+            }
         }
     }
 
@@ -513,6 +664,276 @@ void Geometry::commitSphere()
     // Can't delete positions yet — Filament owns them via the callback.
     // The normals are only used for orientation, can delete now.
     delete[] normals;
+
+    mIndexCount = totalIndices;
+    mIndexBuffer = filament::IndexBuffer::Builder()
+        .indexCount(totalIndices)
+        .bufferType(filament::IndexBuffer::IndexType::UINT)
+        .build(*engine);
+    mIndexBuffer->setBuffer(*engine,
+        filament::IndexBuffer::BufferDescriptor(
+            allIndices, totalIndices * sizeof(uint32_t),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<uint32_t *>(buf);
+            }));
+
+    markCommitted();
+}
+
+// -- Cylinder tessellation --
+
+namespace {
+
+constexpr uint32_t CYLINDER_SEGMENTS = 12;
+
+// Build perpendicular vectors to a given axis
+void buildFrame(filament::math::float3 axis,
+    filament::math::float3 &u, filament::math::float3 &v)
+{
+    filament::math::float3 a = {1.0f, 0.0f, 0.0f};
+    if (std::abs(dot(axis, a)) > 0.9f)
+        a = {0.0f, 1.0f, 0.0f};
+    u = normalize(cross(axis, a));
+    v = cross(axis, u);
+}
+
+}
+
+void Geometry::commitCylinder()
+{
+    filament::Engine *engine = deviceState()->engine;
+
+    helium::Array1D *posArray =
+        getParamObject<helium::Array1D>("vertex.position");
+    helium::Array1D *colArray =
+        getParamObject<helium::Array1D>("vertex.color");
+    helium::Array1D *primRadiusArray =
+        getParamObject<helium::Array1D>("primitive.radius");
+
+    if (!posArray) {
+        reportMessage(ANARI_SEVERITY_ERROR,
+            "cylinder geometry requires 'vertex.position'");
+        return;
+    }
+
+    if (mVertexBuffer) {
+        engine->destroy(mVertexBuffer);
+        mVertexBuffer = nullptr;
+    }
+    if (mIndexBuffer) {
+        engine->destroy(mIndexBuffer);
+        mIndexBuffer = nullptr;
+    }
+
+    float globalRadius = getParam<float>("radius", 1.0f);
+    Corrade::Containers::String capsStr = getParamString("caps", "none");
+
+    uint32_t numEndpoints = static_cast<uint32_t>(posArray->totalSize());
+    uint32_t numCylinders = numEndpoints / 2;
+    const filament::math::float3 *endpoints =
+        static_cast<const filament::math::float3 *>(posArray->data());
+    const float *primRadii = primRadiusArray
+        ? static_cast<const float *>(primRadiusArray->data())
+        : nullptr;
+
+    mHasColors = colArray != nullptr;
+    mHasUV0 = false;
+    mHasUV1 = false;
+
+    bool addCaps = (capsStr != "none"_s);
+    constexpr uint32_t S = CYLINDER_SEGMENTS;
+
+    // Per cylinder:
+    //   Tube: (S + 1) * 2 vertices, S * 2 triangles (6 indices)
+    //   Caps: S + 1 vertices per cap (center + S rim), S triangles per cap
+    uint32_t tubeVerts = (S + 1) * 2;
+    uint32_t tubeIndices = S * 6;
+    uint32_t capVerts = addCaps ? (S + 1) * 2 : 0;
+    uint32_t capIndices = addCaps ? S * 3 * 2 : 0;
+    uint32_t vertsPerCyl = tubeVerts + capVerts;
+    uint32_t indicesPerCyl = tubeIndices + capIndices;
+
+    uint32_t totalVerts = numCylinders * vertsPerCyl;
+    uint32_t totalIndices = numCylinders * indicesPerCyl;
+
+    auto *positions = new filament::math::float3[totalVerts];
+    auto *normals = new filament::math::float3[totalVerts];
+    auto *allIndices = new uint32_t[totalIndices];
+
+    constexpr float pi = 3.14159265358979323846f;
+
+    for (uint32_t c = 0; c < numCylinders; ++c) {
+        filament::math::float3 A = endpoints[c * 2 + 0];
+        filament::math::float3 B = endpoints[c * 2 + 1];
+        float r = primRadii ? primRadii[c] : globalRadius;
+
+        filament::math::float3 axis = B - A;
+        float len = length(axis);
+        if (len < 1e-12f)
+            axis = {0.0f, 1.0f, 0.0f};
+        else
+            axis /= len;
+
+        filament::math::float3 u, v;
+        buildFrame(axis, u, v);
+
+        uint32_t vBase = c * vertsPerCyl;
+        uint32_t iBase = c * indicesPerCyl;
+
+        // Generate tube vertices: ring at A, then ring at B
+        for (uint32_t seg = 0; seg <= S; ++seg) {
+            float theta = 2.0f * pi * static_cast<float>(seg) / S;
+            float ct = std::cos(theta);
+            float st = std::sin(theta);
+            filament::math::float3 n = u * ct + v * st;
+            filament::math::float3 rim = n * r;
+
+            uint32_t iA = vBase + seg;
+            uint32_t iB = vBase + (S + 1) + seg;
+            positions[iA] = A + rim;
+            normals[iA] = n;
+            positions[iB] = B + rim;
+            normals[iB] = n;
+        }
+
+        // Tube indices
+        uint32_t idx = iBase;
+        for (uint32_t seg = 0; seg < S; ++seg) {
+            uint32_t a0 = vBase + seg;
+            uint32_t a1 = vBase + seg + 1;
+            uint32_t b0 = vBase + (S + 1) + seg;
+            uint32_t b1 = vBase + (S + 1) + seg + 1;
+            allIndices[idx++] = a0;
+            allIndices[idx++] = b0;
+            allIndices[idx++] = a1;
+            allIndices[idx++] = a1;
+            allIndices[idx++] = b0;
+            allIndices[idx++] = b1;
+        }
+
+        // Caps
+        if (addCaps) {
+            uint32_t capBase = vBase + tubeVerts;
+            // Cap A (center + rim)
+            positions[capBase] = A;
+            normals[capBase] = -axis;
+            for (uint32_t seg = 0; seg < S; ++seg) {
+                float theta = 2.0f * pi * static_cast<float>(seg) / S;
+                positions[capBase + 1 + seg] = A
+                    + (u * std::cos(theta) + v * std::sin(theta)) * r;
+                normals[capBase + 1 + seg] = -axis;
+            }
+            // Cap A indices (winding order: center, seg+1, seg for correct normal)
+            for (uint32_t seg = 0; seg < S; ++seg) {
+                allIndices[idx++] = capBase;
+                allIndices[idx++] = capBase + 1 + ((seg + 1) % S);
+                allIndices[idx++] = capBase + 1 + seg;
+            }
+            // Cap B
+            uint32_t capBBase = capBase + S + 1;
+            positions[capBBase] = B;
+            normals[capBBase] = axis;
+            for (uint32_t seg = 0; seg < S; ++seg) {
+                float theta = 2.0f * pi * static_cast<float>(seg) / S;
+                positions[capBBase + 1 + seg] = B
+                    + (u * std::cos(theta) + v * std::sin(theta)) * r;
+                normals[capBBase + 1 + seg] = axis;
+            }
+            // Cap B indices
+            for (uint32_t seg = 0; seg < S; ++seg) {
+                allIndices[idx++] = capBBase;
+                allIndices[idx++] = capBBase + 1 + seg;
+                allIndices[idx++] = capBBase + 1 + ((seg + 1) % S);
+            }
+        }
+    }
+
+    // Generate tangent frames
+    filament::geometry::SurfaceOrientation *orientation =
+        filament::geometry::SurfaceOrientation::Builder()
+            .vertexCount(totalVerts)
+            .normals(normals)
+            .build();
+
+    auto *tangents = new filament::math::short4[totalVerts];
+    orientation->getQuats(tangents, totalVerts);
+    delete orientation;
+
+    // Build vertex buffer
+    uint8_t bufIdx = 0;
+    uint8_t posBuffer = bufIdx++;
+    uint8_t tangentBuffer = bufIdx++;
+    uint8_t colorBuffer = mHasColors ? bufIdx++ : 0;
+    uint8_t bufferCount = bufIdx;
+
+    auto vbBuilder = filament::VertexBuffer::Builder()
+        .bufferCount(bufferCount)
+        .vertexCount(totalVerts)
+        .attribute(filament::VertexAttribute::POSITION, posBuffer,
+            filament::VertexBuffer::AttributeType::FLOAT3)
+        .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
+            filament::VertexBuffer::AttributeType::SHORT4)
+        .normalized(filament::VertexAttribute::TANGENTS);
+
+    if (mHasColors) {
+        vbBuilder.attribute(filament::VertexAttribute::COLOR, colorBuffer,
+            filament::VertexBuffer::AttributeType::FLOAT4);
+    }
+
+    mVertexBuffer = vbBuilder.build(*engine);
+
+    // Upload positions
+    mVertexBuffer->setBufferAt(*engine, posBuffer,
+        filament::VertexBuffer::BufferDescriptor(
+            positions, totalVerts * sizeof(filament::math::float3),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<filament::math::float3 *>(buf);
+            }));
+
+    // Upload tangents
+    mVertexBuffer->setBufferAt(*engine, tangentBuffer,
+        filament::VertexBuffer::BufferDescriptor(
+            tangents, totalVerts * sizeof(filament::math::short4),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<filament::math::short4 *>(buf);
+            }));
+
+    // Upload per-cylinder colors (expand to per-vertex)
+    if (mHasColors) {
+        auto *colors = new filament::math::float4[totalVerts];
+        const filament::math::float4 *srcColors =
+            static_cast<const filament::math::float4 *>(colArray->data());
+        for (uint32_t c = 0; c < numCylinders; ++c) {
+            filament::math::float4 cA = srcColors[c * 2 + 0];
+            filament::math::float4 cB = srcColors[c * 2 + 1];
+            uint32_t vBase = c * vertsPerCyl;
+            // Tube: first ring gets colorA, second ring gets colorB
+            for (uint32_t seg = 0; seg <= S; ++seg) {
+                colors[vBase + seg] = cA;
+                colors[vBase + (S + 1) + seg] = cB;
+            }
+            // Caps: cap A gets colorA, cap B gets colorB
+            if (addCaps) {
+                uint32_t capBase = vBase + tubeVerts;
+                for (uint32_t i = 0; i <= S; ++i)
+                    colors[capBase + i] = cA;
+                uint32_t capBBase = capBase + S + 1;
+                for (uint32_t i = 0; i <= S; ++i)
+                    colors[capBBase + i] = cB;
+            }
+        }
+        mVertexBuffer->setBufferAt(*engine, colorBuffer,
+            filament::VertexBuffer::BufferDescriptor(
+                colors, totalVerts * sizeof(filament::math::float4),
+                [](void *buf, size_t, void *) {
+                    delete[] static_cast<filament::math::float4 *>(buf);
+                }));
+    }
+
+    delete[] normals;
+
+    // Compute AABB
+    mAabb = computeAabb(positions, totalVerts);
 
     mIndexCount = totalIndices;
     mIndexBuffer = filament::IndexBuffer::Builder()

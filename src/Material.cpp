@@ -11,6 +11,8 @@
 #include <filament/Texture.h>
 #include <filament/TextureSampler.h>
 
+#include <math/mat4.h>
+
 #include <Corrade/Containers/StringStl.h>
 #include <Corrade/Containers/StringView.h>
 
@@ -57,13 +59,39 @@ void Material::commitParameters()
 
     // Check for sampler-based color (texture)
     mColorSampler = getParamObject<Sampler>("color");
+    mUsesPrimitiveSampler = false;
 
+    bool isMatte = (mSubtype != "physicallyBased"_s);
     Corrade::Containers::String colorStr = getParamString("color", "");
-    if (mColorSampler && mColorSampler->texture()) {
+    if (isMatte && mColorSampler && mColorSampler->isTransform()) {
+        // Transform sampler: apply 4x4 matrix to UV in the shader
+        mUsesVertexColors = false;
+        mMaterialInstance->setParameter("baseColor",
+            filament::math::float4{1.0f, 1.0f, 1.0f, 1.0f});
+        mMaterialInstance->setParameter("hasBaseColorMap", false);
+        mMaterialInstance->setParameter("hasColorTransform", true);
+        const anari::math::mat4 &t = mColorSampler->colorTransform();
+        filament::math::mat4f mat(
+            filament::math::float4{t[0][0], t[0][1], t[0][2], t[0][3]},
+            filament::math::float4{t[1][0], t[1][1], t[1][2], t[1][3]},
+            filament::math::float4{t[2][0], t[2][1], t[2][2], t[2][3]},
+            filament::math::float4{t[3][0], t[3][1], t[3][2], t[3][3]});
+        mMaterialInstance->setParameter("colorTransform", mat);
+    } else if (isMatte && mColorSampler && mColorSampler->isPrimitive()) {
+        // Primitive sampler: expand per-primitive colors to per-vertex
+        mUsesVertexColors = true;
+        mUsesPrimitiveSampler = true;
+        mMaterialInstance->setParameter("baseColor",
+            filament::math::float4{1.0f, 1.0f, 1.0f, 1.0f});
+        mMaterialInstance->setParameter("hasBaseColorMap", false);
+        mMaterialInstance->setParameter("hasColorTransform", false);
+    } else if (mColorSampler && mColorSampler->texture()) {
         mUsesVertexColors = false;
         mMaterialInstance->setParameter("baseColor",
             filament::math::float4{1.0f, 1.0f, 1.0f, 1.0f});
         mMaterialInstance->setParameter("hasBaseColorMap", true);
+        if (isMatte)
+            mMaterialInstance->setParameter("hasColorTransform", false);
 
         filament::TextureSampler sampler(
             mColorSampler->isNearest()
@@ -76,6 +104,8 @@ void Material::commitParameters()
         mMaterialInstance->setParameter("baseColor",
             filament::math::float4{1.0f, 1.0f, 1.0f, 1.0f});
         mMaterialInstance->setParameter("hasBaseColorMap", false);
+        if (isMatte)
+            mMaterialInstance->setParameter("hasColorTransform", false);
     } else {
         mUsesVertexColors = false;
         mColorSampler = nullptr;
@@ -87,6 +117,8 @@ void Material::commitParameters()
         mMaterialInstance->setParameter("baseColor",
             filament::math::float4{c3[0], c3[1], c3[2], c4[3]});
         mMaterialInstance->setParameter("hasBaseColorMap", false);
+        if (isMatte)
+            mMaterialInstance->setParameter("hasColorTransform", false);
     }
 
     if (mSubtype == "physicallyBased"_s) {
