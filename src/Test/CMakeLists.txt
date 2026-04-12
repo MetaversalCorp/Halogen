@@ -41,7 +41,7 @@ target_link_libraries(RenderTest PRIVATE anari)
 add_dependencies(RenderTest anari_library_filament)
 
 corrade_add_test(ScreenshotTest ScreenshotTest.cpp)
-target_link_libraries(ScreenshotTest PRIVATE anari)
+target_link_libraries(ScreenshotTest PRIVATE anari stb_image)
 target_compile_definitions(ScreenshotTest PRIVATE
     SCREENSHOT_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden")
 add_dependencies(ScreenshotTest anari_library_filament)

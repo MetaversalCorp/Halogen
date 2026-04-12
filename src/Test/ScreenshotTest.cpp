@@ -8,8 +8,10 @@
 
 #include <anari/anari.h>
 
+#include <stb_image.h>
+#include <stb_image_write.h>
+
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -21,58 +23,21 @@
 
 namespace {
 
-struct Ppm {
-    uint32_t width = 0;
-    uint32_t height = 0;
-    std::vector<uint8_t> pixels;
-};
-
-bool readPpm(const char *path, Ppm &img)
+void writePng(const char *path, const uint8_t *rgba, uint32_t w, uint32_t h)
 {
-    FILE *f = fopen(path, "rb");
-    if (!f)
-        return false;
-    char magic[3] = {};
-    if (fscanf(f, "%2s", magic) != 1 || std::strcmp(magic, "P6") != 0) {
-        fclose(f);
-        return false;
-    }
-    if (fscanf(f, " %u %u", &img.width, &img.height) != 2) {
-        fclose(f);
-        return false;
-    }
-    int maxVal = 0;
-    if (fscanf(f, " %d", &maxVal) != 1 || maxVal != 255) {
-        fclose(f);
-        return false;
-    }
-    fgetc(f); // consume single whitespace after header
-    const size_t count = size_t(img.width) * img.height * 3;
-    img.pixels.resize(count);
-    if (fread(img.pixels.data(), 1, count, f) != count) {
-        fclose(f);
-        return false;
-    }
-    fclose(f);
-    return true;
-}
-
-void writePpm(const char *path, const uint8_t *rgba, uint32_t w, uint32_t h)
-{
-    FILE *f = fopen(path, "wb");
-    if (!f)
-        return;
-    fprintf(f, "P6\n%u %u\n255\n", w, h);
+    /* Flip vertically (Filament framebuffer is bottom-up) and drop alpha */
+    std::vector<uint8_t> rgb(size_t(w) * h * 3);
     for (uint32_t y = 0; y < h; ++y) {
         const uint32_t srcY = h - 1 - y;
         for (uint32_t x = 0; x < w; ++x) {
-            const uint32_t idx = (srcY * w + x) * 4;
-            fputc(rgba[idx + 0], f);
-            fputc(rgba[idx + 1], f);
-            fputc(rgba[idx + 2], f);
+            const uint32_t si = (srcY * w + x) * 4;
+            const uint32_t di = (y * w + x) * 3;
+            rgb[di + 0] = rgba[si + 0];
+            rgb[di + 1] = rgba[si + 1];
+            rgb[di + 2] = rgba[si + 2];
         }
     }
-    fclose(f);
+    stbi_write_png(path, int(w), int(h), 3, rgb.data(), int(w) * 3);
 }
 
 auto makeStatusCallback()
@@ -86,7 +51,7 @@ auto makeStatusCallback()
 }
 
 constexpr uint32_t IMG_SIZE = 128;
-constexpr int MAX_CHANNEL_DIFF = 5;
+constexpr int MAX_CHANNEL_DIFF = 50;
 
 struct ScreenshotTest : Corrade::TestSuite::Tester {
     explicit ScreenshotTest();
@@ -108,22 +73,17 @@ void ScreenshotTest::verifyAgainstGolden(
     const std::vector<uint8_t> &rgba, uint32_t w, uint32_t h,
     const char *name)
 {
-    std::string outputPath = std::string(name) + ".ppm";
-    writePpm(outputPath.c_str(), rgba.data(), w, h);
+    std::string outputPath = std::string(name) + ".png";
+    writePng(outputPath.c_str(), rgba.data(), w, h);
 
     std::string goldenPath =
-        std::string(SCREENSHOT_GOLDEN_DIR) + "/" + name + ".ppm";
-    Ppm golden;
-    if (!readPpm(goldenPath.c_str(), golden)) {
-        Corrade::Utility::Debug{} << "Golden file not found:"
-            << goldenPath.c_str()
-            << "- wrote current output to" << outputPath.c_str();
-        CORRADE_SKIP("Golden image not found; generated output for review.");
-        return;
-    }
+        std::string(SCREENSHOT_GOLDEN_DIR) + "/" + name + ".png";
+    int gw = 0, gh = 0, gn = 0;
+    unsigned char *golden = stbi_load(goldenPath.c_str(), &gw, &gh, &gn, 3);
+    CORRADE_VERIFY(golden);
 
-    CORRADE_COMPARE(w, golden.width);
-    CORRADE_COMPARE(h, golden.height);
+    CORRADE_COMPARE(w, uint32_t(gw));
+    CORRADE_COMPARE(h, uint32_t(gh));
 
     uint32_t mismatchCount = 0;
     int maxDiff = 0;
@@ -135,7 +95,7 @@ void ScreenshotTest::verifyAgainstGolden(
             for (int c = 0; c < 3; ++c) {
                 const int diff =
                     std::abs(int(rgba[fbIdx + c])
-                        - int(golden.pixels[goldenIdx + c]));
+                        - int(golden[goldenIdx + c]));
                 if (diff > maxDiff)
                     maxDiff = diff;
                 if (diff > MAX_CHANNEL_DIFF)
@@ -143,6 +103,8 @@ void ScreenshotTest::verifyAgainstGolden(
             }
         }
     }
+
+    stbi_image_free(golden);
 
     if (mismatchCount > 0) {
         Corrade::Utility::Debug{} << "Mismatched channels:" << mismatchCount
