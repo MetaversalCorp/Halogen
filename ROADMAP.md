@@ -129,14 +129,17 @@ Support the features needed for the interactive anariViewer application.
 
 ---
 
-## Milestone 5 — Full Geometry & Introspection 🔄 Planned
+## Milestone 5 — Full Geometry, Introspection & Screenshot Tests ✅ Done
 
 | ANARI Feature | Filament Mapping | Notes |
 |---------------|-----------------|-------|
-| `cone` geometry | **Generate** — tessellate to triangle mesh | Parameterized cone generation |
-| `curve` geometry | **Generate** — tessellate ribbon/tubes | Convert to triangle strips |
-| `quad` geometry | **Generate** — split each quad into 2 triangles | Trivial |
-| OBJ / glTF scene file loading | N/A — handled by ANARI loader extensions | Device sees resulting geometry |
+| `cone` geometry | **Generate** — tessellate to triangle mesh | Done (Milestone 3) |
+| `curve` geometry | **Generate** — tessellate tubes | Per-vertex radii, colors, primitive.index |
+| `quad` geometry | **Generate** — split each quad into 2 triangles | Done (Milestone 3) |
+| `FLOAT32_VEC4` frame format | **Direct** — RGBA32F texture + float readback | For HDR / Blender |
+| Frame `depth` channel (parameter) | Parsed but not readable | Filament readPixels only reads COLOR |
+| `getObjectSubtypes` introspection | **Direct** — static subtype arrays | All object types |
+| Screenshot comparison tests | PPM golden-image regression | 4 visual tests + float32 + introspection |
 
 ---
 
@@ -188,5 +191,5 @@ These ANARI features have no equivalent in Filament's rasterization pipeline.
 8. **Milestone 3b** — Cornell box (quad light shim) ✅
 9. **Milestone 3c** — Attributes (all sampler types) ✅
 10. **Milestone 4** — Viewer subset (ortho camera, depth, introspection) ✅
-11. **Milestone 5** — Full geometry (curve, depth channel, introspection) 🔄
+11. **Milestone 5** — Full geometry, introspection, screenshot tests ✅
 12. **Milestone 6** — Blender addon (accumulation, full vertex attrs) 🔄

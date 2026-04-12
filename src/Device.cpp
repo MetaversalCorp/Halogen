@@ -188,9 +188,38 @@ ANARIWorld Device::newWorld()
 
 // -- Query functions --
 
-const char **Device::getObjectSubtypes(ANARIDataType)
+namespace {
+
+const char *geometrySubtypes[] = {
+    "triangle", "sphere", "cylinder", "curve", "quad", "cone", nullptr};
+const char *cameraSubtypes[] = {
+    "perspective", "orthographic", nullptr};
+const char *lightSubtypes[] = {
+    "directional", "point", "spot", nullptr};
+const char *materialSubtypes[] = {
+    "matte", "physicallyBased", nullptr};
+const char *samplerSubtypes[] = {
+    "image1D", "image2D", "image3D", "transform", "primitive", nullptr};
+const char *rendererSubtypes[] = {
+    "default", nullptr};
+const char *volumeSubtypes[] = {nullptr};
+const char *spatialFieldSubtypes[] = {nullptr};
+
+}
+
+const char **Device::getObjectSubtypes(ANARIDataType objectType)
 {
-    return nullptr;
+    switch (objectType) {
+    case ANARI_GEOMETRY: return geometrySubtypes;
+    case ANARI_CAMERA: return cameraSubtypes;
+    case ANARI_LIGHT: return lightSubtypes;
+    case ANARI_MATERIAL: return materialSubtypes;
+    case ANARI_SAMPLER: return samplerSubtypes;
+    case ANARI_RENDERER: return rendererSubtypes;
+    case ANARI_VOLUME: return volumeSubtypes;
+    case ANARI_SPATIAL_FIELD: return spatialFieldSubtypes;
+    default: return nullptr;
+    }
 }
 
 const void *Device::getObjectInfo(ANARIDataType, const char *,

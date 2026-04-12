@@ -66,6 +66,9 @@ void Frame::commitParameters()
     mColorType = getParam<anari::DataType>(
         "channel.color", ANARI_UNKNOWN);
 
+    mDepthType = getParam<anari::DataType>(
+        "channel.depth", ANARI_UNKNOWN);
+
     markCommitted();
 }
 
@@ -124,11 +127,16 @@ void Frame::renderFrame()
     mColorTexture.reset();
     mDepthTexture.reset();
 
+    const bool wantFloat =
+        (mColorType == ANARI_FLOAT32_VEC4 || mColorType == ANARI_FLOAT32);
+
     mColorTexture.reset(filament::Texture::Builder()
         .width(mWidth)
         .height(mHeight)
         .levels(1)
-        .format(filament::Texture::InternalFormat::RGBA8)
+        .format(wantFloat
+            ? filament::Texture::InternalFormat::RGBA32F
+            : filament::Texture::InternalFormat::RGBA8)
         .usage(filament::Texture::Usage::COLOR_ATTACHMENT
             | filament::Texture::Usage::SAMPLEABLE
             | filament::Texture::Usage::BLIT_SRC)
@@ -138,8 +146,9 @@ void Frame::renderFrame()
         .width(mWidth)
         .height(mHeight)
         .levels(1)
-        .format(filament::Texture::InternalFormat::DEPTH24)
-        .usage(filament::Texture::Usage::DEPTH_ATTACHMENT)
+        .format(filament::Texture::InternalFormat::DEPTH32F)
+        .usage(filament::Texture::Usage::DEPTH_ATTACHMENT
+            | filament::Texture::Usage::BLIT_SRC)
         .build(*engine));
 
     mRenderTarget.reset(filament::RenderTarget::Builder()
@@ -159,9 +168,11 @@ void Frame::renderFrame()
     if (!mSwapChain)
         mSwapChain.reset(engine->createSwapChain(1, 1, 0));
 
-    // Allocate pixel buffer (RGBA8)
+    // Allocate pixel buffer
+    const size_t bytesPerPixel = wantFloat ? 16u : 4u;
     mPixelBuffer = Corrade::Containers::Array<char>{
-        Corrade::ValueInit, mWidth * mHeight * 4};
+        Corrade::ValueInit, mWidth * mHeight * bytesPerPixel};
+
     mFrameReady = false;
 
     if (renderer->beginFrame(mSwapChain.get())) {
@@ -187,7 +198,7 @@ void Frame::renderFrame()
             PixelBufferDescriptor(
                 bufferData, bufferSize,
                 PixelDataFormat::RGBA,
-                PixelDataType::UBYTE));
+                wantFloat ? PixelDataType::FLOAT : PixelDataType::UBYTE));
 
         renderer->endFrame();
     }
@@ -201,14 +212,27 @@ void *Frame::map(std::string_view channel,
     uint32_t *height,
     ANARIDataType *pixelType)
 {
-    if (channel != "channel.color" && channel != "color")
-        return nullptr;
-
     *width = mWidth;
     *height = mHeight;
-    *pixelType = ANARI_UFIXED8_RGBA_SRGB;
 
-    return mPixelBuffer.data();
+    if (channel == "channel.depth" || channel == "depth") {
+        // Depth readback is not supported by Filament's Renderer::readPixels
+        // (it only reads from the COLOR attachment of a RenderTarget).
+        (void)mDepthType;
+        return nullptr;
+    }
+
+    if (channel == "channel.color" || channel == "color") {
+        if (mColorType == ANARI_FLOAT32_VEC4
+            || mColorType == ANARI_FLOAT32) {
+            *pixelType = ANARI_FLOAT32_VEC4;
+        } else {
+            *pixelType = ANARI_UFIXED8_RGBA_SRGB;
+        }
+        return mPixelBuffer.data();
+    }
+
+    return nullptr;
 }
 
 void Frame::unmap(std::string_view) {}

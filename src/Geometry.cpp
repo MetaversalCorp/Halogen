@@ -49,6 +49,8 @@ void Geometry::commitParameters()
         commitSphere();
     else if (mSubtype == "cylinder"_s)
         commitCylinder();
+    else if (mSubtype == "curve"_s)
+        commitCurve();
     else if (mSubtype == "quad"_s)
         commitQuad();
     else if (mSubtype == "cone"_s)
@@ -922,6 +924,237 @@ void Geometry::commitCylinder()
     delete[] normals;
 
     // Compute AABB
+    mAabb = computeAabb(positions, totalVerts);
+
+    mIndexCount = totalIndices;
+    mIndexBuffer = filament::IndexBuffer::Builder()
+        .indexCount(totalIndices)
+        .bufferType(filament::IndexBuffer::IndexType::UINT)
+        .build(*engine);
+    mIndexBuffer->setBuffer(*engine,
+        filament::IndexBuffer::BufferDescriptor(
+            allIndices, totalIndices * sizeof(uint32_t),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<uint32_t *>(buf);
+            }));
+
+    markCommitted();
+}
+
+// -- Curve tessellation --
+
+void Geometry::commitCurve()
+{
+    filament::Engine *engine = deviceState()->engine;
+
+    helium::Array1D *posArray =
+        getParamObject<helium::Array1D>("vertex.position");
+    helium::Array1D *colArray =
+        getParamObject<helium::Array1D>("vertex.color");
+    helium::Array1D *vertRadiusArray =
+        getParamObject<helium::Array1D>("vertex.radius");
+    helium::Array1D *idxArray =
+        getParamObject<helium::Array1D>("primitive.index");
+
+    if (!posArray) {
+        reportMessage(ANARI_SEVERITY_ERROR,
+            "curve geometry requires 'vertex.position'");
+        return;
+    }
+
+    if (mVertexBuffer) {
+        engine->destroy(mVertexBuffer);
+        mVertexBuffer = nullptr;
+    }
+    if (mIndexBuffer) {
+        engine->destroy(mIndexBuffer);
+        mIndexBuffer = nullptr;
+    }
+
+    const float globalRadius = getParam<float>("radius", 1.0f);
+
+    const uint32_t numPositions = uint32_t(posArray->totalSize());
+    const filament::math::float3 *srcPositions =
+        static_cast<const filament::math::float3 *>(posArray->data());
+    const float *vertRadii = vertRadiusArray
+        ? static_cast<const float *>(vertRadiusArray->data())
+        : nullptr;
+
+    mHasColors = colArray != nullptr;
+    mHasUV0 = false;
+    mHasUV1 = false;
+
+    // Build segment list from primitive.index or sequential pairs
+    Corrade::Containers::Array<uint32_t> segments;
+    if (idxArray) {
+        const uint32_t numPrims = uint32_t(idxArray->totalSize());
+        segments = Corrade::Containers::Array<uint32_t>{
+            Corrade::NoInit, numPrims};
+        std::memcpy(segments.data(), idxArray->data(),
+            numPrims * sizeof(uint32_t));
+    } else {
+        if (numPositions < 2)
+            return;
+        segments = Corrade::Containers::Array<uint32_t>{
+            Corrade::NoInit, numPositions - 1};
+        for (uint32_t i = 0; i + 1 < numPositions; ++i)
+            segments[i] = i;
+    }
+
+    const uint32_t numSegments = uint32_t(segments.size());
+    constexpr uint32_t S = CYLINDER_SEGMENTS;
+
+    // Each segment is a tube with 2 rings of (S+1) vertices = (S+1)*2 verts
+    // and S*2 triangles = S*6 indices
+    const uint32_t vertsPerSeg = (S + 1) * 2;
+    const uint32_t indicesPerSeg = S * 6;
+    const uint32_t totalVerts = numSegments * vertsPerSeg;
+    const uint32_t totalIndices = numSegments * indicesPerSeg;
+
+    auto *positions = new filament::math::float3[totalVerts];
+    auto *normals = new filament::math::float3[totalVerts];
+    auto *allIndices = new uint32_t[totalIndices];
+
+    for (uint32_t s = 0; s < numSegments; ++s) {
+        const uint32_t i0 = segments[s];
+        const uint32_t i1 = i0 + 1;
+        if (i1 >= numPositions)
+            continue;
+
+        const filament::math::float3 A = srcPositions[i0];
+        const filament::math::float3 B = srcPositions[i1];
+        const float rA = vertRadii ? vertRadii[i0] : globalRadius;
+        const float rB = vertRadii ? vertRadii[i1] : globalRadius;
+
+        filament::math::float3 axis = B - A;
+        const float len = length(axis);
+        if (len < 1e-12f)
+            axis = {0.0f, 1.0f, 0.0f};
+        else
+            axis /= len;
+
+        filament::math::float3 u, v;
+        buildFrame(axis, u, v);
+
+        const float dr = rA - rB;
+        const float slope = (len > 1e-12f) ? dr / len : 0.0f;
+
+        const uint32_t vBase = s * vertsPerSeg;
+        const uint32_t iBase = s * indicesPerSeg;
+
+        for (uint32_t seg = 0; seg <= S; ++seg) {
+            const float theta = 2.0f * Pi * float(seg) / S;
+            const float ct = std::cos(theta);
+            const float st = std::sin(theta);
+            const filament::math::float3 circleDir = u * ct + v * st;
+            const filament::math::float3 n =
+                normalize(circleDir + axis * slope);
+
+            positions[vBase + seg] = A + circleDir * rA;
+            normals[vBase + seg] = n;
+
+            positions[vBase + (S + 1) + seg] = B + circleDir * rB;
+            normals[vBase + (S + 1) + seg] = n;
+        }
+
+        uint32_t idx = iBase;
+        for (uint32_t seg = 0; seg < S; ++seg) {
+            const uint32_t a0 = vBase + seg;
+            const uint32_t a1 = vBase + seg + 1;
+            const uint32_t b0 = vBase + (S + 1) + seg;
+            const uint32_t b1 = vBase + (S + 1) + seg + 1;
+            allIndices[idx++] = a0;
+            allIndices[idx++] = b0;
+            allIndices[idx++] = a1;
+            allIndices[idx++] = a1;
+            allIndices[idx++] = b0;
+            allIndices[idx++] = b1;
+        }
+    }
+
+    // Generate tangent frames
+    filament::geometry::SurfaceOrientation *orientation =
+        filament::geometry::SurfaceOrientation::Builder()
+            .vertexCount(totalVerts)
+            .normals(normals)
+            .build();
+
+    auto *tangents = new filament::math::short4[totalVerts];
+    orientation->getQuats(tangents, totalVerts);
+    delete orientation;
+
+    // Build vertex buffer
+    uint8_t bufIdx = 0;
+    const uint8_t posBuffer = bufIdx++;
+    const uint8_t tangentBuffer = bufIdx++;
+    const uint8_t colorBuffer = bufIdx++;
+    const uint8_t uv0Buffer = bufIdx++;
+    const uint8_t uv1Buffer = bufIdx++;
+    const uint8_t bufferCount = bufIdx;
+
+    mVertexBuffer = filament::VertexBuffer::Builder()
+        .bufferCount(bufferCount)
+        .vertexCount(totalVerts)
+        .attribute(filament::VertexAttribute::POSITION, posBuffer,
+            filament::VertexBuffer::AttributeType::FLOAT3)
+        .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
+            filament::VertexBuffer::AttributeType::SHORT4)
+        .normalized(filament::VertexAttribute::TANGENTS)
+        .attribute(filament::VertexAttribute::COLOR, colorBuffer,
+            filament::VertexBuffer::AttributeType::FLOAT4)
+        .attribute(filament::VertexAttribute::UV0, uv0Buffer,
+            filament::VertexBuffer::AttributeType::FLOAT2)
+        .attribute(filament::VertexAttribute::UV1, uv1Buffer,
+            filament::VertexBuffer::AttributeType::FLOAT2)
+        .build(*engine);
+
+    mVertexBuffer->setBufferAt(*engine, posBuffer,
+        filament::VertexBuffer::BufferDescriptor(
+            positions, totalVerts * sizeof(filament::math::float3),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<filament::math::float3 *>(buf);
+            }));
+
+    mVertexBuffer->setBufferAt(*engine, tangentBuffer,
+        filament::VertexBuffer::BufferDescriptor(
+            tangents, totalVerts * sizeof(filament::math::short4),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<filament::math::short4 *>(buf);
+            }));
+
+    if (mHasColors) {
+        auto *colors = new filament::math::float4[totalVerts];
+        const filament::math::float4 *srcColors =
+            static_cast<const filament::math::float4 *>(colArray->data());
+        for (uint32_t s = 0; s < numSegments; ++s) {
+            const uint32_t i0 = segments[s];
+            const uint32_t i1 = i0 + 1;
+            const filament::math::float4 cA =
+                (i0 < colArray->totalSize()) ? srcColors[i0]
+                    : filament::math::float4{1, 1, 1, 1};
+            const filament::math::float4 cB =
+                (i1 < colArray->totalSize()) ? srcColors[i1]
+                    : filament::math::float4{1, 1, 1, 1};
+
+            const uint32_t vBase = s * vertsPerSeg;
+            for (uint32_t seg = 0; seg <= S; ++seg) {
+                colors[vBase + seg] = cA;
+                colors[vBase + (S + 1) + seg] = cB;
+            }
+        }
+        mVertexBuffer->setBufferAt(*engine, colorBuffer,
+            filament::VertexBuffer::BufferDescriptor(
+                colors, totalVerts * sizeof(filament::math::float4),
+                [](void *buf, size_t, void *) {
+                    delete[] static_cast<filament::math::float4 *>(buf);
+                }));
+    }
+
+    fillDefaultAttributes(engine, totalVerts, colorBuffer, uv0Buffer,
+        uv1Buffer);
+
+    delete[] normals;
+
     mAabb = computeAabb(positions, totalVerts);
 
     mIndexCount = totalIndices;
