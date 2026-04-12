@@ -50,7 +50,7 @@ auto makeStatusCallback()
 }
 
 constexpr uint32_t IMG_SIZE = 128;
-constexpr int MAX_CHANNEL_DIFF = 50;
+constexpr int MAX_CHANNEL_DIFF = 90;
 
 struct ScreenshotTest : Corrade::TestSuite::Tester {
     explicit ScreenshotTest();

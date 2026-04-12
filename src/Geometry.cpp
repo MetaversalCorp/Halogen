@@ -21,7 +21,6 @@
 
 #include <cmath>
 #include <cstring>
-#include <vector>
 
 using namespace Corrade::Containers::Literals;
 
@@ -1007,29 +1006,52 @@ void Geometry::commitCurve()
     constexpr uint32_t SUBDIVISIONS = 4;
 
     // Group consecutive segments into chains for smooth, connected tubes.
-    // Segments sharing an endpoint become part of the same chain.
-    struct Chain {
-        std::vector<uint32_t> cp;
-    };
-    std::vector<Chain> chains;
+    // First pass: count chains and their sizes.
+    uint32_t numChains = 0;
     for (uint32_t s = 0; s < numSegments; ++s) {
         const uint32_t i0 = segments[s];
         const uint32_t i1 = i0 + 1;
         if (i1 >= numPositions)
             continue;
-        if (!chains.empty() && chains.back().cp.back() == i0)
-            chains.back().cp.push_back(i1);
-        else
-            chains.push_back({{i0, i1}});
+        if (numChains == 0 || segments[s - 1] + 1 != i0)
+            ++numChains;
+    }
+
+    // Build flat control-point array + per-chain offset/length.
+    Corrade::Containers::Array<uint32_t> chainOffset{
+        Corrade::NoInit, numChains};
+    Corrade::Containers::Array<uint32_t> chainLen{
+        Corrade::NoInit, numChains};
+
+    // Second pass: record chain boundaries.
+    {
+        uint32_t ci = 0;
+        uint32_t totalCp = 0;
+        for (uint32_t s = 0; s < numSegments; ++s) {
+            const uint32_t i0 = segments[s];
+            const uint32_t i1 = i0 + 1;
+            if (i1 >= numPositions)
+                continue;
+            if (ci == 0 || segments[s - 1] + 1 != i0) {
+                if (ci > 0)
+                    chainLen[ci - 1] = totalCp;
+                chainOffset[ci] = s;
+                totalCp = 2;
+                ++ci;
+            } else {
+                ++totalCp;
+            }
+        }
+        if (ci > 0)
+            chainLen[ci - 1] = totalCp;
     }
 
     // Count total geometry across all chains.
     // Each chain with N control points produces (N-1)*SUBDIVISIONS+1 rings.
     uint32_t totalVerts = 0;
     uint32_t totalIndices = 0;
-    for (const auto &chain : chains) {
-        const uint32_t nSegs =
-            uint32_t(chain.cp.size()) - 1;
+    for (uint32_t c = 0; c < numChains; ++c) {
+        const uint32_t nSegs = chainLen[c] - 1;
         const uint32_t nRings = nSegs * SUBDIVISIONS + 1;
         totalVerts += nRings * (S + 1);
         totalIndices += (nRings - 1) * S * 6;
@@ -1046,9 +1068,12 @@ void Geometry::commitCurve()
 
     // Per-ring color interpolation data (control-point pair + blend factor)
     const uint32_t totalRings = totalVerts / (S + 1);
-    std::vector<uint32_t> ringCp0(totalRings);
-    std::vector<uint32_t> ringCp1(totalRings);
-    std::vector<float> ringBlend(totalRings);
+    Corrade::Containers::Array<uint32_t> ringCp0{
+        Corrade::NoInit, totalRings};
+    Corrade::Containers::Array<uint32_t> ringCp1{
+        Corrade::NoInit, totalRings};
+    Corrade::Containers::Array<float> ringBlend{
+        Corrade::NoInit, totalRings};
 
     // Catmull-Rom position evaluation
     auto crPos = [](filament::math::float3 p0, filament::math::float3 p1,
@@ -1076,31 +1101,41 @@ void Geometry::commitCurve()
     uint32_t iOff = 0;
     uint32_t rOff = 0;
 
-    for (const auto &chain : chains) {
-        const uint32_t nPts = uint32_t(chain.cp.size());
+    for (uint32_t c = 0; c < numChains; ++c) {
+        const uint32_t nPts = chainLen[c];
         const uint32_t nOrigSegs = nPts - 1;
         const uint32_t nRings = nOrigSegs * SUBDIVISIONS + 1;
 
+        // Build control-point index array for this chain
+        const uint32_t firstSeg = chainOffset[c];
+        Corrade::Containers::Array<uint32_t> cp{
+            Corrade::NoInit, nPts};
+        cp[0] = segments[firstSeg];
+        for (uint32_t i = 0; i < nOrigSegs; ++i)
+            cp[i + 1] = segments[firstSeg + i] + 1;
+
         // Compute ring centers, radii, and unit tangents via Catmull-Rom
-        std::vector<filament::math::float3> rc(nRings);
-        std::vector<float> rr(nRings);
-        std::vector<filament::math::float3> rt(nRings);
+        Corrade::Containers::Array<filament::math::float3> rc{
+            Corrade::NoInit, nRings};
+        Corrade::Containers::Array<float> rr{
+            Corrade::NoInit, nRings};
+        Corrade::Containers::Array<filament::math::float3> rt{
+            Corrade::NoInit, nRings};
 
         for (uint32_t seg = 0; seg < nOrigSegs; ++seg) {
-            const filament::math::float3 p1 = srcPositions[chain.cp[seg]];
-            const filament::math::float3 p2 =
-                srcPositions[chain.cp[seg + 1]];
+            const filament::math::float3 p1 = srcPositions[cp[seg]];
+            const filament::math::float3 p2 = srcPositions[cp[seg + 1]];
             const filament::math::float3 p0 = (seg > 0)
-                ? srcPositions[chain.cp[seg - 1]]
+                ? srcPositions[cp[seg - 1]]
                 : (2.0f * p1 - p2);
             const filament::math::float3 p3 = (seg + 2 < nPts)
-                ? srcPositions[chain.cp[seg + 2]]
+                ? srcPositions[cp[seg + 2]]
                 : (2.0f * p2 - p1);
 
             const float r1 =
-                vertRadii ? vertRadii[chain.cp[seg]] : globalRadius;
+                vertRadii ? vertRadii[cp[seg]] : globalRadius;
             const float r2 =
-                vertRadii ? vertRadii[chain.cp[seg + 1]] : globalRadius;
+                vertRadii ? vertRadii[cp[seg + 1]] : globalRadius;
 
             for (uint32_t sub = 0; sub < SUBDIVISIONS; ++sub) {
                 const float t = float(sub) / SUBDIVISIONS;
@@ -1112,8 +1147,8 @@ void Geometry::commitCurve()
                 rt[ri] = (tLen > 1e-12f) ? tang / tLen
                     : filament::math::float3{0, 1, 0};
 
-                ringCp0[rOff + ri] = chain.cp[seg];
-                ringCp1[rOff + ri] = chain.cp[seg + 1];
+                ringCp0[rOff + ri] = cp[seg];
+                ringCp1[rOff + ri] = cp[seg + 1];
                 ringBlend[rOff + ri] = t;
             }
         }
@@ -1121,32 +1156,34 @@ void Geometry::commitCurve()
         // Last ring at the final control point
         {
             const uint32_t lastSeg = nOrigSegs - 1;
-            const filament::math::float3 p1 =
-                srcPositions[chain.cp[lastSeg]];
+            const filament::math::float3 p1 = srcPositions[cp[lastSeg]];
             const filament::math::float3 p2 =
-                srcPositions[chain.cp[lastSeg + 1]];
+                srcPositions[cp[lastSeg + 1]];
             const filament::math::float3 p0 = (lastSeg > 0)
-                ? srcPositions[chain.cp[lastSeg - 1]]
+                ? srcPositions[cp[lastSeg - 1]]
                 : (2.0f * p1 - p2);
             const filament::math::float3 p3 = (lastSeg + 2 < nPts)
-                ? srcPositions[chain.cp[lastSeg + 2]]
+                ? srcPositions[cp[lastSeg + 2]]
                 : (2.0f * p2 - p1);
 
-            rc[nRings - 1] = srcPositions[chain.cp.back()];
+            rc[nRings - 1] = srcPositions[cp[nPts - 1]];
             rr[nRings - 1] = vertRadii
-                ? vertRadii[chain.cp.back()] : globalRadius;
+                ? vertRadii[cp[nPts - 1]] : globalRadius;
             filament::math::float3 tang = crTan(p0, p1, p2, p3, 1.0f);
             const float tLen = length(tang);
             rt[nRings - 1] = (tLen > 1e-12f) ? tang / tLen
                 : filament::math::float3{0, 1, 0};
 
-            ringCp0[rOff + nRings - 1] = chain.cp.back();
-            ringCp1[rOff + nRings - 1] = chain.cp.back();
+            ringCp0[rOff + nRings - 1] = cp[nPts - 1];
+            ringCp1[rOff + nRings - 1] = cp[nPts - 1];
             ringBlend[rOff + nRings - 1] = 0.0f;
         }
 
         // Propagate frames along the chain via parallel transport
-        std::vector<filament::math::float3> ru(nRings), rv(nRings);
+        Corrade::Containers::Array<filament::math::float3> ru{
+            Corrade::NoInit, nRings};
+        Corrade::Containers::Array<filament::math::float3> rv{
+            Corrade::NoInit, nRings};
         buildFrame(rt[0], ru[0], rv[0]);
 
         for (uint32_t r = 1; r < nRings; ++r) {
