@@ -21,6 +21,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <vector>
 
 using namespace Corrade::Containers::Literals;
 
@@ -1003,73 +1004,197 @@ void Geometry::commitCurve()
 
     const uint32_t numSegments = uint32_t(segments.size());
     constexpr uint32_t S = CYLINDER_SEGMENTS;
+    constexpr uint32_t SUBDIVISIONS = 4;
 
-    // Each segment is a tube with 2 rings of (S+1) vertices = (S+1)*2 verts
-    // and S*2 triangles = S*6 indices
-    const uint32_t vertsPerSeg = (S + 1) * 2;
-    const uint32_t indicesPerSeg = S * 6;
-    const uint32_t totalVerts = numSegments * vertsPerSeg;
-    const uint32_t totalIndices = numSegments * indicesPerSeg;
-
-    auto *positions = new filament::math::float3[totalVerts];
-    auto *normals = new filament::math::float3[totalVerts];
-    auto *allIndices = new uint32_t[totalIndices];
-
+    // Group consecutive segments into chains for smooth, connected tubes.
+    // Segments sharing an endpoint become part of the same chain.
+    struct Chain {
+        std::vector<uint32_t> cp;
+    };
+    std::vector<Chain> chains;
     for (uint32_t s = 0; s < numSegments; ++s) {
         const uint32_t i0 = segments[s];
         const uint32_t i1 = i0 + 1;
         if (i1 >= numPositions)
             continue;
-
-        const filament::math::float3 A = srcPositions[i0];
-        const filament::math::float3 B = srcPositions[i1];
-        const float rA = vertRadii ? vertRadii[i0] : globalRadius;
-        const float rB = vertRadii ? vertRadii[i1] : globalRadius;
-
-        filament::math::float3 axis = B - A;
-        const float len = length(axis);
-        if (len < 1e-12f)
-            axis = {0.0f, 1.0f, 0.0f};
+        if (!chains.empty() && chains.back().cp.back() == i0)
+            chains.back().cp.push_back(i1);
         else
-            axis /= len;
+            chains.push_back({{i0, i1}});
+    }
 
-        filament::math::float3 u, v;
-        buildFrame(axis, u, v);
+    // Count total geometry across all chains.
+    // Each chain with N control points produces (N-1)*SUBDIVISIONS+1 rings.
+    uint32_t totalVerts = 0;
+    uint32_t totalIndices = 0;
+    for (const auto &chain : chains) {
+        const uint32_t nSegs =
+            uint32_t(chain.cp.size()) - 1;
+        const uint32_t nRings = nSegs * SUBDIVISIONS + 1;
+        totalVerts += nRings * (S + 1);
+        totalIndices += (nRings - 1) * S * 6;
+    }
 
-        const float dr = rA - rB;
-        const float slope = (len > 1e-12f) ? dr / len : 0.0f;
+    if (totalVerts == 0) {
+        markCommitted();
+        return;
+    }
 
-        const uint32_t vBase = s * vertsPerSeg;
-        const uint32_t iBase = s * indicesPerSeg;
+    auto *positions = new filament::math::float3[totalVerts];
+    auto *normals = new filament::math::float3[totalVerts];
+    auto *allIndices = new uint32_t[totalIndices];
 
-        for (uint32_t seg = 0; seg <= S; ++seg) {
-            const float theta = 2.0f * Pi * float(seg) / S;
-            const float ct = std::cos(theta);
-            const float st = std::sin(theta);
-            const filament::math::float3 circleDir = u * ct + v * st;
-            const filament::math::float3 n =
-                normalize(circleDir + axis * slope);
+    // Per-ring color interpolation data (control-point pair + blend factor)
+    const uint32_t totalRings = totalVerts / (S + 1);
+    std::vector<uint32_t> ringCp0(totalRings);
+    std::vector<uint32_t> ringCp1(totalRings);
+    std::vector<float> ringBlend(totalRings);
 
-            positions[vBase + seg] = A + circleDir * rA;
-            normals[vBase + seg] = n;
+    // Catmull-Rom position evaluation
+    auto crPos = [](filament::math::float3 p0, filament::math::float3 p1,
+        filament::math::float3 p2, filament::math::float3 p3,
+        float t) -> filament::math::float3 {
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+        return 0.5f * ((2.0f * p1)
+            + (-p0 + p2) * t
+            + (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t2
+            + (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t3);
+    };
 
-            positions[vBase + (S + 1) + seg] = B + circleDir * rB;
-            normals[vBase + (S + 1) + seg] = n;
+    // Catmull-Rom tangent (first derivative)
+    auto crTan = [](filament::math::float3 p0, filament::math::float3 p1,
+        filament::math::float3 p2, filament::math::float3 p3,
+        float t) -> filament::math::float3 {
+        const float t2 = t * t;
+        return 0.5f * ((-p0 + p2)
+            + (4.0f * p0 - 10.0f * p1 + 8.0f * p2 - 2.0f * p3) * t
+            + (-3.0f * p0 + 9.0f * p1 - 9.0f * p2 + 3.0f * p3) * t2);
+    };
+
+    uint32_t vOff = 0;
+    uint32_t iOff = 0;
+    uint32_t rOff = 0;
+
+    for (const auto &chain : chains) {
+        const uint32_t nPts = uint32_t(chain.cp.size());
+        const uint32_t nOrigSegs = nPts - 1;
+        const uint32_t nRings = nOrigSegs * SUBDIVISIONS + 1;
+
+        // Compute ring centers, radii, and unit tangents via Catmull-Rom
+        std::vector<filament::math::float3> rc(nRings);
+        std::vector<float> rr(nRings);
+        std::vector<filament::math::float3> rt(nRings);
+
+        for (uint32_t seg = 0; seg < nOrigSegs; ++seg) {
+            const filament::math::float3 p1 = srcPositions[chain.cp[seg]];
+            const filament::math::float3 p2 =
+                srcPositions[chain.cp[seg + 1]];
+            const filament::math::float3 p0 = (seg > 0)
+                ? srcPositions[chain.cp[seg - 1]]
+                : (2.0f * p1 - p2);
+            const filament::math::float3 p3 = (seg + 2 < nPts)
+                ? srcPositions[chain.cp[seg + 2]]
+                : (2.0f * p2 - p1);
+
+            const float r1 =
+                vertRadii ? vertRadii[chain.cp[seg]] : globalRadius;
+            const float r2 =
+                vertRadii ? vertRadii[chain.cp[seg + 1]] : globalRadius;
+
+            for (uint32_t sub = 0; sub < SUBDIVISIONS; ++sub) {
+                const float t = float(sub) / SUBDIVISIONS;
+                const uint32_t ri = seg * SUBDIVISIONS + sub;
+                rc[ri] = crPos(p0, p1, p2, p3, t);
+                rr[ri] = r1 + (r2 - r1) * t;
+                filament::math::float3 tang = crTan(p0, p1, p2, p3, t);
+                const float tLen = length(tang);
+                rt[ri] = (tLen > 1e-12f) ? tang / tLen
+                    : filament::math::float3{0, 1, 0};
+
+                ringCp0[rOff + ri] = chain.cp[seg];
+                ringCp1[rOff + ri] = chain.cp[seg + 1];
+                ringBlend[rOff + ri] = t;
+            }
         }
 
-        uint32_t idx = iBase;
-        for (uint32_t seg = 0; seg < S; ++seg) {
-            const uint32_t a0 = vBase + seg;
-            const uint32_t a1 = vBase + seg + 1;
-            const uint32_t b0 = vBase + (S + 1) + seg;
-            const uint32_t b1 = vBase + (S + 1) + seg + 1;
-            allIndices[idx++] = a0;
-            allIndices[idx++] = a1;
-            allIndices[idx++] = b0;
-            allIndices[idx++] = a1;
-            allIndices[idx++] = b1;
-            allIndices[idx++] = b0;
+        // Last ring at the final control point
+        {
+            const uint32_t lastSeg = nOrigSegs - 1;
+            const filament::math::float3 p1 =
+                srcPositions[chain.cp[lastSeg]];
+            const filament::math::float3 p2 =
+                srcPositions[chain.cp[lastSeg + 1]];
+            const filament::math::float3 p0 = (lastSeg > 0)
+                ? srcPositions[chain.cp[lastSeg - 1]]
+                : (2.0f * p1 - p2);
+            const filament::math::float3 p3 = (lastSeg + 2 < nPts)
+                ? srcPositions[chain.cp[lastSeg + 2]]
+                : (2.0f * p2 - p1);
+
+            rc[nRings - 1] = srcPositions[chain.cp.back()];
+            rr[nRings - 1] = vertRadii
+                ? vertRadii[chain.cp.back()] : globalRadius;
+            filament::math::float3 tang = crTan(p0, p1, p2, p3, 1.0f);
+            const float tLen = length(tang);
+            rt[nRings - 1] = (tLen > 1e-12f) ? tang / tLen
+                : filament::math::float3{0, 1, 0};
+
+            ringCp0[rOff + nRings - 1] = chain.cp.back();
+            ringCp1[rOff + nRings - 1] = chain.cp.back();
+            ringBlend[rOff + nRings - 1] = 0.0f;
         }
+
+        // Propagate frames along the chain via parallel transport
+        std::vector<filament::math::float3> ru(nRings), rv(nRings);
+        buildFrame(rt[0], ru[0], rv[0]);
+
+        for (uint32_t r = 1; r < nRings; ++r) {
+            const filament::math::float3 crossT = cross(rt[r - 1], rt[r]);
+            const float sinA = length(crossT);
+            if (sinA > 1e-6f) {
+                const filament::math::float3 ax = crossT / sinA;
+                const float cosA = dot(rt[r - 1], rt[r]);
+                ru[r] = normalize(
+                    ru[r - 1] * cosA
+                    + cross(ax, ru[r - 1]) * sinA
+                    + ax * dot(ax, ru[r - 1]) * (1.0f - cosA));
+                rv[r] = normalize(cross(rt[r], ru[r]));
+            } else {
+                ru[r] = ru[r - 1];
+                rv[r] = rv[r - 1];
+            }
+        }
+
+        // Generate ring vertices
+        for (uint32_t r = 0; r < nRings; ++r) {
+            for (uint32_t seg = 0; seg <= S; ++seg) {
+                const float theta = 2.0f * Pi * float(seg) / S;
+                const float ct = std::cos(theta);
+                const float st = std::sin(theta);
+                const filament::math::float3 dir = ru[r] * ct + rv[r] * st;
+                const uint32_t vi = vOff + r * (S + 1) + seg;
+                positions[vi] = rc[r] + dir * rr[r];
+                normals[vi] = normalize(dir);
+            }
+        }
+
+        // Connect adjacent rings with triangles
+        for (uint32_t r = 0; r + 1 < nRings; ++r) {
+            const uint32_t rA = vOff + r * (S + 1);
+            const uint32_t rB = vOff + (r + 1) * (S + 1);
+            for (uint32_t seg = 0; seg < S; ++seg) {
+                allIndices[iOff++] = rA + seg;
+                allIndices[iOff++] = rA + seg + 1;
+                allIndices[iOff++] = rB + seg;
+                allIndices[iOff++] = rA + seg + 1;
+                allIndices[iOff++] = rB + seg + 1;
+                allIndices[iOff++] = rB + seg;
+            }
+        }
+
+        vOff += nRings * (S + 1);
+        rOff += nRings;
     }
 
     // Generate tangent frames
@@ -1126,21 +1251,20 @@ void Geometry::commitCurve()
         auto *colors = new filament::math::float4[totalVerts];
         const filament::math::float4 *srcColors =
             static_cast<const filament::math::float4 *>(colArray->data());
-        for (uint32_t s = 0; s < numSegments; ++s) {
-            const uint32_t i0 = segments[s];
-            const uint32_t i1 = i0 + 1;
+        for (uint32_t r = 0; r < totalRings; ++r) {
             const filament::math::float4 cA =
-                (i0 < colArray->totalSize()) ? srcColors[i0]
+                (ringCp0[r] < colArray->totalSize())
+                    ? srcColors[ringCp0[r]]
                     : filament::math::float4{1, 1, 1, 1};
             const filament::math::float4 cB =
-                (i1 < colArray->totalSize()) ? srcColors[i1]
+                (ringCp1[r] < colArray->totalSize())
+                    ? srcColors[ringCp1[r]]
                     : filament::math::float4{1, 1, 1, 1};
-
-            const uint32_t vBase = s * vertsPerSeg;
-            for (uint32_t seg = 0; seg <= S; ++seg) {
-                colors[vBase + seg] = cA;
-                colors[vBase + (S + 1) + seg] = cB;
-            }
+            const filament::math::float4 interp =
+                cA * (1.0f - ringBlend[r]) + cB * ringBlend[r];
+            const uint32_t vBase = r * (S + 1);
+            for (uint32_t seg = 0; seg <= S; ++seg)
+                colors[vBase + seg] = interp;
         }
         mVertexBuffer->setBufferAt(*engine, colorBuffer,
             filament::VertexBuffer::BufferDescriptor(
