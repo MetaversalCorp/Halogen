@@ -143,7 +143,7 @@ Support the features needed for the interactive anariViewer application.
 
 ---
 
-## Milestone 6 — Blender Addon 🔄 Planned
+## Milestone 6 — Blender Addon 🔄 In Progress
 
 Full support for the [ANARI Blender addon](https://github.com/KhronosGroup/anari-blender-addon).
 
@@ -151,6 +151,19 @@ Full support for the [ANARI Blender addon](https://github.com/KhronosGroup/anari
 > importable in Blender 5.1's bundled Python 3.13. The upstream
 > `CustomAnariRender.py` example calls `anariLoadLibrary()` which was renamed
 > to `loadLibrary()` in a newer SDK — upstream fix pending.
+
+### Completed
+
+| Feature | Notes |
+|---------|-------|
+| Buffer lifetime fixes | Heap-allocate + cleanup callbacks for all async Filament uploads |
+| Framebuffer vertical flip | `readPixels` returns bottom-to-top; `Frame::renderFrame()` flips to top-to-bottom |
+| Shadows enabled by default | `castShadows(true)` / `receiveShadows(true)` on all lights and renderables, PCF |
+| Default IBL environment | 3-band SH from Filament's lightroom_14b, intensity 1.0 with neutral exposure |
+| Blender normals API | Addon updated to `mesh.corner_normals.foreach_get('vector')` (Blender 4.1+) |
+| Smooth shading | Test scene Suzanne set to Shade Smooth |
+
+### Remaining
 
 | ANARI Feature | Filament Mapping | Notes |
 |---------------|-----------------|-------|
@@ -172,7 +185,7 @@ These ANARI features have no equivalent in Filament's rasterization pipeline.
 | `volume` object | Filament has no volumetric rendering | None — would require custom shaders or skip |
 | `transferFunction1D` volume | Requires volume rendering | None |
 | `structuredRegular` spatial field | Requires volume rendering | None |
-| `hdri` light | No environment-map emission | **Shim** — use Filament IBL (`IndirectLight`) for ambient, but no visible HDRI dome |
+| `hdri` light | No environment-map emission | **Shim** — default IBL uses Filament `IndirectLight` with 3-band SH; full `KHR_LIGHT_HDRI` (equirectangular radiance map) is a future task |
 | `ring` light | No native ring/area lights | **Shim** — approximate as spot light |
 | `quad` light (physically accurate) | No area lights in rasterizer | **Shim** — approximate as point/spot light at centroid |
 | Path tracing / global illumination | Filament is a rasterizer | Filament has SSAO, SSR as approximations |
