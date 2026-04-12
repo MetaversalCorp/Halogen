@@ -139,6 +139,12 @@ void Material::commitParameters()
     float opacity = getParam<float>("opacity", 1.0f);
     mMaterialInstance->setParameter("opacity", opacity);
 
+    // Bind dummy texture to unused sampler parameters (required by Metal)
+    filament::TextureSampler dummySampler;
+    filament::Texture *dummy = state->dummyTexture;
+    if (!mColorSampler || !mColorSampler->texture())
+        mMaterialInstance->setParameter("baseColorMap", dummy, dummySampler);
+
     // Alpha cutoff for masked mode
     Corrade::Containers::String alphaMode =
         getParamString("alphaMode", "opaque");
@@ -190,6 +196,7 @@ void Material::commitParameters()
         } else {
             mNormalSampler = nullptr;
             mMaterialInstance->setParameter("hasNormalMap", false);
+            mMaterialInstance->setParameter("normalMap", dummy, dummySampler);
         }
     }
 

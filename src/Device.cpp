@@ -18,6 +18,8 @@
 #include <filament/Engine.h>
 #include <filament/Material.h>
 #include <filament/Renderer.h>
+#include <filament/Texture.h>
+#include <backend/PixelBufferDescriptor.h>
 
 #include <helium/array/Array1D.h>
 #include <helium/array/Array2D.h>
@@ -269,6 +271,24 @@ void Device::initDevice()
             .package(PHYSICALLYBASEDMASKED_MAT_DATA,
                 PHYSICALLYBASEDMASKED_MAT_SIZE)
             .build(*state->engine)};
+
+    // 1x1 white dummy texture for unused sampler parameters (required by Metal)
+    state->dummyTexture = filament::Texture::Builder()
+        .width(1)
+        .height(1)
+        .levels(1)
+        .format(filament::Texture::InternalFormat::RGBA8)
+        .sampler(filament::Texture::Sampler::SAMPLER_2D)
+        .build(*state->engine);
+    auto *white = new uint8_t[4]{255, 255, 255, 255};
+    state->dummyTexture->setImage(*state->engine, 0,
+        filament::backend::PixelBufferDescriptor(
+            white, 4,
+            filament::backend::PixelDataFormat::RGBA,
+            filament::backend::PixelDataType::UBYTE,
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<uint8_t *>(buf);
+            }));
 }
 
 void Device::deviceCommitParameters()

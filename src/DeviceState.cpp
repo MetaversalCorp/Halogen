@@ -4,6 +4,7 @@
 #include "DeviceState.h"
 
 #include <filament/Engine.h>
+#include <filament/Texture.h>
 
 namespace AnariFilament {
 
@@ -19,6 +20,10 @@ DeviceState::~DeviceState()
         matteMaskedMaterial.reset();
         matteBlendMaterial.reset();
         matteMaterial.reset();
+        if (dummyTexture) {
+            engine->destroy(dummyTexture);
+            dummyTexture = nullptr;
+        }
         renderer.reset();
         filament::Engine::destroy(&engine);
     }

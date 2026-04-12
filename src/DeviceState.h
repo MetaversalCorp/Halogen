@@ -11,6 +11,7 @@ namespace filament {
 class Engine;
 class Renderer;
 class Material;
+class Texture;
 }
 
 namespace AnariFilament {
@@ -25,6 +26,7 @@ struct DeviceState : public helium::BaseGlobalDeviceState
     FilamentResource<filament::Material> physicallyBasedMaterial;
     FilamentResource<filament::Material> physicallyBasedBlendMaterial;
     FilamentResource<filament::Material> physicallyBasedMaskedMaterial;
+    filament::Texture *dummyTexture = nullptr;
 
     DeviceState(ANARIDevice d);
     ~DeviceState() override;
