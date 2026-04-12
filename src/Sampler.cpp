@@ -66,14 +66,14 @@ void Sampler::commitImage2D()
         return;
     }
 
-    Corrade::Containers::String filterStr = getParamString("filter", "linear");
+    const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
 
-    anari::math::uint2 dims = imageArray->size();
-    uint32_t width = dims[0];
-    uint32_t height = dims[1];
-    ANARIDataType type = imageArray->elementType();
-    size_t numPixels = static_cast<size_t>(width) * height;
+    const anari::math::uint2 dims = imageArray->size();
+    const uint32_t width = dims[0];
+    const uint32_t height = dims[1];
+    const ANARIDataType type = imageArray->elementType();
+    const size_t numPixels = static_cast<size_t>(width) * height;
 
     auto *ownedData = new uint8_t[numPixels * 4];
     convertToRGBA8(ownedData, imageArray->data(), type, numPixels);
@@ -115,11 +115,11 @@ void Sampler::commitImage1D()
         return;
     }
 
-    Corrade::Containers::String filterStr = getParamString("filter", "linear");
+    const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
 
-    uint32_t width = static_cast<uint32_t>(imageArray->totalSize());
-    ANARIDataType type = imageArray->elementType();
+    const uint32_t width = static_cast<uint32_t>(imageArray->totalSize());
+    const ANARIDataType type = imageArray->elementType();
 
     auto *ownedData = new uint8_t[width * 4];
     convertToRGBA8(ownedData, imageArray->data(), type, width);
@@ -162,15 +162,15 @@ void Sampler::commitImage3D()
         return;
     }
 
-    Corrade::Containers::String filterStr = getParamString("filter", "linear");
+    const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
 
-    anari::math::uint3 dims = imageArray->size();
-    uint32_t width = dims[0];
-    uint32_t height = dims[1];
-    uint32_t depth = dims[2];
-    ANARIDataType type = imageArray->elementType();
-    size_t numPixels = static_cast<size_t>(width) * height * depth;
+    const anari::math::uint3 dims = imageArray->size();
+    const uint32_t width = dims[0];
+    const uint32_t height = dims[1];
+    const uint32_t depth = dims[2];
+    const ANARIDataType type = imageArray->elementType();
+    const size_t numPixels = static_cast<size_t>(width) * height * depth;
 
     auto *ownedData = new uint8_t[numPixels * 4];
     convertToRGBA8(ownedData, imageArray->data(), type, numPixels);
@@ -229,20 +229,20 @@ void Sampler::commitPrimitive()
         return;
     }
 
-    uint64_t offset = getParam<uint64_t>("offset", 0);
-    ANARIDataType type = colorArray->elementType();
+    const uint64_t offset = getParam<uint64_t>("offset", 0);
+    const ANARIDataType type = colorArray->elementType();
     const void *data = colorArray->data();
-    size_t totalElements = colorArray->totalSize();
+    const size_t totalElements = colorArray->totalSize();
 
     // Size of one element in bytes
-    size_t elemSize = anari::sizeOf(type);
+    const size_t elemSize = anari::sizeOf(type);
 
     // Compute start pointer with byte offset
     const uint8_t *startPtr =
         static_cast<const uint8_t *>(data) + offset;
-    size_t availableBytes =
+    const size_t availableBytes =
         totalElements * elemSize - static_cast<size_t>(offset);
-    size_t count = availableBytes / elemSize;
+    const size_t count = availableBytes / elemSize;
 
     mPrimitiveColors = Corrade::Containers::Array<filament::math::float4>{
         Corrade::NoInit, count};

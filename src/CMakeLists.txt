@@ -39,7 +39,14 @@ if(FILAMENT_MATC)
     endif()
 endif()
 
-set(MATERIAL_NAMES matte physicallyBased)
+set(MATERIAL_NAMES
+    matte
+    matteBlend
+    matteMasked
+    physicallyBased
+    physicallyBasedBlend
+    physicallyBasedMasked
+)
 set(MATERIAL_HEADERS "")
 
 foreach(_mat ${MATERIAL_NAMES})

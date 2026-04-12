@@ -32,6 +32,10 @@ corrade_add_test(MaterialTest MaterialTest.cpp)
 target_link_libraries(MaterialTest PRIVATE anari)
 add_dependencies(MaterialTest anari_library_filament)
 
+corrade_add_test(LightTest LightTest.cpp)
+target_link_libraries(LightTest PRIVATE anari)
+add_dependencies(LightTest anari_library_filament)
+
 corrade_add_test(RenderTest RenderTest.cpp)
 target_link_libraries(RenderTest PRIVATE anari)
 add_dependencies(RenderTest anari_library_filament)

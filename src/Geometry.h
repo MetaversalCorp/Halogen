@@ -35,6 +35,10 @@ private:
     void commitTriangle();
     void commitSphere();
     void commitCylinder();
+    void commitQuad();
+    void commitCone();
+    void fillDefaultAttributes(filament::Engine *engine, uint32_t vertexCount,
+        uint8_t colorBuffer, uint8_t uv0Buffer, uint8_t uv1Buffer);
 
     Corrade::Containers::String mSubtype;
     filament::VertexBuffer *mVertexBuffer = nullptr;

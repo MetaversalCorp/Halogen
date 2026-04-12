@@ -4,6 +4,7 @@
 #include "Frame.h"
 
 #include <filament/Engine.h>
+#include <filament/IndirectLight.h>
 #include <filament/RenderTarget.h>
 #include <filament/Renderer.h>
 #include <filament/Scene.h>
@@ -13,6 +14,8 @@
 #include <filament/Viewport.h>
 
 #include <backend/PixelBufferDescriptor.h>
+
+#include <math/vec3.h>
 
 #include <anari/frontend/type_utility.h>
 
@@ -29,6 +32,7 @@ Frame::Frame(DeviceState *s)
     , mColorTexture(s->engine, nullptr)
     , mDepthTexture(s->engine, nullptr)
     , mRenderTarget(s->engine, nullptr)
+    , mIndirectLight(s->engine, nullptr)
 {
 }
 
@@ -54,7 +58,7 @@ void Frame::commitParameters()
     mCamera = getParamObject<Camera>("camera");
     mWorld = getParamObject<World>("world");
 
-    anari::math::uint2 imgSize = getParam<anari::math::uint2>(
+    const anari::math::uint2 imgSize = getParam<anari::math::uint2>(
         "size", anari::math::uint2(0u, 0u));
     mWidth = imgSize[0];
     mHeight = imgSize[1];
@@ -81,11 +85,39 @@ void Frame::renderFrame()
     // Ensure all pending GPU uploads are complete before rendering
     engine->flushAndWait();
 
-    // Disable post-processing for linear output; camera exposure handles
-    // the intensity mapping via setExposure(1.0f) (neutral).
-    mView->setPostProcessingEnabled(false);
-    mView->setAntiAliasing(filament::View::AntiAliasing::NONE);
-    mView->setDithering(filament::View::Dithering::NONE);
+    // Enable high-quality rendering defaults:
+    // post-processing (tone mapping, HDR), FXAA, temporal dithering, bloom
+    mView->setPostProcessingEnabled(true);
+    mView->setAntiAliasing(filament::View::AntiAliasing::FXAA);
+    mView->setDithering(filament::View::Dithering::TEMPORAL);
+
+    filament::View::BloomOptions bloomOptions;
+    bloomOptions.enabled = true;
+    bloomOptions.strength = 0.10f;
+    mView->setBloomOptions(bloomOptions);
+
+    // Set up ambient (indirect) lighting from renderer parameters
+    mIndirectLight.reset();
+    if (mRenderer && mRenderer->ambientRadiance() > 0.0f) {
+        const anari::math::float3 ac = mRenderer->ambientColor();
+        const float ar = mRenderer->ambientRadiance();
+
+        // Single-band spherical harmonics for uniform ambient irradiance.
+        // The SH DC coefficient for a constant irradiance E is:
+        //   L00 = E / pi  (since irradiance = pi * L00 for SH)
+        // Filament's IndirectLight.Builder().irradiance(bands, sh) expects
+        // the SH coefficient directly; the intensity() multiplier scales it.
+        const filament::math::float3 sh[1] = {
+            {ac[0], ac[1], ac[2]}};
+        mIndirectLight.reset(
+            filament::IndirectLight::Builder()
+                .irradiance(1, sh)
+                .intensity(ar)
+                .build(*engine));
+        mWorld->filamentScene()->setIndirectLight(mIndirectLight.get());
+    } else {
+        mWorld->filamentScene()->setIndirectLight(nullptr);
+    }
 
     // Recreate render target if size changed
     mRenderTarget.reset();
@@ -133,13 +165,23 @@ void Frame::renderFrame()
     mFrameReady = false;
 
     if (renderer->beginFrame(mSwapChain.get())) {
+        // Set the background/clear color from the renderer parameters
+        if (mRenderer) {
+            const anari::math::float4 bg = mRenderer->backgroundColor();
+            filament::Renderer::ClearOptions clearOpts;
+            clearOpts.clearColor = {bg[0], bg[1], bg[2], bg[3]};
+            clearOpts.clear = true;
+            clearOpts.discard = true;
+            renderer->setClearOptions(clearOpts);
+        }
+
         renderer->render(mView.get());
 
         using namespace filament::backend;
 
         uint8_t *bufferData =
             reinterpret_cast<uint8_t *>(mPixelBuffer.data());
-        size_t bufferSize = mPixelBuffer.size();
+        const size_t bufferSize = mPixelBuffer.size();
 
         renderer->readPixels(mRenderTarget.get(), 0, 0, mWidth, mHeight,
             PixelBufferDescriptor(

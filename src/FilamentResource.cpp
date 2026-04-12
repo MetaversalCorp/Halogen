@@ -5,6 +5,7 @@
 
 #include <filament/Camera.h>
 #include <filament/Engine.h>
+#include <filament/IndirectLight.h>
 #include <filament/Material.h>
 #include <filament/Renderer.h>
 #include <filament/RenderTarget.h>
@@ -36,6 +37,7 @@ void FilamentResource<T>::destroy() {
 
 // Explicit instantiations for all Filament types we manage
 template class FilamentResource<filament::Camera>;
+template class FilamentResource<filament::IndirectLight>;
 template class FilamentResource<filament::View>;
 template class FilamentResource<filament::SwapChain>;
 template class FilamentResource<filament::Texture>;

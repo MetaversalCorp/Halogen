@@ -37,12 +37,18 @@ struct MaterialTest : Corrade::TestSuite::Tester {
 
     void matteVertexColor();
     void pbrMaterial();
+    void pbrEmissive();
+    void matteOpacity();
+    void materialAlphaMode();
 };
 
 MaterialTest::MaterialTest()
 {
     addTests({&MaterialTest::matteVertexColor,
-        &MaterialTest::pbrMaterial});
+        &MaterialTest::pbrMaterial,
+        &MaterialTest::pbrEmissive,
+        &MaterialTest::matteOpacity,
+        &MaterialTest::materialAlphaMode});
 }
 
 void MaterialTest::matteVertexColor()
@@ -180,6 +186,81 @@ void MaterialTest::pbrMaterial()
     anariRelease(f.device, attr0Arr);
     anariRelease(f.device, posArr);
     anariRelease(f.device, geom);
+}
+
+void MaterialTest::pbrEmissive()
+{
+    DeviceFixture f;
+    CORRADE_VERIFY(f.device);
+
+    ANARIMaterial mat = anariNewMaterial(f.device, "physicallyBased");
+    CORRADE_VERIFY(mat);
+
+    float baseColor[] = {0.2f, 0.2f, 0.2f};
+    float emissive[] = {1.0f, 0.5f, 0.0f};
+    anariSetParameter(
+        f.device, mat, "baseColor", ANARI_FLOAT32_VEC3, baseColor);
+    anariSetParameter(
+        f.device, mat, "emissive", ANARI_FLOAT32_VEC3, emissive);
+    anariCommitParameters(f.device, mat);
+
+    anariRelease(f.device, mat);
+}
+
+void MaterialTest::matteOpacity()
+{
+    DeviceFixture f;
+    CORRADE_VERIFY(f.device);
+
+    ANARIMaterial mat = anariNewMaterial(f.device, "matte");
+    CORRADE_VERIFY(mat);
+
+    float color[] = {1.0f, 0.0f, 0.0f};
+    float opacity = 0.5f;
+    anariSetParameter(
+        f.device, mat, "color", ANARI_FLOAT32_VEC3, color);
+    anariSetParameter(
+        f.device, mat, "opacity", ANARI_FLOAT32, &opacity);
+    anariSetParameter(
+        f.device, mat, "alphaMode", ANARI_STRING, "blend");
+    anariCommitParameters(f.device, mat);
+
+    anariRelease(f.device, mat);
+}
+
+void MaterialTest::materialAlphaMode()
+{
+    DeviceFixture f;
+    CORRADE_VERIFY(f.device);
+
+    // Test opaque mode (default)
+    ANARIMaterial matOpaque = anariNewMaterial(f.device, "physicallyBased");
+    CORRADE_VERIFY(matOpaque);
+    anariCommitParameters(f.device, matOpaque);
+
+    // Test blend mode
+    ANARIMaterial matBlend = anariNewMaterial(f.device, "physicallyBased");
+    CORRADE_VERIFY(matBlend);
+    float opacity = 0.7f;
+    anariSetParameter(
+        f.device, matBlend, "alphaMode", ANARI_STRING, "blend");
+    anariSetParameter(
+        f.device, matBlend, "opacity", ANARI_FLOAT32, &opacity);
+    anariCommitParameters(f.device, matBlend);
+
+    // Test mask mode
+    ANARIMaterial matMask = anariNewMaterial(f.device, "physicallyBased");
+    CORRADE_VERIFY(matMask);
+    float cutoff = 0.3f;
+    anariSetParameter(
+        f.device, matMask, "alphaMode", ANARI_STRING, "mask");
+    anariSetParameter(
+        f.device, matMask, "alphaCutoff", ANARI_FLOAT32, &cutoff);
+    anariCommitParameters(f.device, matMask);
+
+    anariRelease(f.device, matMask);
+    anariRelease(f.device, matBlend);
+    anariRelease(f.device, matOpaque);
 }
 
 }

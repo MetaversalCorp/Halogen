@@ -18,6 +18,8 @@
 #include <filament/Engine.h>
 #include <filament/Material.h>
 #include <filament/Renderer.h>
+#include <filament/Texture.h>
+#include <backend/PixelBufferDescriptor.h>
 
 #include <helium/array/Array1D.h>
 #include <helium/array/Array2D.h>
@@ -25,7 +27,11 @@
 #include <helium/array/ObjectArray.h>
 
 #include "matte_mat.h"
+#include "matteBlend_mat.h"
+#include "matteMasked_mat.h"
 #include "physicallyBased_mat.h"
+#include "physicallyBasedBlend_mat.h"
+#include "physicallyBasedMasked_mat.h"
 
 namespace AnariFilament {
 
@@ -102,10 +108,10 @@ ANARIArray3D Device::newArray3D(const void *appMemory,
     return reinterpret_cast<ANARIArray3D>(new helium::Array3D(deviceState(), md));
 }
 
-ANARICamera Device::newCamera(const char *)
+ANARICamera Device::newCamera(const char *subtype)
 {
     initDevice();
-    return reinterpret_cast<ANARICamera>(new Camera(deviceState()));
+    return reinterpret_cast<ANARICamera>(new Camera(deviceState(), subtype));
 }
 
 ANARIFrame Device::newFrame()
@@ -132,10 +138,10 @@ ANARIInstance Device::newInstance(const char *)
     return reinterpret_cast<ANARIInstance>(new Instance(deviceState()));
 }
 
-ANARILight Device::newLight(const char *)
+ANARILight Device::newLight(const char *subtype)
 {
     initDevice();
-    return reinterpret_cast<ANARILight>(new Light(deviceState()));
+    return reinterpret_cast<ANARILight>(new Light(deviceState(), subtype));
 }
 
 ANARIMaterial Device::newMaterial(const char *subtype)
@@ -239,10 +245,50 @@ void Device::initDevice()
             .package(MATTE_MAT_DATA, MATTE_MAT_SIZE)
             .build(*state->engine)};
 
+    state->matteBlendMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(MATTEBLEND_MAT_DATA, MATTEBLEND_MAT_SIZE)
+            .build(*state->engine)};
+
+    state->matteMaskedMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(MATTEMASKED_MAT_DATA, MATTEMASKED_MAT_SIZE)
+            .build(*state->engine)};
+
     state->physicallyBasedMaterial = {state->engine,
         filament::Material::Builder()
             .package(PHYSICALLYBASED_MAT_DATA, PHYSICALLYBASED_MAT_SIZE)
             .build(*state->engine)};
+
+    state->physicallyBasedBlendMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(PHYSICALLYBASEDBLEND_MAT_DATA,
+                PHYSICALLYBASEDBLEND_MAT_SIZE)
+            .build(*state->engine)};
+
+    state->physicallyBasedMaskedMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(PHYSICALLYBASEDMASKED_MAT_DATA,
+                PHYSICALLYBASEDMASKED_MAT_SIZE)
+            .build(*state->engine)};
+
+    // 1x1 white dummy texture for unused sampler parameters (required by Metal)
+    state->dummyTexture = filament::Texture::Builder()
+        .width(1)
+        .height(1)
+        .levels(1)
+        .format(filament::Texture::InternalFormat::RGBA8)
+        .sampler(filament::Texture::Sampler::SAMPLER_2D)
+        .build(*state->engine);
+    auto *white = new uint8_t[4]{255, 255, 255, 255};
+    state->dummyTexture->setImage(*state->engine, 0,
+        filament::backend::PixelBufferDescriptor(
+            white, 4,
+            filament::backend::PixelDataFormat::RGBA,
+            filament::backend::PixelDataType::UBYTE,
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<uint8_t *>(buf);
+            }));
 }
 
 void Device::deviceCommitParameters()

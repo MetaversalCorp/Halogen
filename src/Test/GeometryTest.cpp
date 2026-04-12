@@ -39,6 +39,8 @@ struct GeometryTest : Corrade::TestSuite::Tester {
     void sphereGeometry();
     void cylinderGeometry();
     void primitiveColor();
+    void quadGeometry();
+    void coneGeometry();
 };
 
 GeometryTest::GeometryTest()
@@ -46,7 +48,9 @@ GeometryTest::GeometryTest()
     addTests({&GeometryTest::triangleGeometry,
         &GeometryTest::sphereGeometry,
         &GeometryTest::cylinderGeometry,
-        &GeometryTest::primitiveColor});
+        &GeometryTest::primitiveColor,
+        &GeometryTest::quadGeometry,
+        &GeometryTest::coneGeometry});
 }
 
 void GeometryTest::triangleGeometry()
@@ -290,6 +294,130 @@ void GeometryTest::primitiveColor()
     anariRelease(f.device, primColArr);
     anariRelease(f.device, surf);
     anariRelease(f.device, mat);
+    anariRelease(f.device, geom);
+}
+
+void GeometryTest::quadGeometry()
+{
+    DeviceFixture f;
+    CORRADE_VERIFY(f.device);
+
+    ANARIGeometry geom = anariNewGeometry(f.device, "quad");
+    CORRADE_VERIFY(geom);
+
+    // One quad: 4 vertices
+    float vertices[] = {
+        -1.0f, -1.0f, -3.0f,
+         1.0f, -1.0f, -3.0f,
+         1.0f,  1.0f, -3.0f,
+        -1.0f,  1.0f, -3.0f};
+    float normals[] = {
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f};
+
+    ANARIArray1D posArr = anariNewArray1D(
+        f.device, vertices, nullptr, nullptr, ANARI_FLOAT32_VEC3, 4);
+    ANARIArray1D norArr = anariNewArray1D(
+        f.device, normals, nullptr, nullptr, ANARI_FLOAT32_VEC3, 4);
+
+    anariSetParameter(
+        f.device, geom, "vertex.position", ANARI_ARRAY1D, &posArr);
+    anariSetParameter(
+        f.device, geom, "vertex.normal", ANARI_ARRAY1D, &norArr);
+    anariCommitParameters(f.device, geom);
+
+    ANARIMaterial mat = anariNewMaterial(f.device, "matte");
+    anariCommitParameters(f.device, mat);
+
+    ANARISurface surf = anariNewSurface(f.device);
+    anariSetParameter(f.device, surf, "geometry", ANARI_GEOMETRY, &geom);
+    anariSetParameter(f.device, surf, "material", ANARI_MATERIAL, &mat);
+    anariCommitParameters(f.device, surf);
+
+    ANARIWorld world = anariNewWorld(f.device);
+    ANARIArray1D surfArr = anariNewArray1D(
+        f.device, &surf, nullptr, nullptr, ANARI_SURFACE, 1);
+    anariSetParameter(
+        f.device, world, "surface", ANARI_ARRAY1D, &surfArr);
+    ANARILight light = anariNewLight(f.device, "directional");
+    anariCommitParameters(f.device, light);
+    ANARIArray1D lightArr = anariNewArray1D(
+        f.device, &light, nullptr, nullptr, ANARI_LIGHT, 1);
+    anariSetParameter(
+        f.device, world, "light", ANARI_ARRAY1D, &lightArr);
+    anariCommitParameters(f.device, world);
+
+    ANARICamera camera = anariNewCamera(f.device, "perspective");
+    anariCommitParameters(f.device, camera);
+
+    ANARIRenderer renderer = anariNewRenderer(f.device, "default");
+    anariCommitParameters(f.device, renderer);
+
+    ANARIFrame frame = anariNewFrame(f.device);
+    uint32_t imgSize[] = {32, 32};
+    anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
+    anariSetParameter(f.device, frame, "renderer", ANARI_RENDERER, &renderer);
+    anariSetParameter(f.device, frame, "camera", ANARI_CAMERA, &camera);
+    anariSetParameter(f.device, frame, "world", ANARI_WORLD, &world);
+    anariCommitParameters(f.device, frame);
+
+    anariRenderFrame(f.device, frame);
+    int ready = anariFrameReady(f.device, frame, ANARI_WAIT);
+    CORRADE_VERIFY(ready);
+
+    anariRelease(f.device, frame);
+    anariRelease(f.device, renderer);
+    anariRelease(f.device, camera);
+    anariRelease(f.device, lightArr);
+    anariRelease(f.device, light);
+    anariRelease(f.device, surfArr);
+    anariRelease(f.device, world);
+    anariRelease(f.device, surf);
+    anariRelease(f.device, mat);
+    anariRelease(f.device, norArr);
+    anariRelease(f.device, posArr);
+    anariRelease(f.device, geom);
+}
+
+void GeometryTest::coneGeometry()
+{
+    DeviceFixture f;
+    CORRADE_VERIFY(f.device);
+
+    ANARIGeometry geom = anariNewGeometry(f.device, "cone");
+    CORRADE_VERIFY(geom);
+
+    // Two endpoints forming one cone segment
+    float positions[] = {
+        0.0f, 0.0f, -3.0f,
+        0.0f, 1.0f, -3.0f};
+    float radii[] = {0.3f, 0.05f};
+
+    ANARIArray1D posArr = anariNewArray1D(
+        f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 2);
+    ANARIArray1D radArr = anariNewArray1D(
+        f.device, radii, nullptr, nullptr, ANARI_FLOAT32, 2);
+
+    anariSetParameter(
+        f.device, geom, "vertex.position", ANARI_ARRAY1D, &posArr);
+    anariSetParameter(
+        f.device, geom, "vertex.radius", ANARI_ARRAY1D, &radArr);
+    anariCommitParameters(f.device, geom);
+
+    ANARIMaterial mat = anariNewMaterial(f.device, "matte");
+    anariCommitParameters(f.device, mat);
+
+    ANARISurface surf = anariNewSurface(f.device);
+    anariSetParameter(f.device, surf, "geometry", ANARI_GEOMETRY, &geom);
+    anariSetParameter(f.device, surf, "material", ANARI_MATERIAL, &mat);
+    anariCommitParameters(f.device, surf);
+
+    anariRelease(f.device, surf);
+    anariRelease(f.device, mat);
+    anariRelease(f.device, radArr);
+    anariRelease(f.device, posArr);
     anariRelease(f.device, geom);
 }
 

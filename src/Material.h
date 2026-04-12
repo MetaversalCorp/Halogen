@@ -32,11 +32,13 @@ struct Material : public Object
     bool usesPrimitiveSampler() const { return mUsesPrimitiveSampler; }
 
     Sampler *colorSampler() const { return mColorSampler.ptr; }
+    Sampler *normalSampler() const { return mNormalSampler.ptr; }
 
 private:
     Corrade::Containers::String mSubtype;
     filament::MaterialInstance *mMaterialInstance = nullptr;
     helium::IntrusivePtr<Sampler> mColorSampler;
+    helium::IntrusivePtr<Sampler> mNormalSampler;
     bool mUsesVertexColors = false;
     bool mUsesPrimitiveSampler = false;
 };

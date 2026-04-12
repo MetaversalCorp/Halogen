@@ -199,6 +199,9 @@ coverage:macos-arm64:
   tags:
     - macos
     - arm64
+  needs:
+    - job: test:macos-arm64
+      artifacts: false
   script:
     - >
       cmake -B build-cov -G Ninja
