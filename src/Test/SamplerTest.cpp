@@ -198,8 +198,8 @@ void SamplerTest::image1DSampler()
     uint8_t texData[16 * 4];
     for (int i = 0; i < 16; ++i) {
         float t = float(i) / 15.0f;
-        texData[i * 4 + 0] = static_cast<uint8_t>((1.0f - t) * 255);
-        texData[i * 4 + 1] = static_cast<uint8_t>(t * 255);
+        texData[i * 4 + 0] = uint8_t((1.0f - t) * 255);
+        texData[i * 4 + 1] = uint8_t(t * 255);
         texData[i * 4 + 2] = 128;
         texData[i * 4 + 3] = 255;
     }
@@ -233,9 +233,9 @@ void SamplerTest::image3DSampler()
         for (uint32_t y = 0; y < N; ++y)
             for (uint32_t x = 0; x < N; ++x) {
                 size_t i = x + N * y + N * N * z;
-                texData[i * 4 + 0] = static_cast<uint8_t>(x * 255 / (N - 1));
-                texData[i * 4 + 1] = static_cast<uint8_t>(y * 255 / (N - 1));
-                texData[i * 4 + 2] = static_cast<uint8_t>(z * 255 / (N - 1));
+                texData[i * 4 + 0] = uint8_t(x * 255 / (N - 1));
+                texData[i * 4 + 1] = uint8_t(y * 255 / (N - 1));
+                texData[i * 4 + 2] = uint8_t(z * 255 / (N - 1));
                 texData[i * 4 + 3] = 255;
             }
 

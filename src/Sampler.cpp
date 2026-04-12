@@ -52,7 +52,7 @@ void Sampler::commitParameters()
 
 void Sampler::commitImage2D()
 {
-    filament::Engine *engine = deviceState()->engine;
+    filament::Engine * const engine = deviceState()->engine;
 
     if (mTexture) {
         engine->destroy(mTexture);
@@ -73,7 +73,7 @@ void Sampler::commitImage2D()
     const uint32_t width = dims[0];
     const uint32_t height = dims[1];
     const ANARIDataType type = imageArray->elementType();
-    const size_t numPixels = static_cast<size_t>(width) * height;
+    const size_t numPixels = size_t(width) * height;
 
     auto *ownedData = new uint8_t[numPixels * 4];
     convertToRGBA8(ownedData, imageArray->data(), type, numPixels);
@@ -101,7 +101,7 @@ void Sampler::commitImage2D()
 
 void Sampler::commitImage1D()
 {
-    filament::Engine *engine = deviceState()->engine;
+    filament::Engine * const engine = deviceState()->engine;
 
     if (mTexture) {
         engine->destroy(mTexture);
@@ -118,7 +118,7 @@ void Sampler::commitImage1D()
     const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
 
-    const uint32_t width = static_cast<uint32_t>(imageArray->totalSize());
+    const uint32_t width = uint32_t(imageArray->totalSize());
     const ANARIDataType type = imageArray->elementType();
 
     auto *ownedData = new uint8_t[width * 4];
@@ -148,7 +148,7 @@ void Sampler::commitImage1D()
 
 void Sampler::commitImage3D()
 {
-    filament::Engine *engine = deviceState()->engine;
+    filament::Engine * const engine = deviceState()->engine;
 
     if (mTexture) {
         engine->destroy(mTexture);
@@ -170,7 +170,7 @@ void Sampler::commitImage3D()
     const uint32_t height = dims[1];
     const uint32_t depth = dims[2];
     const ANARIDataType type = imageArray->elementType();
-    const size_t numPixels = static_cast<size_t>(width) * height * depth;
+    const size_t numPixels = size_t(width) * height * depth;
 
     auto *ownedData = new uint8_t[numPixels * 4];
     convertToRGBA8(ownedData, imageArray->data(), type, numPixels);
@@ -241,7 +241,7 @@ void Sampler::commitPrimitive()
     const uint8_t *startPtr =
         static_cast<const uint8_t *>(data) + offset;
     const size_t availableBytes =
-        totalElements * elemSize - static_cast<size_t>(offset);
+        totalElements * elemSize - size_t(offset);
     const size_t count = availableBytes / elemSize;
 
     mPrimitiveColors = Corrade::Containers::Array<filament::math::float4>{

@@ -35,7 +35,7 @@ Material::~Material()
 
 void Material::commitParameters()
 {
-    DeviceState *state = deviceState();
+    DeviceState * const state = deviceState();
 
     if (mMaterialInstance) {
         state->engine->destroy(mMaterialInstance);

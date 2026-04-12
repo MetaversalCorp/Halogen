@@ -28,14 +28,14 @@ Light::Light(DeviceState *s, const char *subtype)
 
 Light::~Light()
 {
-    filament::Engine *engine = deviceState()->engine;
+    filament::Engine * const engine = deviceState()->engine;
     engine->destroy(mEntity);
     utils::EntityManager::get().destroy(mEntity);
 }
 
 void Light::commitParameters()
 {
-    filament::Engine *engine = deviceState()->engine;
+    filament::Engine * const engine = deviceState()->engine;
 
     using float3 = anari::math::float3;
     const float3 color = getParam<float3>("color", float3(1.0f, 1.0f, 1.0f));

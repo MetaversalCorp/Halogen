@@ -23,8 +23,8 @@ void Group::commitParameters()
         return;
     }
 
-    helium::BaseObject **handles = surfaceArray->handlesBegin();
-    size_t total = surfaceArray->totalSize();
+    helium::BaseObject ** const handles = surfaceArray->handlesBegin();
+    const size_t total = surfaceArray->totalSize();
 
     size_t validCount = 0;
     for (size_t i = 0; i < total; ++i) {

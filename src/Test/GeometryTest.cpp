@@ -72,8 +72,8 @@ void GeometryTest::triangleGeometry()
     DeviceFixture f;
     CORRADE_VERIFY(f.device);
 
-    float vertices[] = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
-    uint32_t indices[] = {0, 1, 2};
+    const float vertices[] = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    const uint32_t indices[] = {0, 1, 2};
 
     ANARIArray1D posArray = anariNewArray1D(
         f.device, vertices, nullptr, nullptr, ANARI_FLOAT32_VEC3, 3);
@@ -99,11 +99,11 @@ void GeometryTest::sphereGeometry()
     DeviceFixture f;
     CORRADE_VERIFY(f.device);
 
-    float positions[] = {0.0f, 0.0f, -3.0f, 1.0f, 0.0f, -3.0f};
-    float colors[] = {
+    const float positions[] = {0.0f, 0.0f, -3.0f, 1.0f, 0.0f, -3.0f};
+    const float colors[] = {
         1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 1.0f, 0.0f, 1.0f};
-    float radii[] = {0.3f, 0.5f};
+    const float radii[] = {0.3f, 0.5f};
 
     ANARIArray1D posArr = anariNewArray1D(
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 2);
@@ -148,11 +148,11 @@ void GeometryTest::sphereGeometry()
     anariCommitParameters(f.device, world);
 
     ANARICamera camera = anariNewCamera(f.device, "perspective");
-    float aspect = 1.0f;
+    const float aspect = 1.0f;
     anariSetParameter(f.device, camera, "aspect", ANARI_FLOAT32, &aspect);
-    float pos[] = {0.5f, 0.0f, 0.0f};
-    float dir[] = {0.0f, 0.0f, -1.0f};
-    float up[] = {0.0f, 1.0f, 0.0f};
+    const float pos[] = {0.5f, 0.0f, 0.0f};
+    const float dir[] = {0.0f, 0.0f, -1.0f};
+    const float up[] = {0.0f, 1.0f, 0.0f};
     anariSetParameter(f.device, camera, "position", ANARI_FLOAT32_VEC3, pos);
     anariSetParameter(f.device, camera, "direction", ANARI_FLOAT32_VEC3, dir);
     anariSetParameter(f.device, camera, "up", ANARI_FLOAT32_VEC3, up);
@@ -162,8 +162,8 @@ void GeometryTest::sphereGeometry()
     anariCommitParameters(f.device, renderer);
 
     ANARIFrame frame = anariNewFrame(f.device);
-    uint32_t imgSize[] = {64, 64};
-    ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
+    const uint32_t imgSize[] = {64, 64};
+    const ANARIDataType colorType = ANARI_UFIXED8_RGBA_SRGB;
     anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
     anariSetParameter(
         f.device, frame, "channel.color", ANARI_DATA_TYPE, &colorType);
@@ -216,19 +216,19 @@ void GeometryTest::cylinderGeometry()
     ANARIGeometry geom = anariNewGeometry(f.device, "cylinder");
     CORRADE_VERIFY(geom);
 
-    float positions[] = {
+    const float positions[] = {
         0.0f, 0.0f, 0.0f,
         1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f,
     };
-    float colors[] = {
+    const float colors[] = {
         1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 1.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 1.0f,
         1.0f, 1.0f, 0.0f, 1.0f,
     };
-    float perCylRadii[] = {0.1f, 0.2f};
+    const float perCylRadii[] = {0.1f, 0.2f};
 
     ANARIArray1D posArr = anariNewArray1D(
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 4);
@@ -238,7 +238,7 @@ void GeometryTest::cylinderGeometry()
         f.device, colors, nullptr, nullptr, ANARI_FLOAT32_VEC4, 4);
     anariSetParameter(f.device, geom, "vertex.color", ANARI_ARRAY1D, &colArr);
 
-    float radius = 0.05f;
+    const float radius = 0.05f;
     anariSetParameter(f.device, geom, "radius", ANARI_FLOAT32, &radius);
 
     ANARIArray1D radiiArr = anariNewArray1D(
@@ -272,7 +272,7 @@ void GeometryTest::primitiveColor()
 
     ANARIGeometry geom = anariNewGeometry(f.device, "triangle");
 
-    float positions[] = {
+    const float positions[] = {
         0.0f, 0.0f, 0.0f,
         1.0f, 0.0f, 0.0f,
         0.5f, 1.0f, 0.0f,
@@ -284,7 +284,7 @@ void GeometryTest::primitiveColor()
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 6);
     anariSetParameter(f.device, geom, "vertex.position", ANARI_ARRAY1D, &posArr);
 
-    uint8_t primColors[] = {
+    const uint8_t primColors[] = {
         255, 0, 0, 255,
         0, 255, 0, 255,
     };
@@ -320,12 +320,12 @@ void GeometryTest::quadGeometry()
     CORRADE_VERIFY(geom);
 
     // One quad: 4 vertices
-    float vertices[] = {
+    const float vertices[] = {
         -1.0f, -1.0f, -3.0f,
          1.0f, -1.0f, -3.0f,
          1.0f,  1.0f, -3.0f,
         -1.0f,  1.0f, -3.0f};
-    float normals[] = {
+    const float normals[] = {
         0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f,
@@ -370,7 +370,7 @@ void GeometryTest::quadGeometry()
     anariCommitParameters(f.device, renderer);
 
     ANARIFrame frame = anariNewFrame(f.device);
-    uint32_t imgSize[] = {32, 32};
+    const uint32_t imgSize[] = {32, 32};
     anariSetParameter(f.device, frame, "size", ANARI_UINT32_VEC2, imgSize);
     anariSetParameter(f.device, frame, "renderer", ANARI_RENDERER, &renderer);
     anariSetParameter(f.device, frame, "camera", ANARI_CAMERA, &camera);
@@ -404,10 +404,10 @@ void GeometryTest::coneGeometry()
     CORRADE_VERIFY(geom);
 
     // Two endpoints forming one cone segment
-    float positions[] = {
+    const float positions[] = {
         0.0f, 0.0f, -3.0f,
         0.0f, 1.0f, -3.0f};
-    float radii[] = {0.3f, 0.05f};
+    const float radii[] = {0.3f, 0.05f};
 
     ANARIArray1D posArr = anariNewArray1D(
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 2);
@@ -443,11 +443,11 @@ void GeometryTest::cylinderWithCaps()
     ANARIGeometry geom = anariNewGeometry(f.device, "cylinder");
     CORRADE_VERIFY(geom);
 
-    float positions[] = {
+    const float positions[] = {
         0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f,
     };
-    float colors[] = {
+    const float colors[] = {
         1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 1.0f, 0.0f, 1.0f,
     };
@@ -462,7 +462,7 @@ void GeometryTest::cylinderWithCaps()
     anariSetParameter(
         f.device, geom, "vertex.color", ANARI_ARRAY1D, &colArr);
 
-    float radius = 0.2f;
+    const float radius = 0.2f;
     anariSetParameter(f.device, geom, "radius", ANARI_FLOAT32, &radius);
 
     anariSetParameter(
@@ -483,21 +483,21 @@ void GeometryTest::coneWithCaps()
     CORRADE_VERIFY(geom);
 
     // Two cones: 4 endpoints
-    float positions[] = {
+    const float positions[] = {
         0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f,
         1.0f, 0.0f, 0.0f,
         1.0f, 1.0f, 0.0f,
     };
-    float radii[] = {0.3f, 0.1f, 0.2f, 0.05f};
-    float colors[] = {
+    const float radii[] = {0.3f, 0.1f, 0.2f, 0.05f};
+    const float colors[] = {
         1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 1.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 1.0f,
         1.0f, 1.0f, 0.0f, 1.0f,
     };
     // Per-endpoint caps: cap first pair, only cap B of second pair
-    uint8_t capFlags[] = {1, 1, 0, 1};
+    const uint8_t capFlags[] = {1, 1, 0, 1};
 
     ANARIArray1D posArr = anariNewArray1D(
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 4);
@@ -533,15 +533,15 @@ void GeometryTest::triangleWithUV()
     ANARIGeometry geom = anariNewGeometry(f.device, "triangle");
     CORRADE_VERIFY(geom);
 
-    float positions[] = {
+    const float positions[] = {
         0.0f, 0.0f, 0.0f,
         1.0f, 0.0f, 0.0f,
         0.5f, 1.0f, 0.0f,
     };
     // UV0 as FLOAT32_VEC2
-    float uv0[] = {0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f};
+    const float uv0[] = {0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f};
     // UV1 as FLOAT32 (scalar expansion to float2)
-    float uv1[] = {0.0f, 0.5f, 1.0f};
+    const float uv1[] = {0.0f, 0.5f, 1.0f};
 
     ANARIArray1D posArr = anariNewArray1D(
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 3);
@@ -572,7 +572,7 @@ void GeometryTest::trianglePrimitiveColorWithNormalsAndUV()
     ANARIGeometry geom = anariNewGeometry(f.device, "triangle");
     CORRADE_VERIFY(geom);
 
-    float positions[] = {
+    const float positions[] = {
         0.0f, 0.0f, 0.0f,
         1.0f, 0.0f, 0.0f,
         0.5f, 1.0f, 0.0f,
@@ -580,7 +580,7 @@ void GeometryTest::trianglePrimitiveColorWithNormalsAndUV()
         -0.5f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.5f,
     };
-    float normals[] = {
+    const float normals[] = {
         0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f,
@@ -589,10 +589,10 @@ void GeometryTest::trianglePrimitiveColorWithNormalsAndUV()
         0.0f, 0.0f, 1.0f,
     };
     // UV as scalar FLOAT32 (tests expansion within primitive.color path)
-    float uv0[] = {0.0f, 0.2f, 0.4f, 0.6f, 0.8f, 1.0f};
-    float uv1[] = {1.0f, 0.8f, 0.6f, 0.4f, 0.2f, 0.0f};
+    const float uv0[] = {0.0f, 0.2f, 0.4f, 0.6f, 0.8f, 1.0f};
+    const float uv1[] = {1.0f, 0.8f, 0.6f, 0.4f, 0.2f, 0.0f};
     // Per-primitive color as FLOAT32_VEC3 (tests convertColors in expansion)
-    float primColors[] = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+    const float primColors[] = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
 
     ANARIArray1D posArr = anariNewArray1D(
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 6);
@@ -634,7 +634,7 @@ void GeometryTest::quadPrimitiveColor()
     CORRADE_VERIFY(geom);
 
     // Two quads: 8 vertices
-    float vertices[] = {
+    const float vertices[] = {
         -1.0f, -1.0f, 0.0f,
          0.0f, -1.0f, 0.0f,
          0.0f,  1.0f, 0.0f,
@@ -644,14 +644,14 @@ void GeometryTest::quadPrimitiveColor()
          1.0f,  1.0f, 0.0f,
          0.0f,  1.0f, 0.0f,
     };
-    float normals[] = {
+    const float normals[] = {
         0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
     };
     // Per-quad color (2 quads)
-    float primColors[] = {
+    const float primColors[] = {
         1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 1.0f,
     };
@@ -685,13 +685,13 @@ void GeometryTest::triangleVertexColorConversion()
     ANARIGeometry geom = anariNewGeometry(f.device, "triangle");
     CORRADE_VERIFY(geom);
 
-    float positions[] = {
+    const float positions[] = {
         0.0f, 0.0f, 0.0f,
         1.0f, 0.0f, 0.0f,
         0.5f, 1.0f, 0.0f,
     };
     // vertex.color as FLOAT32_VEC3 (tests convertColors branch)
-    float colors[] = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    const float colors[] = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 
     ANARIArray1D posArr = anariNewArray1D(
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 3);
@@ -717,20 +717,20 @@ void GeometryTest::spherePerSphereRadius()
     ANARIGeometry geom = anariNewGeometry(f.device, "sphere");
     CORRADE_VERIFY(geom);
 
-    float positions[] = {
+    const float positions[] = {
         0.0f, 0.0f, 0.0f,
         1.0f, 0.0f, 0.0f,
         2.0f, 0.0f, 0.0f,
     };
-    float radii[] = {0.1f, 0.3f, 0.5f};
+    const float radii[] = {0.1f, 0.3f, 0.5f};
     // Sphere vertex.color (tests per-sphere color expansion)
-    float colors[] = {
+    const float colors[] = {
         1.0f, 0.0f, 0.0f, 1.0f,
         0.0f, 1.0f, 0.0f, 1.0f,
         0.0f, 0.0f, 1.0f, 1.0f,
     };
     // Sphere UV0 as FLOAT32 scalar (tests UV scalar expansion)
-    float uv0[] = {0.0f, 0.5f, 1.0f};
+    const float uv0[] = {0.0f, 0.5f, 1.0f};
 
     ANARIArray1D posArr = anariNewArray1D(
         f.device, positions, nullptr, nullptr, ANARI_FLOAT32_VEC3, 3);

@@ -23,7 +23,7 @@ Camera::Camera(DeviceState *s, const char *subtype)
     : Object(ANARI_CAMERA, s)
     , mSubtype(subtype ? subtype : "perspective")
 {
-    filament::Engine *engine = s->engine;
+    filament::Engine * const engine = s->engine;
     mEntity = utils::EntityManager::get().create();
     filament::Camera *cam = engine->createCamera(mEntity);
     mCamera = {engine, cam, [engine, e = mEntity]() {

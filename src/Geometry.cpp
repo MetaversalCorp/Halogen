@@ -91,7 +91,7 @@ void Geometry::commitTriangle()
         mIndexBuffer = nullptr;
     }
 
-    uint32_t numVertices = static_cast<uint32_t>(posArray->totalSize());
+    uint32_t numVertices = uint32_t(posArray->totalSize());
     mHasColors = colArray != nullptr || primColArray != nullptr;
     mHasUV0 = attr0Array != nullptr;
     mHasUV1 = attr1Array != nullptr;
@@ -102,7 +102,7 @@ void Geometry::commitTriangle()
     const uint32_t *indexData = nullptr;
 
     if (idxArray) {
-        numTriangles = static_cast<uint32_t>(idxArray->totalSize());
+        numTriangles = uint32_t(idxArray->totalSize());
         indexData = static_cast<const uint32_t *>(idxArray->data());
     } else {
         numTriangles = numVertices / 3;
@@ -490,7 +490,7 @@ void Geometry::commitSphere()
     }
 
     const float globalRadius = getParam<float>("radius", 0.01f);
-    const uint32_t numSpheres = static_cast<uint32_t>(posArray->totalSize());
+    const uint32_t numSpheres = uint32_t(posArray->totalSize());
     const filament::math::float3 *centers =
         static_cast<const filament::math::float3 *>(posArray->data());
     const float *radii = radiusArray
@@ -506,8 +506,8 @@ void Geometry::commitSphere()
     Corrade::Containers::Array<uint32_t> unitIndices;
     generateUnitSphere(unitVerts, unitIndices);
 
-    const uint32_t vertsPerSphere = static_cast<uint32_t>(unitVerts.size());
-    const uint32_t indicesPerSphere = static_cast<uint32_t>(unitIndices.size());
+    const uint32_t vertsPerSphere = uint32_t(unitVerts.size());
+    const uint32_t indicesPerSphere = uint32_t(unitIndices.size());
     const uint32_t totalVerts = numSpheres * vertsPerSphere;
     const uint32_t totalIndices = numSpheres * indicesPerSphere;
 
@@ -713,7 +713,7 @@ void Geometry::commitCylinder()
     const float globalRadius = getParam<float>("radius", 1.0f);
     const Corrade::Containers::String capsStr = getParamString("caps", "none");
 
-    const uint32_t numEndpoints = static_cast<uint32_t>(posArray->totalSize());
+    const uint32_t numEndpoints = uint32_t(posArray->totalSize());
     const uint32_t numCylinders = numEndpoints / 2;
     const filament::math::float3 *endpoints =
         static_cast<const filament::math::float3 *>(posArray->data());
@@ -972,7 +972,7 @@ void Geometry::commitQuad()
     }
 
     // Each group of 4 consecutive vertices forms a quad.
-    const uint32_t numSrcVertices = static_cast<uint32_t>(posArray->totalSize());
+    const uint32_t numSrcVertices = uint32_t(posArray->totalSize());
     const uint32_t numQuads = numSrcVertices / 4;
     uint32_t numVertices = numSrcVertices;
     const uint32_t numTriangles = numQuads * 2;
@@ -1232,7 +1232,7 @@ void Geometry::commitCone()
     const float globalRadius = getParam<float>("radius", 1.0f);
     const Corrade::Containers::String capsStr = getParamString("caps", "none");
 
-    const uint32_t numEndpoints = static_cast<uint32_t>(posArray->totalSize());
+    const uint32_t numEndpoints = uint32_t(posArray->totalSize());
     const uint32_t numCones = numEndpoints / 2;
     const filament::math::float3 *endpoints =
         static_cast<const filament::math::float3 *>(posArray->data());

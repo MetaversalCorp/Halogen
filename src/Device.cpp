@@ -215,7 +215,7 @@ Device::Device(ANARILibrary l)
 
 Device::~Device()
 {
-    DeviceState *state = deviceState();
+    DeviceState * const state = deviceState();
     if (state)
         state->commitBuffer.clear();
 }
@@ -227,7 +227,7 @@ void Device::initDevice()
     mInitialized = true;
 
     m_state = std::make_unique<DeviceState>(this_device());
-    DeviceState *state = deviceState();
+    DeviceState * const state = deviceState();
 
     state->engine = filament::Engine::create(
         filament::Engine::Backend::DEFAULT);
