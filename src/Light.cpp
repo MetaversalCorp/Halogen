@@ -60,7 +60,7 @@ void Light::commitParameters()
             .color(toFilament(color))
             .intensity(finalIntensity)
             .falloff(100.0f)
-            .castShadows(false)
+            .castShadows(true)
             .build(*engine, mEntity);
     } else if (mSubtype == "spot"_s) {
         const float3 position = getParam<float3>(
@@ -92,7 +92,7 @@ void Light::commitParameters()
             .intensity(finalIntensity)
             .falloff(100.0f)
             .spotLightCone(innerDeg, outerDeg)
-            .castShadows(false)
+            .castShadows(true)
             .build(*engine, mEntity);
     } else {
         // Directional light (default)
@@ -110,7 +110,7 @@ void Light::commitParameters()
             .direction(toFilament(direction))
             .color(toFilament(color))
             .intensity(filamentIntensity)
-            .castShadows(false)
+            .castShadows(true)
             .build(*engine, mEntity);
     }
 

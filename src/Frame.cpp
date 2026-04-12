@@ -99,17 +99,20 @@ void Frame::renderFrame()
     bloomOptions.strength = 0.10f;
     mView->setBloomOptions(bloomOptions);
 
-    // Set up ambient (indirect) lighting from renderer parameters
+    // Enable soft shadows (PCF)
+    mView->setShadowType(filament::View::ShadowType::PCF);
+
+    // Set up indirect (image-based) lighting.
+    //
+    // When the renderer's ambientRadiance > 0, honour the user-specified
+    // uniform ambient.  Otherwise, apply a default 3-band spherical-
+    // harmonics environment (from Filament's "lightroom_14b" asset) so
+    // that PBR materials look reasonable out of the box.
     mIndirectLight.reset();
     if (mRenderer && mRenderer->ambientRadiance() > 0.0f) {
         const anari::math::float3 ac = mRenderer->ambientColor();
         const float ar = mRenderer->ambientRadiance();
 
-        // Single-band spherical harmonics for uniform ambient irradiance.
-        // The SH DC coefficient for a constant irradiance E is:
-        //   L00 = E / pi  (since irradiance = pi * L00 for SH)
-        // Filament's IndirectLight.Builder().irradiance(bands, sh) expects
-        // the SH coefficient directly; the intensity() multiplier scales it.
         const filament::math::float3 sh[1] = {
             {ac[0], ac[1], ac[2]}};
         mIndirectLight.reset(
@@ -117,10 +120,27 @@ void Frame::renderFrame()
                 .irradiance(1, sh)
                 .intensity(ar)
                 .build(*engine));
-        mWorld->filamentScene()->setIndirectLight(mIndirectLight.get());
     } else {
-        mWorld->filamentScene()->setIndirectLight(nullptr);
+        // Default 3-band SH from Filament's lightroom_14b environment.
+        // Pre-scaled irradiance coefficients produced by cmgen.
+        static const filament::math::float3 defaultSH[9] = {
+            { 0.7858f,  0.7858f,  0.7858f},  // L00
+            { 0.4026f,  0.4026f,  0.4026f},  // L1-1
+            { 0.4605f,  0.4605f,  0.4605f},  // L10
+            { 0.0842f,  0.0842f,  0.0842f},  // L11
+            { 0.0583f,  0.0583f,  0.0583f},  // L2-2
+            { 0.2050f,  0.2050f,  0.2050f},  // L2-1
+            { 0.0927f,  0.0927f,  0.0927f},  // L20
+            {-0.0918f, -0.0918f, -0.0918f},  // L21
+            {-0.0067f, -0.0067f, -0.0067f},  // L22
+        };
+        mIndirectLight.reset(
+            filament::IndirectLight::Builder()
+                .irradiance(3, defaultSH)
+                .intensity(1.0f)
+                .build(*engine));
     }
+    mWorld->filamentScene()->setIndirectLight(mIndirectLight.get());
 
     // Recreate render target if size changed
     mRenderTarget.reset();

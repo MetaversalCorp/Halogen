@@ -219,8 +219,8 @@ void Surface::finalize()
             vb, ib, 0, idxCount)
         .material(0, mMaterial->materialInstance())
         .boundingBox(box)
-        .receiveShadows(false)
-        .castShadows(false)
+        .receiveShadows(true)
+        .castShadows(true)
         .build(*engine, mEntity);
 
     mBuilt = true;
