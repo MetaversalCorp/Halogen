@@ -85,8 +85,10 @@ void Frame::renderFrame()
     if (!isValid())
         return;
 
-    // Ensure all pending GPU uploads are complete before rendering
+    // Ensure all pending GPU uploads and any previous readback are complete
+    // before rendering, then clear the scheduled-readback flag.
     engine->flushAndWait();
+    mReadbackScheduled = false;
 
     // Enable high-quality rendering defaults:
     // post-processing (tone mapping, HDR), FXAA, temporal dithering, bloom
@@ -137,7 +139,7 @@ void Frame::renderFrame()
         mIndirectLight.reset(
             filament::IndirectLight::Builder()
                 .irradiance(3, defaultSH)
-                .intensity(1.0f)
+                .intensity(0.05f)
                 .build(*engine));
     }
     mWorld->filamentScene()->setIndirectLight(mIndirectLight.get());
@@ -223,19 +225,9 @@ void Frame::renderFrame()
         renderer->endFrame();
     }
 
-    engine->flushAndWait();
-
-    // Flip the image vertically — GPU framebuffers store row 0 at the
-    // bottom, while ANARI images expect row 0 at the top.
-    const size_t rowBytes = mWidth * bytesPerPixel;
-    Corrade::Containers::Array<char> rowTmp{Corrade::NoInit, rowBytes};
-    char *buf = mPixelBuffer.data();
-    for (uint32_t top = 0, bot = mHeight - 1; top < bot; ++top, --bot) {
-        std::memcpy(rowTmp.data(), buf + top * rowBytes, rowBytes);
-        std::memcpy(buf + top * rowBytes, buf + bot * rowBytes, rowBytes);
-        std::memcpy(buf + bot * rowBytes, rowTmp.data(), rowBytes);
-    }
-
+    // readPixels() has been issued; defer flushAndWait() and the vertical
+    // flip to map() so callers that never map skip the expensive readback.
+    mReadbackScheduled = true;
     mFrameReady = true;
 }
 
@@ -261,6 +253,24 @@ void *Frame::map(std::string_view channel,
         } else {
             *pixelType = ANARI_UFIXED8_RGBA_SRGB;
         }
+        if (mReadbackScheduled) {
+            // Complete the GPU readback that was scheduled in renderFrame().
+            // Flip vertically here: Filament row 0 = bottom, ANARI row 0 = top.
+            DeviceState *const state = deviceState();
+            state->engine->flushAndWait();
+            const bool wantFloat =
+                (mColorType == ANARI_FLOAT32_VEC4 || mColorType == ANARI_FLOAT32);
+            const size_t bytesPerPixel = wantFloat ? 16u : 4u;
+            const size_t rowBytes = mWidth * bytesPerPixel;
+            Corrade::Containers::Array<char> rowTmp{Corrade::NoInit, rowBytes};
+            char *buf = mPixelBuffer.data();
+            for (uint32_t top = 0, bot = mHeight - 1; top < bot; ++top, --bot) {
+                std::memcpy(rowTmp.data(), buf + top * rowBytes, rowBytes);
+                std::memcpy(buf + top * rowBytes, buf + bot * rowBytes, rowBytes);
+                std::memcpy(buf + bot * rowBytes, rowTmp.data(), rowBytes);
+            }
+            mReadbackScheduled = false;
+        }
         return mPixelBuffer.data();
     }
 
@@ -277,6 +287,7 @@ int Frame::frameReady(ANARIWaitMask)
 void Frame::discard()
 {
     mFrameReady = false;
+    mReadbackScheduled = false;
 }
 
 DeviceState *Frame::deviceState() const

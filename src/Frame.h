@@ -70,6 +70,7 @@ private:
 
     Corrade::Containers::Array<char> mPixelBuffer;
     bool mFrameReady = false;
+    bool mReadbackScheduled = false;
 };
 
 }
