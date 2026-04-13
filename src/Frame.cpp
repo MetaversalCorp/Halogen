@@ -5,6 +5,7 @@
 
 #include <filament/Engine.h>
 #include <filament/IndirectLight.h>
+#include <filament/Options.h>
 #include <filament/RenderTarget.h>
 #include <filament/Renderer.h>
 #include <filament/Scene.h>
@@ -31,6 +32,7 @@ Frame::Frame(DeviceState *s)
     , mSwapChain(s->engine, nullptr)
     , mColorTexture(s->engine, nullptr)
     , mDepthTexture(s->engine, nullptr)
+    , mBlackCubemap(s->engine, nullptr)
     , mRenderTarget(s->engine, nullptr)
     , mIndirectLight(s->engine, nullptr)
 {
@@ -90,16 +92,30 @@ void Frame::renderFrame()
     engine->flushAndWait();
     mReadbackScheduled = false;
 
-    // Enable high-quality rendering defaults:
-    // post-processing (tone mapping, HDR), FXAA, temporal dithering, bloom
-    mView->setPostProcessingEnabled(true);
-    mView->setAntiAliasing(filament::View::AntiAliasing::FXAA);
-    mView->setDithering(filament::View::Dithering::TEMPORAL);
+    const bool wantFloat =
+        (mColorType == ANARI_FLOAT32_VEC4 || mColorType == ANARI_FLOAT32);
 
-    filament::View::BloomOptions bloomOptions;
-    bloomOptions.enabled = true;
-    bloomOptions.strength = 0.10f;
-    mView->setBloomOptions(bloomOptions);
+    if (wantFloat) {
+        // Float output: disable post-processing to preserve exact linear HDR
+        // values in the readback buffer.  MSAA is not needed for pixel-exact
+        // float output (Blender composites the raw values).
+        mView->setPostProcessingEnabled(false);
+    } else {
+        // SRGB output: full post-processing with ACES tonemapping, FXAA,
+        // 4x MSAA, and subtle bloom for visual quality in screenshots.
+        mView->setPostProcessingEnabled(true);
+        mView->setColorGrading(nullptr);
+        mView->setAntiAliasing(filament::View::AntiAliasing::FXAA);
+        mView->setDithering(filament::View::Dithering::TEMPORAL);
+        filament::View::MultiSampleAntiAliasingOptions msaa;
+        msaa.enabled = true;
+        msaa.sampleCount = 4;
+        mView->setMultiSampleAntiAliasingOptions(msaa);
+        filament::View::BloomOptions bloom;
+        bloom.enabled = true;
+        bloom.strength = 0.1f;
+        mView->setBloomOptions(bloom);
+    }
 
     // Enable soft shadows (PCF)
     mView->setShadowType(filament::View::ShadowType::PCF);
@@ -123,23 +139,37 @@ void Frame::renderFrame()
                 .intensity(ar)
                 .build(*engine));
     } else {
-        // Default 3-band SH from Filament's lightroom_14b environment.
-        // Pre-scaled irradiance coefficients produced by cmgen.
-        static const filament::math::float3 defaultSH[9] = {
-            { 0.7858f,  0.7858f,  0.7858f},  // L00
-            { 0.4026f,  0.4026f,  0.4026f},  // L1-1
-            { 0.4605f,  0.4605f,  0.4605f},  // L10
-            { 0.0842f,  0.0842f,  0.0842f},  // L11
-            { 0.0583f,  0.0583f,  0.0583f},  // L2-2
-            { 0.2050f,  0.2050f,  0.2050f},  // L2-1
-            { 0.0927f,  0.0927f,  0.0927f},  // L20
-            {-0.0918f, -0.0918f, -0.0918f},  // L21
-            {-0.0067f, -0.0067f, -0.0067f},  // L22
-        };
+        // No explicit ambient: provide a black 1×1 cubemap as the reflection
+        // environment so Filament uses it instead of its built-in default
+        // specular fallback (which contributes ~1.0 regardless of intensity).
+        // Created lazily and reused across frames.
+        if (!mBlackCubemap) {
+            mBlackCubemap.reset(filament::Texture::Builder()
+                .width(1)
+                .height(1)
+                .levels(1)
+                .sampler(filament::Texture::Sampler::SAMPLER_CUBEMAP)
+                .format(filament::Texture::InternalFormat::RGBA8)
+                .build(*engine));
+            for (int face = 0; face < 6; ++face) {
+                auto *px = new uint8_t[4]{0, 0, 0, 0};
+                mBlackCubemap->setImage(*engine, 0,
+                    0, 0, static_cast<uint32_t>(face), 1, 1, 1,
+                    filament::backend::PixelBufferDescriptor(
+                        px, 4,
+                        filament::backend::PixelDataFormat::RGBA,
+                        filament::backend::PixelDataType::UBYTE,
+                        [](void *buf, size_t, void *) {
+                            delete[] static_cast<uint8_t *>(buf);
+                        }));
+            }
+        }
+        const filament::math::float3 sh[1] = {{0.0f, 0.0f, 0.0f}};
         mIndirectLight.reset(
             filament::IndirectLight::Builder()
-                .irradiance(3, defaultSH)
-                .intensity(0.05f)
+                .reflections(mBlackCubemap.get())
+                .irradiance(1, sh)
+                .intensity(0.0f)
                 .build(*engine));
     }
     mWorld->filamentScene()->setIndirectLight(mIndirectLight.get());
@@ -148,9 +178,6 @@ void Frame::renderFrame()
     mRenderTarget.reset();
     mColorTexture.reset();
     mDepthTexture.reset();
-
-    const bool wantFloat =
-        (mColorType == ANARI_FLOAT32_VEC4 || mColorType == ANARI_FLOAT32);
 
     mColorTexture.reset(filament::Texture::Builder()
         .width(mWidth)

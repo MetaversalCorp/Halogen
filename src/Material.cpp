@@ -6,6 +6,7 @@
 #include "MathConversions.h"
 #include "Sampler.h"
 
+
 #include <filament/Material.h>
 #include <filament/MaterialInstance.h>
 #include <filament/Texture.h>
@@ -71,12 +72,16 @@ void Material::commitParameters()
 
     mMaterialInstance = baseMaterial->createInstance();
 
+    // The ANARI spec uses "color" for matte materials and "baseColor" for
+    // physicallyBased materials.  Read from the correct parameter name.
+    const bool isMatte = (mSubtype != "physicallyBased"_s);
+    const char *const colorKey = isMatte ? "color" : "baseColor";
+
     // Check for sampler-based color (texture)
-    mColorSampler = getParamObject<Sampler>("color");
+    mColorSampler = getParamObject<Sampler>(colorKey);
     mUsesPrimitiveSampler = false;
 
-    const bool isMatte = (mSubtype != "physicallyBased"_s);
-    const Corrade::Containers::String colorStr = getParamString("color", "");
+    const Corrade::Containers::String colorStr = getParamString(colorKey, "");
     if (isMatte && mColorSampler && mColorSampler->isTransform()) {
         // Transform sampler: apply 4x4 matrix to UV in the shader
         mUsesVertexColors = false;
@@ -126,8 +131,8 @@ void Material::commitParameters()
         using float3 = anari::math::float3;
         using float4 = anari::math::float4;
 
-        const float4 c4 = getParam<float4>("color", float4(1.0f, 1.0f, 1.0f, 1.0f));
-        const float3 c3 = getParam<float3>("color", float3(c4[0], c4[1], c4[2]));
+        const float4 c4 = getParam<float4>(colorKey, float4(1.0f, 1.0f, 1.0f, 1.0f));
+        const float3 c3 = getParam<float3>(colorKey, float3(c4[0], c4[1], c4[2]));
         mMaterialInstance->setParameter("baseColor",
             filament::math::float4{c3[0], c3[1], c3[2], c4[3]});
         mMaterialInstance->setParameter("hasBaseColorMap", false);
