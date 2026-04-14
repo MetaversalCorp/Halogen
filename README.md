@@ -1,7 +1,6 @@
 # Filament ANARI Implementation
 
-[![pipeline](https://gitlab.com/wonderland-gmbh/filament-anari-implementation/badges/master/pipeline.svg)](https://gitlab.com/wonderland-gmbh/filament-anari-implementation/-/pipelines)
-[![coverage](https://gitlab.com/wonderland-gmbh/filament-anari-implementation/badges/master/coverage.svg)](https://gitlab.com/wonderland-gmbh/filament-anari-implementation/-/pipelines)
+[![CI](https://github.com/MetaversalCorp/Halogen/actions/workflows/ci.yml/badge.svg)](https://github.com/MetaversalCorp/Halogen/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![ANARI](https://img.shields.io/badge/ANARI-0.16.0-green.svg)](https://www.khronos.org/anari/)
 [![Filament](https://img.shields.io/badge/Filament-1.71.0-orange.svg)](https://github.com/google/filament)
