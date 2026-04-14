@@ -13,6 +13,13 @@ add_compile_options(
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wold-style-cast>
 )
 
+# Suppress C4702 (unreachable code) triggered by Corrade::Containers::Array
+# template instantiation in our translation units — the warning originates in
+# external header code but fires at the instantiation site.
+if(MSVC)
+    add_compile_options(/wd4702)
+endif()
+
 # -- Material compilation with matc --
 #
 # matc is a host tool shipped in the Filament desktop SDKs.  Cross-compilation

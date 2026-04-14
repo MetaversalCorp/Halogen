@@ -55,10 +55,13 @@ void Light::commitParameters()
             ? power / (4.0f * Pi)
             : intensity;
 
+        // ANARI intensity for point lights is in W/sr (radiant intensity),
+        // which maps to candela (lm/sr). Filament's intensity() for point
+        // lights takes lumens, so we use intensityCandela() instead.
         filament::LightManager::Builder(filament::LightManager::Type::POINT)
             .position(toFilament(position))
             .color(toFilament(color))
-            .intensity(finalIntensity)
+            .intensityCandela(finalIntensity)
             .falloff(100.0f)
             .castShadows(true)
             .build(*engine, mEntity);
@@ -84,12 +87,14 @@ void Light::commitParameters()
         if (innerDeg < 0.0f)
             innerDeg = 0.0f;
 
+        // ANARI intensity for spot lights is peak radiant intensity in W/sr
+        // (candela), so use intensityCandela() not intensity() (which takes lm).
         filament::LightManager::Builder(
                 filament::LightManager::Type::FOCUSED_SPOT)
             .position(toFilament(position))
             .direction(toFilament(direction))
             .color(toFilament(color))
-            .intensity(finalIntensity)
+            .intensityCandela(finalIntensity)
             .falloff(100.0f)
             .spotLightCone(innerDeg, outerDeg)
             .castShadows(true)

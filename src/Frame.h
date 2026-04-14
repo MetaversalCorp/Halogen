@@ -65,11 +65,13 @@ private:
     FilamentResource<filament::SwapChain> mSwapChain;
     FilamentResource<filament::Texture> mColorTexture;
     FilamentResource<filament::Texture> mDepthTexture;
+    FilamentResource<filament::Texture> mBlackCubemap;
     FilamentResource<filament::RenderTarget> mRenderTarget;
     FilamentResource<filament::IndirectLight> mIndirectLight;
 
     Corrade::Containers::Array<char> mPixelBuffer;
     bool mFrameReady = false;
+    bool mReadbackScheduled = false;
 };
 
 }

@@ -640,7 +640,7 @@ void ScreenshotTest::pbrSpheres()
         const float roughness = 0.8f;
         const float metallic = 0.0f;
         anariSetParameter(device, mat0,
-            "color", ANARI_FLOAT32_VEC3, color0);
+            "baseColor", ANARI_FLOAT32_VEC3, color0);
         anariSetParameter(device, mat0,
             "roughness", ANARI_FLOAT32, &roughness);
         anariSetParameter(device, mat0,
@@ -675,7 +675,7 @@ void ScreenshotTest::pbrSpheres()
         const float roughness = 0.1f;
         const float metallic = 1.0f;
         anariSetParameter(device, mat1,
-            "color", ANARI_FLOAT32_VEC3, color1);
+            "baseColor", ANARI_FLOAT32_VEC3, color1);
         anariSetParameter(device, mat1,
             "roughness", ANARI_FLOAT32, &roughness);
         anariSetParameter(device, mat1,
@@ -710,7 +710,7 @@ void ScreenshotTest::pbrSpheres()
         const float roughness = 0.4f;
         const float metallic = 0.3f;
         anariSetParameter(device, mat2,
-            "color", ANARI_FLOAT32_VEC3, color2);
+            "baseColor", ANARI_FLOAT32_VEC3, color2);
         anariSetParameter(device, mat2,
             "roughness", ANARI_FLOAT32, &roughness);
         anariSetParameter(device, mat2,
