@@ -34,15 +34,20 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(FILAMENT_ROOT "" CACHE PATH
     "Path to an existing Filament SDK (used as hint for find_package)")
 set(FILAMENT_VERSION "1.71.0" CACHE STRING "Filament version to download")
+set(FILAMENT_SDK_DIR "${CMAKE_SOURCE_DIR}/external/filament" CACHE PATH
+    "Path to auto-downloaded Filament SDK")
+
+if(FILAMENT_ROOT)
+    set(FILAMENT_SDK_DIR "${FILAMENT_ROOT}" CACHE PATH "" FORCE)
+endif()
 
 # Try to find an existing Filament SDK first
 find_package(Filament QUIET)
 
 if(NOT Filament_FOUND)
     # No SDK found — download it, then find again
-    set(FILAMENT_SDK_DIR "${CMAKE_SOURCE_DIR}/external/filament" CACHE PATH
-        "Path to auto-downloaded Filament SDK")
     include(DownloadFilament)
+    unset(FILAMENT_INCLUDE_DIR CACHE)
     find_package(Filament REQUIRED)
 endif()
 

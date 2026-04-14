@@ -25,11 +25,14 @@ endif()
 list(APPEND _FILAMENT_HINTS "${CMAKE_SOURCE_DIR}/external/filament")
 
 # Find the include directory
+# NO_CMAKE_FIND_ROOT_PATH is required so that cross-compilation toolchains
+# (Android NDK, iOS) do not re-root the HINTS under their sysroot.
 find_path(FILAMENT_INCLUDE_DIR
     NAMES filament/Engine.h
     HINTS ${_FILAMENT_HINTS}
     PATH_SUFFIXES include
     NO_DEFAULT_PATH
+    NO_CMAKE_FIND_ROOT_PATH
 )
 
 if(NOT FILAMENT_INCLUDE_DIR)
