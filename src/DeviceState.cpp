@@ -14,6 +14,10 @@ DeviceState::DeviceState(ANARIDevice d)
 DeviceState::~DeviceState()
 {
     if (engine) {
+        // Ensure all pending GPU operations (readPixels, buffer uploads, etc.)
+        // complete before destroying any Filament resources.
+        engine->flushAndWait();
+
         physicallyBasedMaskedMaterial.reset();
         physicallyBasedBlendMaterial.reset();
         physicallyBasedMaterial.reset();

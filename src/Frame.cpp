@@ -38,7 +38,17 @@ Frame::Frame(DeviceState *s)
 {
 }
 
-Frame::~Frame() = default;
+Frame::~Frame()
+{
+    // If a readPixels() was issued but never flushed (map() was never called),
+    // the GPU is still writing into mPixelBuffer.  We must wait for that to
+    // complete before mPixelBuffer and the Filament textures are freed.
+    if (mReadbackScheduled) {
+        auto *state = deviceState();
+        if (state && state->engine)
+            state->engine->flushAndWait();
+    }
+}
 
 bool Frame::isValid() const
 {
