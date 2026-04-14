@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "Frame.h"
 #include "Geometry.h"
+#include "NativeSurface.h"
 #include "Group.h"
 #include "Instance.h"
 #include "Light.h"
@@ -187,6 +188,18 @@ ANARIWorld Device::newWorld()
 {
     initDevice();
     return reinterpret_cast<ANARIWorld>(new World(deviceState()));
+}
+
+// -- Extension objects --
+
+ANARIObject Device::newObject(const char *objectType, const char *type)
+{
+    if (std::string_view(objectType) == "nativeSurface") {
+        initDevice();
+        return reinterpret_cast<ANARIObject>(
+            new NativeSurface(deviceState()));
+    }
+    return helium::BaseDevice::newObject(objectType, type);
 }
 
 // -- Query functions --
