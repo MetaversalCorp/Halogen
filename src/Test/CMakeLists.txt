@@ -54,5 +54,7 @@ if(TARGET glfw)
     corrade_add_test(NativeSurfaceWindowTest NativeSurfaceWindowTest.cpp)
     target_link_libraries(NativeSurfaceWindowTest PRIVATE anari glfw)
     add_dependencies(NativeSurfaceWindowTest anari_library_filament)
-    set_tests_properties(NativeSurfaceWindowTest PROPERTIES TIMEOUT 30)
+    set_tests_properties(NativeSurfaceWindowTest PROPERTIES
+        TIMEOUT 30
+        LABELS "windowed")
 endif()

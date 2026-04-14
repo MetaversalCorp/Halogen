@@ -88,10 +88,15 @@ void NativeSurfaceWindowTest::renderToWindow() {
     void *nativeHandle = getNativeWindow(window);
     CORRADE_VERIFY(nativeHandle);
 
-    // Use OpenGL for windowed tests — Filament's Vulkan backend fails to
-    // create a SwapChain from GLFW native windows on Intel integrated GPUs
-    // (vkCreateSwapchainKHR returns VK_ERROR_DEVICE_LOST).
+    // Use OpenGL for windowed tests on Windows — Filament's Vulkan backend
+    // fails to create a SwapChain from GLFW native windows on Intel
+    // integrated GPUs (vkCreateSwapchainKHR returns VK_ERROR_DEVICE_LOST).
+    // On macOS, use the default backend (Metal) since OpenGL is deprecated.
+#ifdef __APPLE__
+    DeviceFixture f;
+#else
     DeviceFixture f("opengl");
+#endif
     CORRADE_VERIFY(f.device);
 
     // Create and configure native surface
