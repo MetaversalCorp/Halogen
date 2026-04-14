@@ -30,67 +30,78 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-## Filament — download precompiled SDK if not present
-
+## Filament — use existing SDK or download precompiled
+set(FILAMENT_ROOT "" CACHE PATH "Path to an existing Filament SDK (skips download)")
 set(FILAMENT_VERSION "1.71.0" CACHE STRING "Filament version to download")
-set(FILAMENT_SDK_DIR "${CMAKE_SOURCE_DIR}/external/filament" CACHE PATH "Path to Filament SDK")
+
+if(FILAMENT_ROOT)
+    set(FILAMENT_SDK_DIR "${FILAMENT_ROOT}" CACHE PATH "Path to Filament SDK" FORCE)
+else()
+    set(FILAMENT_SDK_DIR "${CMAKE_SOURCE_DIR}/external/filament" CACHE PATH "Path to Filament SDK")
+endif()
 
 include(DownloadFilament)
 
-## ANARI SDK — as subproject, minimal build
-if(CMAKE_SYSTEM_NAME STREQUAL "iOS" OR ANDROID)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+## ANARI SDK — use existing installation or build as subproject
+set(ANARI_ROOT "" CACHE PATH "Path to an existing ANARI SDK installation (skips subproject build)")
+
+if(ANARI_ROOT)
+    find_package(anari REQUIRED HINTS "${ANARI_ROOT}" "${ANARI_ROOT}/lib/cmake/anari")
 else()
-    set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
-endif()
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(BUILD_CTS OFF CACHE BOOL "" FORCE)
-set(BUILD_CAT OFF CACHE BOOL "" FORCE)
-set(BUILD_VIEWER OFF CACHE BOOL "" FORCE)
-set(BUILD_HELIDE_DEVICE OFF CACHE BOOL "" FORCE)
-set(BUILD_SINK_DEVICE OFF CACHE BOOL "" FORCE)
-set(BUILD_DEBUG_DEVICE OFF CACHE BOOL "" FORCE)
-set(INSTALL_VIEWER_LIBRARY OFF CACHE BOOL "" FORCE)
-set(INSTALL_CODE_GEN_SCRIPTS OFF CACHE BOOL "" FORCE)
-set(ANARI_CODE_GEN_ROOT "${CMAKE_SOURCE_DIR}/external/anari-sdk/code_gen" CACHE PATH "" FORCE)
-
-# ANARI SDK references ${CMAKE_SOURCE_DIR}/code_gen internally. Create a
-# symlink/junction so it resolves correctly when used as a subproject.
-if(NOT EXISTS "${CMAKE_SOURCE_DIR}/code_gen")
-    if(WIN32)
-        file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/code_gen" _CODEGEN_LINK)
-        file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/external/anari-sdk/code_gen" _CODEGEN_TARGET)
-        execute_process(COMMAND cmd /c mklink /J "${_CODEGEN_LINK}" "${_CODEGEN_TARGET}")
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS" OR ANDROID)
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     else()
-        file(CREATE_LINK
-            "${CMAKE_SOURCE_DIR}/external/anari-sdk/code_gen"
-            "${CMAKE_SOURCE_DIR}/code_gen"
-            SYMBOLIC)
+        set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
     endif()
-endif()
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_CTS OFF CACHE BOOL "" FORCE)
+    set(BUILD_CAT OFF CACHE BOOL "" FORCE)
+    set(BUILD_VIEWER OFF CACHE BOOL "" FORCE)
+    set(BUILD_HELIDE_DEVICE OFF CACHE BOOL "" FORCE)
+    set(BUILD_SINK_DEVICE OFF CACHE BOOL "" FORCE)
+    set(BUILD_DEBUG_DEVICE OFF CACHE BOOL "" FORCE)
+    set(INSTALL_VIEWER_LIBRARY OFF CACHE BOOL "" FORCE)
+    set(INSTALL_CODE_GEN_SCRIPTS OFF CACHE BOOL "" FORCE)
+    set(ANARI_CODE_GEN_ROOT "${CMAKE_SOURCE_DIR}/external/anari-sdk/code_gen" CACHE PATH "" FORCE)
 
-add_subdirectory(external/anari-sdk EXCLUDE_FROM_ALL)
-
-# Mark ANARI SDK include directories as SYSTEM so that warnings in external
-# headers do not trigger -Werror in our targets.
-foreach(_tgt anari anari_backend helium)
-    if(TARGET ${_tgt})
-        get_target_property(_dirs ${_tgt} INTERFACE_INCLUDE_DIRECTORIES)
-        if(_dirs)
-            set_property(TARGET ${_tgt} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "")
-            target_include_directories(${_tgt} SYSTEM INTERFACE ${_dirs})
+    # ANARI SDK references ${CMAKE_SOURCE_DIR}/code_gen internally. Create a
+    # symlink/junction so it resolves correctly when used as a subproject.
+    if(NOT EXISTS "${CMAKE_SOURCE_DIR}/code_gen")
+        if(WIN32)
+            file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/code_gen" _CODEGEN_LINK)
+            file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/external/anari-sdk/code_gen" _CODEGEN_TARGET)
+            execute_process(COMMAND cmd /c mklink /J "${_CODEGEN_LINK}" "${_CODEGEN_TARGET}")
+        else()
+            file(CREATE_LINK
+                "${CMAKE_SOURCE_DIR}/external/anari-sdk/code_gen"
+                "${CMAKE_SOURCE_DIR}/code_gen"
+                SYMBOLIC)
         endif()
     endif()
-endforeach()
 
-# Force ANARI shared library into the common output directory so that tests
-# and our device library can find it at runtime without PATH manipulation.
-if(TARGET anari AND BUILD_SHARED_LIBS)
-    set_target_properties(anari PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
-    )
+    add_subdirectory(external/anari-sdk EXCLUDE_FROM_ALL)
+
+    # Mark ANARI SDK include directories as SYSTEM so that warnings in external
+    # headers do not trigger -Werror in our targets.
+    foreach(_tgt anari anari_backend helium)
+        if(TARGET ${_tgt})
+            get_target_property(_dirs ${_tgt} INTERFACE_INCLUDE_DIRECTORIES)
+            if(_dirs)
+                set_property(TARGET ${_tgt} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "")
+                target_include_directories(${_tgt} SYSTEM INTERFACE ${_dirs})
+            endif()
+        endif()
+    endforeach()
+
+    # Force ANARI shared library into the common output directory so that tests
+    # and our device library can find it at runtime without PATH manipulation.
+    if(TARGET anari AND BUILD_SHARED_LIBS)
+        set_target_properties(anari PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
+            LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin
+        )
+    endif()
 endif()
 
 ## Corrade — always static to avoid extra DLL dependencies
