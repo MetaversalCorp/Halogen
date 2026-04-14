@@ -22,6 +22,10 @@
 #include <filament/Texture.h>
 #include <backend/PixelBufferDescriptor.h>
 
+#include <algorithm>
+#include <cstring>
+
+#include <helium/BaseObject.h>
 #include <helium/array/Array1D.h>
 #include <helium/array/Array2D.h>
 #include <helium/array/Array3D.h>
@@ -276,26 +280,29 @@ void Device::initDevice()
 
     auto backend = filament::Engine::Backend::DEFAULT;
     {
+        auto backendStr = getParamString("backend", "");
+        if (backendStr.empty()) {
 #ifdef _MSC_VER
-        char *envBackend = nullptr;
-        size_t len = 0;
-        _dupenv_s(&envBackend, &len, "FILAMENT_BACKEND");
+            char *envBackend = nullptr;
+            size_t len = 0;
+            _dupenv_s(&envBackend, &len, "FILAMENT_BACKEND");
 #else
-        const char *envBackend = std::getenv("FILAMENT_BACKEND");
+            const char *envBackend = std::getenv("FILAMENT_BACKEND");
 #endif
-        if (envBackend) {
-            if (std::strcmp(envBackend, "opengl") == 0)
-                backend = filament::Engine::Backend::OPENGL;
-            else if (std::strcmp(envBackend, "vulkan") == 0)
-                backend = filament::Engine::Backend::VULKAN;
-            else if (std::strcmp(envBackend, "metal") == 0)
-                backend = filament::Engine::Backend::METAL;
-            else if (std::strcmp(envBackend, "noop") == 0)
-                backend = filament::Engine::Backend::NOOP;
-        }
+            if (envBackend)
+                backendStr = envBackend;
 #ifdef _MSC_VER
-        free(envBackend);
+            free(envBackend);
 #endif
+        }
+        if (backendStr == "opengl")
+            backend = filament::Engine::Backend::OPENGL;
+        else if (backendStr == "vulkan")
+            backend = filament::Engine::Backend::VULKAN;
+        else if (backendStr == "metal")
+            backend = filament::Engine::Backend::METAL;
+        else if (backendStr == "noop")
+            backend = filament::Engine::Backend::NOOP;
     }
 
     state->engine = filament::Engine::create(backend);
@@ -364,9 +371,48 @@ void Device::deviceCommitParameters()
     initDevice();
 }
 
-int Device::deviceGetProperty(const char *, ANARIDataType,
-    void *, uint64_t, uint32_t)
+namespace {
+
+const char *backendString(filament::Engine::Backend b)
 {
+    switch (b) {
+    case filament::Engine::Backend::OPENGL: return "opengl";
+    case filament::Engine::Backend::VULKAN: return "vulkan";
+    case filament::Engine::Backend::METAL: return "metal";
+    case filament::Engine::Backend::NOOP: return "noop";
+    default: return "unknown";
+    }
+}
+
+}
+
+int Device::deviceGetProperty(const char *name, ANARIDataType type,
+    void *mem, uint64_t size, uint32_t mask)
+{
+    std::string_view prop(name);
+
+    if (prop == "filament.backend" && type == ANARI_STRING) {
+        if (mask & ANARI_WAIT)
+            initDevice();
+        if (!mInitialized)
+            return 0;
+        auto str = backendString(deviceState()->engine->getBackend());
+        std::memset(mem, 0, size);
+        std::memcpy(mem, str,
+            std::min(uint64_t(std::strlen(str)), size - 1));
+        return 1;
+    }
+
+    if (prop == "filament.backend.size" && type == ANARI_UINT64) {
+        if (mask & ANARI_WAIT)
+            initDevice();
+        if (!mInitialized)
+            return 0;
+        auto str = backendString(deviceState()->engine->getBackend());
+        helium::writeToVoidP(mem, uint64_t(std::strlen(str) + 1));
+        return 1;
+    }
+
     return 0;
 }
 

@@ -288,8 +288,6 @@ void Frame::renderFrame()
             renderer->endFrame();
         }
 
-        }
-
         // readPixels() has been issued; defer flushAndWait() and the vertical
         // flip to map() so callers that never map skip the expensive readback.
         mReadbackScheduled = true;
