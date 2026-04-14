@@ -26,6 +26,9 @@
 #include <helium/array/Array3D.h>
 #include <helium/array/ObjectArray.h>
 
+#include <cstdlib>
+#include <cstring>
+
 #include "matte_mat.h"
 #include "matteBlend_mat.h"
 #include "matteMasked_mat.h"
@@ -258,8 +261,31 @@ void Device::initDevice()
     m_state = std::make_unique<DeviceState>(this_device());
     DeviceState * const state = deviceState();
 
-    state->engine = filament::Engine::create(
-        filament::Engine::Backend::DEFAULT);
+    auto backend = filament::Engine::Backend::DEFAULT;
+    {
+#ifdef _MSC_VER
+        char *envBackend = nullptr;
+        size_t len = 0;
+        _dupenv_s(&envBackend, &len, "FILAMENT_BACKEND");
+#else
+        const char *envBackend = std::getenv("FILAMENT_BACKEND");
+#endif
+        if (envBackend) {
+            if (std::strcmp(envBackend, "opengl") == 0)
+                backend = filament::Engine::Backend::OPENGL;
+            else if (std::strcmp(envBackend, "vulkan") == 0)
+                backend = filament::Engine::Backend::VULKAN;
+            else if (std::strcmp(envBackend, "metal") == 0)
+                backend = filament::Engine::Backend::METAL;
+            else if (std::strcmp(envBackend, "noop") == 0)
+                backend = filament::Engine::Backend::NOOP;
+        }
+#ifdef _MSC_VER
+        free(envBackend);
+#endif
+    }
+
+    state->engine = filament::Engine::create(backend);
     if (!state->engine) {
         reportMessage(ANARI_SEVERITY_FATAL_ERROR,
             "failed to create Filament engine");
