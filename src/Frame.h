@@ -5,6 +5,7 @@
 
 #include "Camera.h"
 #include "FilamentResource.h"
+#include "NativeSurface.h"
 #include "Renderer.h"
 #include "World.h"
 
@@ -60,6 +61,7 @@ private:
     helium::IntrusivePtr<AnariFilament::Renderer> mRenderer;
     helium::IntrusivePtr<Camera> mCamera;
     helium::IntrusivePtr<World> mWorld;
+    NativeSurface *mNativeSurface = nullptr;
 
     FilamentResource<filament::View> mView;
     FilamentResource<filament::SwapChain> mSwapChain;

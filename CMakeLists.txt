@@ -30,17 +30,26 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-## Filament — use existing SDK or download precompiled
-set(FILAMENT_ROOT "" CACHE PATH "Path to an existing Filament SDK (skips download)")
+## Filament — find existing SDK or download precompiled
+set(FILAMENT_ROOT "" CACHE PATH
+    "Path to an existing Filament SDK (used as hint for find_package)")
 set(FILAMENT_VERSION "1.71.0" CACHE STRING "Filament version to download")
+set(FILAMENT_SDK_DIR "${CMAKE_SOURCE_DIR}/external/filament" CACHE PATH
+    "Path to auto-downloaded Filament SDK")
 
 if(FILAMENT_ROOT)
-    set(FILAMENT_SDK_DIR "${FILAMENT_ROOT}" CACHE PATH "Path to Filament SDK" FORCE)
-else()
-    set(FILAMENT_SDK_DIR "${CMAKE_SOURCE_DIR}/external/filament" CACHE PATH "Path to Filament SDK")
+    set(FILAMENT_SDK_DIR "${FILAMENT_ROOT}" CACHE PATH "" FORCE)
 endif()
 
-include(DownloadFilament)
+# Try to find an existing Filament SDK first
+find_package(Filament QUIET)
+
+if(NOT Filament_FOUND)
+    # No SDK found — download it, then find again
+    include(DownloadFilament)
+    unset(FILAMENT_INCLUDE_DIR CACHE)
+    find_package(Filament REQUIRED)
+endif()
 
 ## ANARI SDK — use existing installation or build as subproject
 set(ANARI_ROOT "" CACHE PATH "Path to an existing ANARI SDK installation (skips subproject build)")
@@ -137,6 +146,31 @@ endforeach()
 
 if(BUILD_TESTS)
     enable_testing()
+
+    # GLFW — for windowed native surface tests (Mac and Windows only)
+    if(NOT CMAKE_CROSSCOMPILING AND (WIN32 OR APPLE))
+        include(FetchContent)
+        set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(
+            glfw
+            GIT_REPOSITORY https://github.com/glfw/glfw.git
+            GIT_TAG 3.4
+            GIT_SHALLOW ON
+        )
+        FetchContent_MakeAvailable(glfw)
+
+        # Mark GLFW includes as SYSTEM to suppress warnings
+        if(TARGET glfw)
+            get_target_property(_dirs glfw INTERFACE_INCLUDE_DIRECTORIES)
+            if(_dirs)
+                set_property(TARGET glfw PROPERTY INTERFACE_INCLUDE_DIRECTORIES "")
+                target_include_directories(glfw SYSTEM INTERFACE ${_dirs})
+            endif()
+        endif()
+    endif()
 endif()
 
 add_subdirectory(src)

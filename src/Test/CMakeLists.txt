@@ -45,3 +45,16 @@ target_link_libraries(ScreenshotTest PRIVATE anari stb_image)
 target_compile_definitions(ScreenshotTest PRIVATE
     SCREENSHOT_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden")
 add_dependencies(ScreenshotTest anari_library_filament)
+
+corrade_add_test(NativeSurfaceTest NativeSurfaceTest.cpp)
+target_link_libraries(NativeSurfaceTest PRIVATE anari)
+add_dependencies(NativeSurfaceTest anari_library_filament)
+
+if(TARGET glfw)
+    corrade_add_test(NativeSurfaceWindowTest NativeSurfaceWindowTest.cpp)
+    target_link_libraries(NativeSurfaceWindowTest PRIVATE anari glfw)
+    add_dependencies(NativeSurfaceWindowTest anari_library_filament)
+    set_tests_properties(NativeSurfaceWindowTest PROPERTIES
+        TIMEOUT 30
+        LABELS "windowed")
+endif()

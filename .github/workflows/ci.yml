@@ -1,0 +1,313 @@
+## Copyright 2026 Jonathan Hale
+## SPDX-License-Identifier: MIT
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ['*']
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FILAMENT_VERSION: "1.71.0"
+  MESA_VERSION: "26.0.4"
+
+jobs:
+  # ----- Material compilation (macOS host matc required) -----
+  compile-materials:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache Filament SDK
+        uses: actions/cache@v4
+        with:
+          path: external/filament/
+          key: filament-macos-arm64-${{ env.FILAMENT_VERSION }}
+
+      - name: Configure (download Filament SDK)
+        run: cmake -B build-matc -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+
+      - name: Compile materials
+        run: |
+          for mat in src/materials/*.mat; do
+            name=$(basename "$mat" .mat)
+            external/filament/bin/matc -a all -o "src/materials/${name}.filamat" "$mat"
+            echo "Compiled: ${name}"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiled-materials
+          path: src/materials/*.filamat
+          retention-days: 1
+
+  # ----- Windows x86_64 (MSVC) -----
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Cache Filament SDK
+        uses: actions/cache@v4
+        with:
+          path: external/filament/
+          key: filament-windows-${{ env.FILAMENT_VERSION }}
+
+      - name: Cache Mesa
+        id: cache-mesa
+        uses: actions/cache@v4
+        with:
+          path: mesa/
+          key: mesa-msvc-${{ env.MESA_VERSION }}
+
+      - name: Download Mesa (software OpenGL)
+        if: steps.cache-mesa.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $url = "https://github.com/pal1000/mesa-dist-win/releases/download/$env:MESA_VERSION/mesa3d-$env:MESA_VERSION-release-msvc.7z"
+          Invoke-WebRequest -Uri $url -OutFile mesa.7z
+          7z x mesa.7z -omesa
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        shell: pwsh
+        run: |
+          Copy-Item mesa\x64\opengl32.dll,mesa\x64\libgallium_wgl.dll build\Release\bin\ -Force
+          ctest --test-dir build --output-on-failure --output-junit Test.xml
+        env:
+          GALLIUM_DRIVER: llvmpipe
+          MESA_GL_VERSION_OVERRIDE: "4.5"
+          LIBGL_ALWAYS_SOFTWARE: "true"
+          FILAMENT_BACKEND: opengl
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-windows
+          path: build/Test.xml
+
+  # ----- macOS arm64 -----
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache Filament SDK
+        uses: actions/cache@v4
+        with:
+          path: external/filament/
+          key: filament-macos-arm64-${{ env.FILAMENT_VERSION }}
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --output-junit Test.xml
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-macos
+          path: build/Test.xml
+
+  # ----- Linux x86_64 -----
+  linux-x86_64:
+    runs-on: ubuntu-22.04
+    needs: compile-materials
+    env:
+      CC: clang
+      CXX: clang++
+      CXXFLAGS: "-stdlib=libc++"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ninja-build clang libc++-dev libc++abi-dev libgl-dev libvulkan-dev libegl1-mesa-dev mesa-utils xvfb
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: compiled-materials
+          path: src/materials/
+
+      - name: Cache Filament SDK
+        uses: actions/cache@v4
+        with:
+          path: external/filament/
+          key: filament-linux-x86_64-${{ env.FILAMENT_VERSION }}
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: |
+          export LD_LIBRARY_PATH="$PWD/build/Release/bin:$LD_LIBRARY_PATH"
+          xvfb-run -a ctest --test-dir build --output-on-failure --output-junit Test.xml
+        env:
+          FILAMENT_BACKEND: opengl
+          MESA_GL_VERSION_OVERRIDE: "4.5"
+          LIBGL_ALWAYS_SOFTWARE: "true"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-linux-x86_64
+          path: build/Test.xml
+
+  # ----- Linux arm64 -----
+  linux-arm64:
+    runs-on: ubuntu-22.04-arm
+    needs: compile-materials
+    env:
+      CC: clang
+      CXX: clang++
+      CXXFLAGS: "-stdlib=libc++"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ninja-build clang libc++-dev libc++abi-dev libgl-dev libvulkan-dev libegl1-mesa-dev mesa-utils xvfb
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: compiled-materials
+          path: src/materials/
+
+      - name: Cache Filament SDK
+        uses: actions/cache@v4
+        with:
+          path: external/filament/
+          key: filament-linux-arm64-${{ env.FILAMENT_VERSION }}
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: |
+          export LD_LIBRARY_PATH="$PWD/build/Release/bin:$LD_LIBRARY_PATH"
+          xvfb-run -a ctest --test-dir build --output-on-failure --output-junit Test.xml
+        env:
+          FILAMENT_BACKEND: opengl
+          MESA_GL_VERSION_OVERRIDE: "4.5"
+          LIBGL_ALWAYS_SOFTWARE: "true"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-linux-arm64
+          path: build/Test.xml
+
+  # ----- iOS arm64 (cross-compile, build only) -----
+  ios:
+    runs-on: macos-latest
+    needs: compile-materials
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: compiled-materials
+          path: src/materials/
+
+      - name: Cache Filament SDK
+        uses: actions/cache@v4
+        with:
+          path: external/filament/
+          key: filament-ios-${{ env.FILAMENT_VERSION }}
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_SYSTEM_NAME=iOS
+          -DCMAKE_OSX_ARCHITECTURES=arm64
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0
+
+      - name: Build
+        run: cmake --build build
+
+  # ----- Android arm64 (cross-compile, build only) -----
+  android:
+    runs-on: ubuntu-22.04
+    needs: compile-materials
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ninja-build clang libc++-dev libc++abi-dev unzip wget
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: compiled-materials
+          path: src/materials/
+
+      - name: Cache NDK
+        uses: actions/cache@v4
+        with:
+          path: android-ndk/
+          key: android-ndk-r27c
+
+      - name: Install Android NDK
+        run: |
+          if [ ! -d android-ndk ]; then
+            wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux.zip -O /tmp/ndk.zip
+            unzip -q /tmp/ndk.zip -d /tmp/ndk
+            mv /tmp/ndk/android-ndk-* android-ndk
+          fi
+
+      - name: Cache Filament SDK
+        uses: actions/cache@v4
+        with:
+          path: external/filament/
+          key: filament-android-arm64-${{ env.FILAMENT_VERSION }}
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=$PWD/android-ndk/build/cmake/android.toolchain.cmake
+          -DANDROID_ABI=arm64-v8a
+          -DANDROID_PLATFORM=android-28
+
+      - name: Build
+        run: cmake --build build

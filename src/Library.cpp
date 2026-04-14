@@ -27,7 +27,11 @@ ANARIDevice Library::newDevice(const char *) {
 }
 
 const char **Library::getDeviceExtensions(const char *) {
-    return nullptr;
+    static const char *extensions[] = {
+        "FILAMENT_NATIVE_SURFACE",
+        nullptr
+    };
+    return extensions;
 }
 
 }
