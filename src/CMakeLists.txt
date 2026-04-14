@@ -114,6 +114,8 @@ add_library(anari_library_filament SHARED
     Light.cpp
     Material.h
     Material.cpp
+    NativeSurface.h
+    NativeSurface.cpp
     Renderer.h
     Sampler.h
     Sampler.cpp

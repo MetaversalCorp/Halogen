@@ -81,6 +81,9 @@ void Frame::commitParameters()
     mDepthType = getParam<anari::DataType>(
         "channel.depth", ANARI_UNKNOWN);
 
+    mNativeSurface = dynamic_cast<NativeSurface *>(
+        getParamObject<Object>("nativeSurface"));
+
     markCommitted();
 }
 
@@ -184,87 +187,112 @@ void Frame::renderFrame()
     }
     mWorld->filamentScene()->setIndirectLight(mIndirectLight.get());
 
-    // Recreate render target if size changed
-    mRenderTarget.reset();
-    mColorTexture.reset();
-    mDepthTexture.reset();
-
-    mColorTexture.reset(filament::Texture::Builder()
-        .width(mWidth)
-        .height(mHeight)
-        .levels(1)
-        .format(wantFloat
-            ? filament::Texture::InternalFormat::RGBA32F
-            : filament::Texture::InternalFormat::RGBA8)
-        .usage(filament::Texture::Usage::COLOR_ATTACHMENT
-            | filament::Texture::Usage::SAMPLEABLE
-            | filament::Texture::Usage::BLIT_SRC)
-        .build(*engine));
-
-    mDepthTexture.reset(filament::Texture::Builder()
-        .width(mWidth)
-        .height(mHeight)
-        .levels(1)
-        .format(filament::Texture::InternalFormat::DEPTH32F)
-        .usage(filament::Texture::Usage::DEPTH_ATTACHMENT
-            | filament::Texture::Usage::BLIT_SRC)
-        .build(*engine));
-
-    mRenderTarget.reset(filament::RenderTarget::Builder()
-        .texture(filament::RenderTarget::AttachmentPoint::COLOR0,
-            mColorTexture.get())
-        .texture(filament::RenderTarget::AttachmentPoint::DEPTH,
-            mDepthTexture.get())
-        .build(*engine));
-
-    // Set up the view
+    // Set up the view (common to both native-surface and offscreen paths)
     mView->setScene(mWorld->filamentScene());
     mView->setCamera(mCamera->filamentCamera());
     mView->setViewport({0, 0, mWidth, mHeight});
-    mView->setRenderTarget(mRenderTarget.get());
 
-    // Dummy headless swap chain for beginFrame/endFrame
-    if (!mSwapChain)
-        mSwapChain.reset(engine->createSwapChain(1, 1, 0));
-
-    // Allocate pixel buffer
-    const size_t bytesPerPixel = wantFloat ? 16u : 4u;
-    mPixelBuffer = Corrade::Containers::Array<char>{
-        Corrade::ValueInit, mWidth * mHeight * bytesPerPixel};
+    const bool nativeSurface =
+        mNativeSurface && mNativeSurface->isValid();
 
     mFrameReady = false;
 
-    if (renderer->beginFrame(mSwapChain.get())) {
-        // Set the background/clear color from the renderer parameters
-        if (mRenderer) {
-            const anari::math::float4 bg = mRenderer->backgroundColor();
-            filament::Renderer::ClearOptions clearOpts;
-            clearOpts.clearColor = {bg[0], bg[1], bg[2], bg[3]};
-            clearOpts.clear = true;
-            clearOpts.discard = true;
-            renderer->setClearOptions(clearOpts);
+    if (nativeSurface) {
+        // -- Native surface path: render directly to the platform window --
+        // No offscreen render target, no pixel readback, no vertical flip.
+        mView->setRenderTarget(nullptr);
+
+        filament::SwapChain *sc = mNativeSurface->swapChain();
+        if (renderer->beginFrame(sc)) {
+            if (mRenderer) {
+                const anari::math::float4 bg =
+                    mRenderer->backgroundColor();
+                filament::Renderer::ClearOptions clearOpts;
+                clearOpts.clearColor = {bg[0], bg[1], bg[2], bg[3]};
+                clearOpts.clear = true;
+                clearOpts.discard = true;
+                renderer->setClearOptions(clearOpts);
+            }
+            renderer->render(mView.get());
+            renderer->endFrame();
+        }
+    } else {
+        // -- Offscreen path: render to texture, read pixels back to CPU --
+        mRenderTarget.reset();
+        mColorTexture.reset();
+        mDepthTexture.reset();
+
+        mColorTexture.reset(filament::Texture::Builder()
+            .width(mWidth)
+            .height(mHeight)
+            .levels(1)
+            .format(wantFloat
+                ? filament::Texture::InternalFormat::RGBA32F
+                : filament::Texture::InternalFormat::RGBA8)
+            .usage(filament::Texture::Usage::COLOR_ATTACHMENT
+                | filament::Texture::Usage::SAMPLEABLE
+                | filament::Texture::Usage::BLIT_SRC)
+            .build(*engine));
+
+        mDepthTexture.reset(filament::Texture::Builder()
+            .width(mWidth)
+            .height(mHeight)
+            .levels(1)
+            .format(filament::Texture::InternalFormat::DEPTH32F)
+            .usage(filament::Texture::Usage::DEPTH_ATTACHMENT
+                | filament::Texture::Usage::BLIT_SRC)
+            .build(*engine));
+
+        mRenderTarget.reset(filament::RenderTarget::Builder()
+            .texture(filament::RenderTarget::AttachmentPoint::COLOR0,
+                mColorTexture.get())
+            .texture(filament::RenderTarget::AttachmentPoint::DEPTH,
+                mDepthTexture.get())
+            .build(*engine));
+
+        mView->setRenderTarget(mRenderTarget.get());
+
+        if (!mSwapChain)
+            mSwapChain.reset(engine->createSwapChain(1, 1, 0));
+
+        const size_t bytesPerPixel = wantFloat ? 16u : 4u;
+        mPixelBuffer = Corrade::Containers::Array<char>{
+            Corrade::ValueInit, mWidth * mHeight * bytesPerPixel};
+
+        if (renderer->beginFrame(mSwapChain.get())) {
+            if (mRenderer) {
+                const anari::math::float4 bg =
+                    mRenderer->backgroundColor();
+                filament::Renderer::ClearOptions clearOpts;
+                clearOpts.clearColor = {bg[0], bg[1], bg[2], bg[3]};
+                clearOpts.clear = true;
+                clearOpts.discard = true;
+                renderer->setClearOptions(clearOpts);
+            }
+
+            renderer->render(mView.get());
+
+            using namespace filament::backend;
+            uint8_t *bufferData =
+                reinterpret_cast<uint8_t *>(mPixelBuffer.data());
+            const size_t bufferSize = mPixelBuffer.size();
+
+            renderer->readPixels(mRenderTarget.get(),
+                0, 0, mWidth, mHeight,
+                PixelBufferDescriptor(
+                    bufferData, bufferSize,
+                    PixelDataFormat::RGBA,
+                    wantFloat ? PixelDataType::FLOAT
+                              : PixelDataType::UBYTE));
+
+            renderer->endFrame();
         }
 
-        renderer->render(mView.get());
-
-        using namespace filament::backend;
-
-        uint8_t *bufferData =
-            reinterpret_cast<uint8_t *>(mPixelBuffer.data());
-        const size_t bufferSize = mPixelBuffer.size();
-
-        renderer->readPixels(mRenderTarget.get(), 0, 0, mWidth, mHeight,
-            PixelBufferDescriptor(
-                bufferData, bufferSize,
-                PixelDataFormat::RGBA,
-                wantFloat ? PixelDataType::FLOAT : PixelDataType::UBYTE));
-
-        renderer->endFrame();
+        // readPixels() has been issued; defer flushAndWait() and the vertical
+        // flip to map() so callers that never map skip the expensive readback.
+        mReadbackScheduled = true;
     }
 
-    // readPixels() has been issued; defer flushAndWait() and the vertical
-    // flip to map() so callers that never map skip the expensive readback.
-    mReadbackScheduled = true;
     mFrameReady = true;
 }
 

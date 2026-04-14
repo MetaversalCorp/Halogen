@@ -146,6 +146,31 @@ endforeach()
 
 if(BUILD_TESTS)
     enable_testing()
+
+    # GLFW — for windowed native surface tests (Mac and Windows only)
+    if(NOT CMAKE_CROSSCOMPILING AND (WIN32 OR APPLE))
+        include(FetchContent)
+        set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(
+            glfw
+            GIT_REPOSITORY https://github.com/glfw/glfw.git
+            GIT_TAG 3.4
+            GIT_SHALLOW ON
+        )
+        FetchContent_MakeAvailable(glfw)
+
+        # Mark GLFW includes as SYSTEM to suppress warnings
+        if(TARGET glfw)
+            get_target_property(_dirs glfw INTERFACE_INCLUDE_DIRECTORIES)
+            if(_dirs)
+                set_property(TARGET glfw PROPERTY INTERFACE_INCLUDE_DIRECTORIES "")
+                target_include_directories(glfw SYSTEM INTERFACE ${_dirs})
+            endif()
+        endif()
+    endif()
 endif()
 
 add_subdirectory(src)

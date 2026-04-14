@@ -52,6 +52,11 @@ struct Device : public helium::BaseDevice
     ANARIVolume newVolume(const char *type) override;
     ANARIWorld newWorld() override;
 
+    // -- Extension interface --
+
+    ANARIObject newObject(
+        const char *objectType, const char *type) override;
+
     // -- Query functions --
 
     const char **getObjectSubtypes(ANARIDataType objectType) override;

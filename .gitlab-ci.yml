@@ -33,7 +33,7 @@ workflow:
 .test-template:
   stage: test
   script:
-    - ctest --test-dir build --output-on-failure --output-junit Test.xml
+    - ctest --test-dir build --output-on-failure --output-junit Test.xml -LE windowed
   artifacts:
     reports:
       junit: Test.xml
@@ -212,7 +212,7 @@ coverage:macos-arm64:
       -DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate"
     - cmake --build build-cov
     - export LLVM_PROFILE_FILE="$PWD/build-cov/coverage-%p.profraw"
-    - ctest --test-dir build-cov --output-on-failure
+    - ctest --test-dir build-cov --output-on-failure -LE windowed
     - xcrun llvm-profdata merge -sparse build-cov/coverage-*.profraw -o build-cov/coverage.profdata
     - >
       xcrun llvm-cov report
