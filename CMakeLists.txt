@@ -16,9 +16,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>/bin)
 
-# Match Filament's static CRT on Windows (/MT)
-if(MSVC)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+# Default to the shared CRT on Windows (/MD), but allow callers to override it.
+if(MSVC AND NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 endif()
 
 # Disable tests for mobile cross-compilation targets
@@ -146,6 +146,22 @@ endforeach()
 
 if(BUILD_TESTS)
     enable_testing()
+endif()
+
+set(ANARI_TARGET anari)
+set(ANARI_BACKEND_TARGET anari_backend)
+set(HELIUM_TARGET helium)
+
+if(TARGET anari::anari)
+    set(ANARI_TARGET anari::anari)
+endif()
+
+if(TARGET anari::anari_backend)
+    set(ANARI_BACKEND_TARGET anari::anari_backend)
+endif()
+
+if(TARGET anari::helium)
+    set(HELIUM_TARGET anari::helium)
 endif()
 
 add_subdirectory(src)

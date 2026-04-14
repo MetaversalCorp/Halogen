@@ -139,10 +139,10 @@ target_include_directories(anari_library_filament
 )
 
 target_link_libraries(anari_library_filament
-    PUBLIC anari
+    PUBLIC ${ANARI_TARGET}
     PRIVATE
-        anari_backend
-        helium
+        ${ANARI_BACKEND_TARGET}
+        ${HELIUM_TARGET}
         CorradeUtility
         filament::filament
         filament::backend
