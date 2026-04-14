@@ -30,17 +30,21 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-## Filament — use existing SDK or download precompiled
-set(FILAMENT_ROOT "" CACHE PATH "Path to an existing Filament SDK (skips download)")
+## Filament — find existing SDK or download precompiled
+set(FILAMENT_ROOT "" CACHE PATH
+    "Path to an existing Filament SDK (used as hint for find_package)")
 set(FILAMENT_VERSION "1.71.0" CACHE STRING "Filament version to download")
 
-if(FILAMENT_ROOT)
-    set(FILAMENT_SDK_DIR "${FILAMENT_ROOT}" CACHE PATH "Path to Filament SDK" FORCE)
-else()
-    set(FILAMENT_SDK_DIR "${CMAKE_SOURCE_DIR}/external/filament" CACHE PATH "Path to Filament SDK")
-endif()
+# Try to find an existing Filament SDK first
+find_package(Filament QUIET)
 
-include(DownloadFilament)
+if(NOT Filament_FOUND)
+    # No SDK found — download it, then find again
+    set(FILAMENT_SDK_DIR "${CMAKE_SOURCE_DIR}/external/filament" CACHE PATH
+        "Path to auto-downloaded Filament SDK")
+    include(DownloadFilament)
+    find_package(Filament REQUIRED)
+endif()
 
 ## ANARI SDK — use existing installation or build as subproject
 set(ANARI_ROOT "" CACHE PATH "Path to an existing ANARI SDK installation (skips subproject build)")
