@@ -22,9 +22,9 @@
 
 using namespace Corrade::Containers::Literals;
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Sampler *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Sampler *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 Sampler::Sampler(DeviceState *s, const char *subtype)
     : Object(ANARI_SAMPLER, s)

@@ -7,7 +7,7 @@
 
 #include <anari/anari_cpp/ext/linalg.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Renderer : public Object
 {
@@ -40,5 +40,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Renderer *, ANARI_RENDERER);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Renderer *, ANARI_RENDERER);

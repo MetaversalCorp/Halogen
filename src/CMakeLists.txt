@@ -88,9 +88,9 @@ foreach(_mat ${MATERIAL_NAMES})
     list(APPEND MATERIAL_HEADERS ${_hdr})
 endforeach()
 
-# --- Filament ANARI device shared library ---
+# --- Halogen ANARI device shared library ---
 
-add_library(anari_library_filament SHARED
+add_library(anari_library_halogen SHARED
     Aabb.h
     Device.h
     Device.cpp
@@ -128,11 +128,11 @@ add_library(anari_library_filament SHARED
 )
 
 include(GenerateExportHeader)
-generate_export_header(anari_library_filament
-    EXPORT_MACRO_NAME "FILAMENT_ANARI_EXPORT"
+generate_export_header(anari_library_halogen
+    EXPORT_MACRO_NAME "HALOGEN_EXPORT"
 )
 
-target_include_directories(anari_library_filament
+target_include_directories(anari_library_halogen
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
@@ -140,7 +140,7 @@ target_include_directories(anari_library_filament
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(anari_library_filament
+target_link_libraries(anari_library_halogen
     PUBLIC ${ANARI_TARGET}
     PRIVATE
         ${ANARI_BACKEND_TARGET}
@@ -157,14 +157,14 @@ target_link_libraries(anari_library_filament
 )
 
 if(WIN32)
-    target_link_libraries(anari_library_filament PRIVATE
+    target_link_libraries(anari_library_halogen PRIVATE
         filament::bluegl
         filament::bluevk
         opengl32
         gdi32
     )
 elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    target_link_libraries(anari_library_filament PRIVATE
+    target_link_libraries(anari_library_halogen PRIVATE
         filament::bluegl
         filament::bluevk
         "-framework Cocoa"
@@ -177,7 +177,7 @@ elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         "-framework IOSurface"
     )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    target_link_libraries(anari_library_filament PRIVATE
+    target_link_libraries(anari_library_halogen PRIVATE
         "-framework Foundation"
         "-framework Metal"
         "-framework OpenGLES"
@@ -189,7 +189,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         "-framework UIKit"
     )
 elseif(ANDROID)
-    target_link_libraries(anari_library_filament PRIVATE
+    target_link_libraries(anari_library_halogen PRIVATE
         filament::bluevk
         EGL
         GLESv3
@@ -198,7 +198,7 @@ elseif(ANDROID)
         dl
     )
 else()
-    target_link_libraries(anari_library_filament PRIVATE
+    target_link_libraries(anari_library_halogen PRIVATE
         filament::bluegl
         filament::bluevk
         dl
@@ -206,7 +206,7 @@ else()
     )
 endif()
 
-set_target_properties(anari_library_filament PROPERTIES
+set_target_properties(anari_library_halogen PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     C_VISIBILITY_PRESET hidden
 )
@@ -215,7 +215,7 @@ set_target_properties(anari_library_filament PROPERTIES
 
 include(GNUInstallDirs)
 
-install(TARGETS anari_library_filament
+install(TARGETS anari_library_halogen
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

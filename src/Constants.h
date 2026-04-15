@@ -3,7 +3,7 @@
 
 #pragma once
 
-namespace AnariFilament {
+namespace Halogen {
 
 constexpr float Pi = 3.14159265358979323846f;
 

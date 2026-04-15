@@ -14,7 +14,7 @@ class VertexBuffer;
 class IndexBuffer;
 }
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Surface : public Object
 {
@@ -43,5 +43,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Surface *, ANARI_SURFACE);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Surface *, ANARI_SURFACE);

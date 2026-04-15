@@ -22,7 +22,7 @@ static void statusFunc(const void *, ANARIDevice, ANARIObject,
 
 int main()
 {
-    ANARILibrary lib = anariLoadLibrary("filament", statusFunc);
+    ANARILibrary lib = anariLoadLibrary("halogen", statusFunc);
     if (!lib) {
         fprintf(stderr, "Failed to load filament library\n");
         return 1;

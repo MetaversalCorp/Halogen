@@ -10,7 +10,7 @@ namespace filament {
 class Engine;
 }
 
-namespace AnariFilament {
+namespace Halogen {
 
 template <typename T>
 class FilamentResource {

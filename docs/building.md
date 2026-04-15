@@ -1,4 +1,4 @@
-# Building Filament ANARI Implementation
+# Building Halogen
 
 ## Prerequisites
 
@@ -18,8 +18,8 @@
 ## Getting the Source
 
 ```bash
-git clone --recursive https://gitlab.com/wonderland-gmbh/filament-anari-implementation.git
-cd filament-anari-implementation
+git clone --recursive https://github.com/MetaversalCorp/Halogen.git
+cd Halogen
 ```
 
 If you already cloned without `--recursive`:

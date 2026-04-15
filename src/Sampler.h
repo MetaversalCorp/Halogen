@@ -16,7 +16,7 @@ class Texture;
 class TextureSampler;
 }
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Sampler : public Object
 {
@@ -68,5 +68,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Sampler *, ANARI_SAMPLER);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Sampler *, ANARI_SAMPLER);

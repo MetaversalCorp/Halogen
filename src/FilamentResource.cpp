@@ -13,7 +13,7 @@
 #include <filament/Texture.h>
 #include <filament/View.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 template <typename T>
 void FilamentResource<T>::reset(T *ptr) {

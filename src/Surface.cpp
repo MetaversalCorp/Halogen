@@ -19,9 +19,9 @@
 
 #include <cstring>
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Surface *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Surface *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 Surface::Surface(DeviceState *s)
     : Object(ANARI_SURFACE, s)

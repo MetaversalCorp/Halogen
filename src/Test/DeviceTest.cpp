@@ -25,7 +25,7 @@ void DeviceTest::createDestroy() {
         const char *message) {
         Corrade::Utility::Debug{} << "ANARI:" << message;
     };
-    ANARILibrary library = anariLoadLibrary("filament", statusFunc);
+    ANARILibrary library = anariLoadLibrary("halogen", statusFunc);
     CORRADE_VERIFY(library);
 
     ANARIDevice device = anariNewDevice(library, "default");

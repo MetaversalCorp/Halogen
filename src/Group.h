@@ -8,7 +8,7 @@
 #include <Corrade/Containers/Array.h>
 #include <helium/utility/IntrusivePtr.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Group : public Object
 {
@@ -29,5 +29,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Group *, ANARI_GROUP);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Group *, ANARI_GROUP);

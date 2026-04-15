@@ -21,7 +21,7 @@ struct DeviceFixture {
             if (severity <= ANARI_SEVERITY_WARNING)
                 Corrade::Utility::Debug{} << "ANARI:" << message;
         };
-        library = anariLoadLibrary("filament", statusFunc);
+        library = anariLoadLibrary("halogen", statusFunc);
         if (library)
             device = anariNewDevice(library, "default");
         if (device)
@@ -58,7 +58,7 @@ void NativeSurfaceTest::extensionAdvertised() {
 
     bool found = false;
     for (const char *const *ext = extensions; *ext; ++ext) {
-        if (std::strcmp(*ext, "FILAMENT_NATIVE_SURFACE") == 0) {
+        if (std::strcmp(*ext, "HALOGEN_NATIVE_SURFACE") == 0) {
             found = true;
             break;
         }

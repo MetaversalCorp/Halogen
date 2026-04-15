@@ -8,7 +8,7 @@
 
 #include <anari/anari_cpp/ext/linalg.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 // Zero-copy conversions between anari::math and filament::math types.
 // Both families are standard-layout structs of contiguous floats, so

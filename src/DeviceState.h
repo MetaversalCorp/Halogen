@@ -14,7 +14,7 @@ class Material;
 class Texture;
 }
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct DeviceState : public helium::BaseGlobalDeviceState
 {
@@ -37,12 +37,12 @@ inline DeviceState *asFilamentState(helium::BaseGlobalDeviceState *s)
     return static_cast<DeviceState *>(s);
 }
 
-#define ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(type, anari_type) \
+#define ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(type, anari_type) \
     namespace anari {                                           \
     ANARI_TYPEFOR_SPECIALIZATION(type, anari_type);             \
     }
 
-#define ANARI_FILAMENT_TYPEFOR_DEFINITION(type) \
+#define ANARI_HALOGEN_TYPEFOR_DEFINITION(type) \
     namespace anari {                           \
     ANARI_TYPEFOR_DEFINITION(type);             \
     }

@@ -129,7 +129,7 @@ void ScreenshotTest::coloredQuad()
     std::vector<uint8_t> pixels;
     uint32_t width = 0, height = 0;
 
-    ANARILibrary library = anariLoadLibrary("filament", makeStatusCallback());
+    ANARILibrary library = anariLoadLibrary("halogen", makeStatusCallback());
     CORRADE_VERIFY(library);
     ANARIDevice device = anariNewDevice(library, "default");
     CORRADE_VERIFY(device);
@@ -239,7 +239,7 @@ void ScreenshotTest::instancedTriangle()
     std::vector<uint8_t> pixels;
     uint32_t width = 0, height = 0;
 
-    ANARILibrary library = anariLoadLibrary("filament", makeStatusCallback());
+    ANARILibrary library = anariLoadLibrary("halogen", makeStatusCallback());
     CORRADE_VERIFY(library);
     ANARIDevice device = anariNewDevice(library, "default");
     CORRADE_VERIFY(device);
@@ -367,7 +367,7 @@ void ScreenshotTest::sphereScene()
     std::vector<uint8_t> pixels;
     uint32_t width = 0, height = 0;
 
-    ANARILibrary library = anariLoadLibrary("filament", makeStatusCallback());
+    ANARILibrary library = anariLoadLibrary("halogen", makeStatusCallback());
     CORRADE_VERIFY(library);
     ANARIDevice device = anariNewDevice(library, "default");
     CORRADE_VERIFY(device);
@@ -483,7 +483,7 @@ void ScreenshotTest::curveScene()
     std::vector<uint8_t> pixels;
     uint32_t width = 0, height = 0;
 
-    ANARILibrary library = anariLoadLibrary("filament", makeStatusCallback());
+    ANARILibrary library = anariLoadLibrary("halogen", makeStatusCallback());
     CORRADE_VERIFY(library);
     ANARIDevice device = anariNewDevice(library, "default");
     CORRADE_VERIFY(device);
@@ -599,7 +599,7 @@ void ScreenshotTest::pbrSpheres()
     std::vector<uint8_t> pixels;
     uint32_t width = 0, height = 0;
 
-    ANARILibrary library = anariLoadLibrary("filament", makeStatusCallback());
+    ANARILibrary library = anariLoadLibrary("halogen", makeStatusCallback());
     CORRADE_VERIFY(library);
     ANARIDevice device = anariNewDevice(library, "default");
     CORRADE_VERIFY(device);
@@ -803,7 +803,7 @@ void ScreenshotTest::pbrSpheres()
 
 void ScreenshotTest::float32Frame()
 {
-    ANARILibrary library = anariLoadLibrary("filament", makeStatusCallback());
+    ANARILibrary library = anariLoadLibrary("halogen", makeStatusCallback());
     CORRADE_VERIFY(library);
     ANARIDevice device = anariNewDevice(library, "default");
     CORRADE_VERIFY(device);
@@ -910,7 +910,7 @@ void ScreenshotTest::float32Frame()
 
 void ScreenshotTest::introspection()
 {
-    ANARILibrary library = anariLoadLibrary("filament", makeStatusCallback());
+    ANARILibrary library = anariLoadLibrary("halogen", makeStatusCallback());
     CORRADE_VERIFY(library);
     ANARIDevice device = anariNewDevice(library, "default");
     CORRADE_VERIFY(device);

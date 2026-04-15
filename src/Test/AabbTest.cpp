@@ -28,13 +28,13 @@ AabbTest::AabbTest()
 
 void AabbTest::defaultIsInvalid()
 {
-    AnariFilament::Aabb aabb;
+    Halogen::Aabb aabb;
     CORRADE_VERIFY(aabb.min.x > aabb.max.x);
 }
 
 void AabbTest::extendSinglePoint()
 {
-    AnariFilament::Aabb aabb;
+    Halogen::Aabb aabb;
     aabb.extend({1.0f, 2.0f, 3.0f});
     CORRADE_COMPARE(aabb.min.x, 1.0f);
     CORRADE_COMPARE(aabb.min.y, 2.0f);
@@ -46,7 +46,7 @@ void AabbTest::extendSinglePoint()
 
 void AabbTest::extendMultiplePoints()
 {
-    AnariFilament::Aabb aabb;
+    Halogen::Aabb aabb;
     aabb.extend({-1.0f, 0.0f, 0.0f});
     aabb.extend({1.0f, 2.0f, 3.0f});
     CORRADE_COMPARE(aabb.min.x, -1.0f);
@@ -64,8 +64,8 @@ void AabbTest::computeAabbFromPositions()
         {1.0f, 2.0f, 3.0f},
         {-1.0f, -2.0f, -3.0f}};
 
-    AnariFilament::Aabb aabb =
-        AnariFilament::computeAabb(positions, 3);
+    Halogen::Aabb aabb =
+        Halogen::computeAabb(positions, 3);
     CORRADE_COMPARE(aabb.min.x, -1.0f);
     CORRADE_COMPARE(aabb.min.y, -2.0f);
     CORRADE_COMPARE(aabb.min.z, -3.0f);
@@ -76,7 +76,7 @@ void AabbTest::computeAabbFromPositions()
 
 void AabbTest::centerAndHalfExtent()
 {
-    AnariFilament::Aabb aabb;
+    Halogen::Aabb aabb;
     aabb.extend({0.0f, 0.0f, 0.0f});
     aabb.extend({2.0f, 4.0f, 6.0f});
 

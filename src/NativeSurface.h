@@ -10,7 +10,7 @@ namespace filament {
 class SwapChain;
 }
 
-namespace AnariFilament {
+namespace Halogen {
 
 // Extension object that wraps a platform-native window handle (HWND, NSView,
 // ANativeWindow*, CAMetalLayer*) and creates a Filament SwapChain from it.
@@ -27,7 +27,7 @@ namespace AnariFilament {
 //   The engine chooses its backend automatically (Vulkan, OpenGL, or Metal).
 //   Query the active backend after device init:
 //     char buf[32];
-//     anariGetProperty(device, device, "filament.backend",
+//     anariGetProperty(device, device, "halogen.backend",
 //         ANARI_STRING, buf, sizeof(buf), ANARI_WAIT);
 //   Or force a specific backend before first use:
 //     anariSetParameter(device, device, "backend", ANARI_STRING, "opengl");
@@ -35,7 +35,7 @@ namespace AnariFilament {
 //
 // OpenXR integration (future):
 //   For XR compositors that provide per-frame swapchain images, query
-//   "filament.backend" to create a matching XR graphics binding (Vulkan or
+//   "halogen.backend" to create a matching XR graphics binding (Vulkan or
 //   OpenGL). The XR swapchain images will be imported via
 //   Texture::Builder::import() and rendered to a RenderTarget instead of a
 //   SwapChain. This path will accept an "externalImage" parameter (intptr_t)

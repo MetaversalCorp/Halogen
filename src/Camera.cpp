@@ -15,9 +15,9 @@
 
 using namespace Corrade::Containers::Literals;
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Camera *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Camera *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 Camera::Camera(DeviceState *s, const char *subtype)
     : Object(ANARI_CAMERA, s)
