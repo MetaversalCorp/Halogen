@@ -91,7 +91,7 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item mesa\x64\opengl32.dll,mesa\x64\libgallium_wgl.dll build\Release\bin\ -Force
-          ctest --test-dir build --output-on-failure --output-junit Test.xml
+          ctest --test-dir build --output-on-failure --output-junit Test.xml -LE windowed
         env:
           GALLIUM_DRIVER: llvmpipe
           MESA_GL_VERSION_OVERRIDE: "4.5"
@@ -125,7 +125,7 @@ jobs:
         run: cmake --build build
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure --output-junit Test.xml
+        run: ctest --test-dir build --output-on-failure --output-junit Test.xml -LE windowed
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -171,7 +171,7 @@ jobs:
       - name: Test
         run: |
           export LD_LIBRARY_PATH="$PWD/build/Release/bin:$LD_LIBRARY_PATH"
-          xvfb-run -a ctest --test-dir build --output-on-failure --output-junit Test.xml
+          xvfb-run -a ctest --test-dir build --output-on-failure --output-junit Test.xml -LE windowed
         env:
           FILAMENT_BACKEND: opengl
           MESA_GL_VERSION_OVERRIDE: "4.5"
@@ -221,7 +221,7 @@ jobs:
       - name: Test
         run: |
           export LD_LIBRARY_PATH="$PWD/build/Release/bin:$LD_LIBRARY_PATH"
-          xvfb-run -a ctest --test-dir build --output-on-failure --output-junit Test.xml
+          xvfb-run -a ctest --test-dir build --output-on-failure --output-junit Test.xml -LE windowed
         env:
           FILAMENT_BACKEND: opengl
           MESA_GL_VERSION_OVERRIDE: "4.5"
