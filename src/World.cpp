@@ -13,9 +13,9 @@
 
 #include <utils/EntityManager.h>
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::World *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::World *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 World::World(DeviceState *s)
     : Object(ANARI_WORLD, s)

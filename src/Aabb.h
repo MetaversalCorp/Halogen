@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Aabb {
     filament::math::float3 min = {

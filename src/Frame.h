@@ -22,7 +22,7 @@ class Texture;
 class View;
 }
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Frame : public helium::BaseFrame
 {
@@ -58,7 +58,7 @@ private:
     ANARIDataType mColorType = ANARI_UNKNOWN;
     ANARIDataType mDepthType = ANARI_UNKNOWN;
 
-    helium::IntrusivePtr<AnariFilament::Renderer> mRenderer;
+    helium::IntrusivePtr<Halogen::Renderer> mRenderer;
     helium::IntrusivePtr<Camera> mCamera;
     helium::IntrusivePtr<World> mWorld;
     NativeSurface *mNativeSurface = nullptr;
@@ -78,5 +78,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Frame *, ANARI_FRAME);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Frame *, ANARI_FRAME);

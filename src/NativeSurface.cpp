@@ -6,7 +6,7 @@
 #include <filament/Engine.h>
 #include <filament/SwapChain.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 NativeSurface::NativeSurface(DeviceState *s)
     : Object(ANARI_OBJECT, s)

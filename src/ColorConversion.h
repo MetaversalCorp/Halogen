@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace AnariFilament {
+namespace Halogen {
 
 /// Convert N color elements from an ANARI typed source array to float4 RGBA.
 /// Type dispatch happens once outside the per-element loop for efficiency.
@@ -247,4 +247,4 @@ inline void convertToRGBA8(uint8_t *dst,
     }
 }
 
-} // namespace AnariFilament
+} // namespace Halogen

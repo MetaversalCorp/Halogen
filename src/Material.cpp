@@ -19,9 +19,9 @@
 
 using namespace Corrade::Containers::Literals;
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Material *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Material *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 Material::Material(DeviceState *s, const char *subtype)
     : Object(ANARI_MATERIAL, s)

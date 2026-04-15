@@ -24,9 +24,9 @@
 
 using namespace Corrade::Containers::Literals;
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Geometry *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Geometry *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 
 
@@ -451,12 +451,12 @@ void generateUnitSphere(
 
     uint32_t v = 0;
     for (uint32_t ring = 0; ring <= SPHERE_RINGS; ++ring) {
-        const float phi = AnariFilament::Pi * float(ring) / SPHERE_RINGS;
+        const float phi = Halogen::Pi * float(ring) / SPHERE_RINGS;
         const float sinPhi = std::sin(phi);
         const float cosPhi = std::cos(phi);
 
         for (uint32_t seg = 0; seg <= SPHERE_SEGMENTS; ++seg) {
-            const float theta = 2.0f * AnariFilament::Pi * float(seg) / SPHERE_SEGMENTS;
+            const float theta = 2.0f * Halogen::Pi * float(seg) / SPHERE_SEGMENTS;
             const float sinTheta = std::sin(theta);
             const float cosTheta = std::cos(theta);
 

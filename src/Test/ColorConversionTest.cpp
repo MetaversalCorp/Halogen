@@ -29,7 +29,7 @@ ColorConversionTest::ColorConversionTest()
         &ColorConversionTest::multiBatch});
 }
 
-using namespace AnariFilament;
+using namespace Halogen;
 using F4 = filament::math::float4;
 
 void ColorConversionTest::float32()

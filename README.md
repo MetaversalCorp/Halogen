@@ -1,4 +1,4 @@
-# Filament ANARI Implementation
+# Halogen
 
 [![CI](https://github.com/MetaversalCorp/Halogen/actions/workflows/ci.yml/badge.svg)](https://github.com/MetaversalCorp/Halogen/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -10,8 +10,7 @@ Google's [Filament](https://github.com/google/filament) physically-based
 rendering engine.
 
 Any application using the ANARI API can use this library to render through
-Filament's real-time PBR pipeline — simply load `"filament"` as the ANARI
-library.
+Filament's real-time PBR pipeline — simply load `"halogen"` as the ANARI library.
 
 ## Supported Platforms
 
@@ -36,8 +35,8 @@ library.
 ### Clone & Build
 
 ```bash
-git clone --recursive https://gitlab.com/wonderland-gmbh/filament-anari-implementation.git
-cd filament-anari-implementation
+git clone --recursive https://github.com/MetaversalCorp/Halogen.git
+cd Halogen
 ```
 
 #### macOS / Linux
@@ -65,7 +64,7 @@ configure step if not already present.
 Set the `ANARI_LIBRARY` environment variable or load programmatically:
 
 ```c
-ANARILibrary lib = anariLoadLibrary("filament", statusFunc);
+ANARILibrary lib = anariLoadLibrary("halogen", statusFunc);
 ANARIDevice dev = anariNewDevice(lib, "default");
 ```
 

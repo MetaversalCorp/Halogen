@@ -8,7 +8,7 @@
 
 #include <helium/BaseDevice.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Device : public helium::BaseDevice
 {

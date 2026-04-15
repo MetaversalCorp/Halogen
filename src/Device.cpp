@@ -41,7 +41,7 @@
 #include "physicallyBasedBlend_mat.h"
 #include "physicallyBasedMasked_mat.h"
 
-namespace AnariFilament {
+namespace Halogen {
 
 // -- Array management --
 
@@ -161,7 +161,7 @@ ANARIMaterial Device::newMaterial(const char *subtype)
 ANARIRenderer Device::newRenderer(const char *)
 {
     initDevice();
-    return reinterpret_cast<ANARIRenderer>(new AnariFilament::Renderer(deviceState()));
+    return reinterpret_cast<ANARIRenderer>(new Halogen::Renderer(deviceState()));
 }
 
 ANARISampler Device::newSampler(const char *subtype)
@@ -391,7 +391,7 @@ int Device::deviceGetProperty(const char *name, ANARIDataType type,
 {
     std::string_view prop(name);
 
-    if (prop == "filament.backend" && type == ANARI_STRING) {
+    if (prop == "halogen.backend" && type == ANARI_STRING) {
         if (mask & ANARI_WAIT)
             initDevice();
         if (!mInitialized)
@@ -403,7 +403,7 @@ int Device::deviceGetProperty(const char *name, ANARIDataType type,
         return 1;
     }
 
-    if (prop == "filament.backend.size" && type == ANARI_UINT64) {
+    if (prop == "halogen.backend.size" && type == ANARI_UINT64) {
         if (mask & ANARI_WAIT)
             initDevice();
         if (!mInitialized)

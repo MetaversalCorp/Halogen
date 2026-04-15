@@ -29,7 +29,7 @@ struct DeviceFixture {
             if (severity <= ANARI_SEVERITY_WARNING)
                 Corrade::Utility::Debug{} << "ANARI:" << message;
         };
-        library = anariLoadLibrary("filament", statusFunc);
+        library = anariLoadLibrary("halogen", statusFunc);
         if (library)
             device = anariNewDevice(library, "default");
         if (device) {

@@ -5,9 +5,9 @@
 
 #include <anari/backend/LibraryImpl.h>
 
-#include "anari_library_filament_export.h"
+#include "anari_library_halogen_export.h"
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Library : public anari::LibraryImpl {
     Library(void *lib, ANARIStatusCallback defaultStatusCB,
@@ -28,7 +28,7 @@ ANARIDevice Library::newDevice(const char *) {
 
 const char **Library::getDeviceExtensions(const char *) {
     static const char *extensions[] = {
-        "FILAMENT_NATIVE_SURFACE",
+        "HALOGEN_NATIVE_SURFACE",
         nullptr
     };
     return extensions;
@@ -36,7 +36,7 @@ const char **Library::getDeviceExtensions(const char *) {
 
 }
 
-extern "C" FILAMENT_ANARI_EXPORT ANARI_DEFINE_LIBRARY_ENTRYPOINT(
-    filament, handle, scb, scbPtr) {
-    return reinterpret_cast<ANARILibrary>(new AnariFilament::Library(handle, scb, scbPtr));
+extern "C" HALOGEN_EXPORT ANARI_DEFINE_LIBRARY_ENTRYPOINT(
+    halogen, handle, scb, scbPtr) {
+    return reinterpret_cast<ANARILibrary>(new Halogen::Library(handle, scb, scbPtr));
 }

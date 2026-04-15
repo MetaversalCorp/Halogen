@@ -13,7 +13,7 @@ namespace filament {
 class Camera;
 }
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Camera : public Object
 {
@@ -33,5 +33,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Camera *, ANARI_CAMERA);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Camera *, ANARI_CAMERA);

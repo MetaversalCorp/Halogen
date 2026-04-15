@@ -5,9 +5,9 @@
 
 #include <helium/array/ObjectArray.h>
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Group *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Group *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 Group::Group(DeviceState *s)
     : Object(ANARI_GROUP, s) {}

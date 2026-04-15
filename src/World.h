@@ -15,7 +15,7 @@ namespace filament {
 class Scene;
 }
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct World : public Object
 {
@@ -41,5 +41,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::World *, ANARI_WORLD);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::World *, ANARI_WORLD);

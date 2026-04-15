@@ -100,7 +100,7 @@ consistency with the rendering backend.
   - Functions and methods: `camelCase`
   - Member variables: `m` prefix + `PascalCase` (e.g., `mEngine`, `mRenderer`)
   - Constants and enums: `UPPER_SNAKE_CASE`
-  - Namespaces: `PascalCase` (e.g., `AnariFilament`)
+  - Namespaces: `PascalCase` (e.g., `Halogen`)
   - File names match class names: `Device.h`, `Device.cpp`
 - **Formatting**: Prefer clang-format. Braces on same line for functions and
   control structures. 4-space indentation, no tabs.
@@ -151,7 +151,7 @@ consistency with the rendering backend.
 The device works with the [ANARI Blender addon](https://github.com/KhronosGroup/anari-blender-addon)
 (`CustomAnariRender.py`). Key integration notes:
 
-- **DLL deployment**: Copy `anari_library_filament.dll` (and any dependencies)
+- **DLL deployment**: Copy `anari_library_halogen.dll` (and any dependencies)
   to Blender's `scripts/modules/anari/` directory.
 - **Compatibility shim**: The addon calls `anariLoadLibrary()` which was renamed
   to `loadLibrary()` in newer SDKs. A `compat.py` shim in the anari module

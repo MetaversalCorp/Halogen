@@ -5,9 +5,9 @@
 
 #include <cstring>
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Instance *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Instance *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 Instance::Instance(DeviceState *s)
     : Object(ANARI_INSTANCE, s) {}

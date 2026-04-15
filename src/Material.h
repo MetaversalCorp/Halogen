@@ -13,7 +13,7 @@ namespace filament {
 class MaterialInstance;
 }
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Material : public Object
 {
@@ -45,5 +45,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Material *, ANARI_MATERIAL);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Material *, ANARI_MATERIAL);

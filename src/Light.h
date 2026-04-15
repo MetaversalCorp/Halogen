@@ -8,7 +8,7 @@
 #include <Corrade/Containers/String.h>
 #include <utils/Entity.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Light : public Object
 {
@@ -27,5 +27,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Light *, ANARI_LIGHT);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Light *, ANARI_LIGHT);

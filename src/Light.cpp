@@ -15,9 +15,9 @@
 
 using namespace Corrade::Containers::Literals;
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Light *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Light *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 Light::Light(DeviceState *s, const char *subtype)
     : Object(ANARI_LIGHT, s)

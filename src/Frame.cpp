@@ -22,9 +22,9 @@
 
 #include <cstring>
 
-ANARI_FILAMENT_TYPEFOR_DEFINITION(AnariFilament::Frame *);
+ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Frame *);
 
-namespace AnariFilament {
+namespace Halogen {
 
 Frame::Frame(DeviceState *s)
     : helium::BaseFrame(s)
@@ -66,7 +66,7 @@ bool Frame::getProperty(const std::string_view &,
 
 void Frame::commitParameters()
 {
-    mRenderer = getParamObject<AnariFilament::Renderer>("renderer");
+    mRenderer = getParamObject<Halogen::Renderer>("renderer");
     mCamera = getParamObject<Camera>("camera");
     mWorld = getParamObject<World>("world");
 

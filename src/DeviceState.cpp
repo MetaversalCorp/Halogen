@@ -6,7 +6,7 @@
 #include <filament/Engine.h>
 #include <filament/Texture.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 DeviceState::DeviceState(ANARIDevice d)
     : helium::BaseGlobalDeviceState(d) {}

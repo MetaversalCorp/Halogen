@@ -8,7 +8,7 @@
 #include <helium/BaseObject.h>
 #include <helium/utility/ChangeObserverPtr.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Object : public helium::BaseObject
 {
@@ -50,5 +50,5 @@ struct UnknownObject : public Object
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Object *, ANARI_OBJECT);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Object *, ANARI_OBJECT);

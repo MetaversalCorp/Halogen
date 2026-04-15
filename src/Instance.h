@@ -8,7 +8,7 @@
 #include <helium/utility/IntrusivePtr.h>
 #include <math/mat4.h>
 
-namespace AnariFilament {
+namespace Halogen {
 
 struct Instance : public Object
 {
@@ -26,5 +26,5 @@ private:
 
 }
 
-ANARI_FILAMENT_TYPEFOR_SPECIALIZATION(
-    AnariFilament::Instance *, ANARI_INSTANCE);
+ANARI_HALOGEN_TYPEFOR_SPECIALIZATION(
+    Halogen::Instance *, ANARI_INSTANCE);
