@@ -50,62 +50,38 @@ get_filename_component(_FILAMENT_SDK_ROOT "${FILAMENT_INCLUDE_DIR}" DIRECTORY)
 
 # Determine platform-appropriate lib directory
 if(WIN32)
-    set(_FILAMENT_USES_SHARED_CRT OFF)
-    if(CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "DLL")
-        set(_FILAMENT_USES_SHARED_CRT ON)
-    endif()
-
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        if(_FILAMENT_USES_SHARED_CRT)
-            set(_FILAMENT_LIB_CANDIDATES
-                "${_FILAMENT_SDK_ROOT}/lib/x86_64/mdd"
-                "${_FILAMENT_SDK_ROOT}/lib/x86_64/md"
-                "${_FILAMENT_SDK_ROOT}/lib/x86_64/mtd"
-                "${_FILAMENT_SDK_ROOT}/lib/x86_64/mt")
-        else()
-            set(_FILAMENT_LIB_CANDIDATES
-                "${_FILAMENT_SDK_ROOT}/lib/x86_64/mtd"
-                "${_FILAMENT_SDK_ROOT}/lib/x86_64/mt"
-                "${_FILAMENT_SDK_ROOT}/lib/x86_64/mdd"
-                "${_FILAMENT_SDK_ROOT}/lib/x86_64/md")
-        endif()
-    elseif(_FILAMENT_USES_SHARED_CRT)
-        set(_FILAMENT_LIB_CANDIDATES
-            "${_FILAMENT_SDK_ROOT}/lib/x86_64/md"
-            "${_FILAMENT_SDK_ROOT}/lib/x86_64/mt"
-            "${_FILAMENT_SDK_ROOT}/lib/x86_64/mdd"
-            "${_FILAMENT_SDK_ROOT}/lib/x86_64/mtd")
-    else()
-        set(_FILAMENT_LIB_CANDIDATES
-            "${_FILAMENT_SDK_ROOT}/lib/x86_64/mt"
-            "${_FILAMENT_SDK_ROOT}/lib/x86_64/md"
-            "${_FILAMENT_SDK_ROOT}/lib/x86_64/mtd"
-            "${_FILAMENT_SDK_ROOT}/lib/x86_64/mdd")
-    endif()
+    set(_FILAMENT_LIB_CANDIDATES
+        "${_FILAMENT_SDK_ROOT}/lib/x86_64/mt"
+        "${_FILAMENT_SDK_ROOT}/lib/x86_64/md")
 elseif(APPLE)
     if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         set(_FILAMENT_LIB_CANDIDATES
             "${_FILAMENT_SDK_ROOT}/lib/arm64"
-            "${_FILAMENT_SDK_ROOT}/lib/universal")
+            "${_FILAMENT_SDK_ROOT}/lib/universal"
+            "${_FILAMENT_SDK_ROOT}/lib")
     elseif(CMAKE_OSX_ARCHITECTURES)
         set(_FILAMENT_LIB_CANDIDATES
             "${_FILAMENT_SDK_ROOT}/lib/${CMAKE_OSX_ARCHITECTURES}"
-            "${_FILAMENT_SDK_ROOT}/lib/universal")
+            "${_FILAMENT_SDK_ROOT}/lib/universal"
+            "${_FILAMENT_SDK_ROOT}/lib")
     else()
         set(_FILAMENT_LIB_CANDIDATES
             "${_FILAMENT_SDK_ROOT}/lib/${CMAKE_SYSTEM_PROCESSOR}"
-            "${_FILAMENT_SDK_ROOT}/lib/universal")
+            "${_FILAMENT_SDK_ROOT}/lib/universal"
+            "${_FILAMENT_SDK_ROOT}/lib")
     endif()
 elseif(ANDROID)
     set(_FILAMENT_LIB_CANDIDATES
         "${_FILAMENT_SDK_ROOT}/lib/${CMAKE_ANDROID_ARCH_ABI}"
-        "${_FILAMENT_SDK_ROOT}/lib/arm64-v8a")
+        "${_FILAMENT_SDK_ROOT}/lib/arm64-v8a"
+        "${_FILAMENT_SDK_ROOT}/lib")
 else()
     set(_FILAMENT_LIB_CANDIDATES
         "${_FILAMENT_SDK_ROOT}/lib/${CMAKE_SYSTEM_PROCESSOR}"
         "${_FILAMENT_SDK_ROOT}/lib/aarch64"
         "${_FILAMENT_SDK_ROOT}/lib/arm64"
-        "${_FILAMENT_SDK_ROOT}/lib/x86_64")
+        "${_FILAMENT_SDK_ROOT}/lib/x86_64"
+        "${_FILAMENT_SDK_ROOT}/lib")
 endif()
 
 set(FILAMENT_LIB_DIR "")
