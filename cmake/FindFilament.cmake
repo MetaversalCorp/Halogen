@@ -86,26 +86,31 @@ elseif(APPLE)
     if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         set(_FILAMENT_LIB_CANDIDATES
             "${_FILAMENT_SDK_ROOT}/lib/arm64"
-            "${_FILAMENT_SDK_ROOT}/lib/universal")
+            "${_FILAMENT_SDK_ROOT}/lib/universal"
+            "${_FILAMENT_SDK_ROOT}/lib")
     elseif(CMAKE_OSX_ARCHITECTURES)
         set(_FILAMENT_LIB_CANDIDATES
             "${_FILAMENT_SDK_ROOT}/lib/${CMAKE_OSX_ARCHITECTURES}"
-            "${_FILAMENT_SDK_ROOT}/lib/universal")
+            "${_FILAMENT_SDK_ROOT}/lib/universal"
+            "${_FILAMENT_SDK_ROOT}/lib")
     else()
         set(_FILAMENT_LIB_CANDIDATES
             "${_FILAMENT_SDK_ROOT}/lib/${CMAKE_SYSTEM_PROCESSOR}"
-            "${_FILAMENT_SDK_ROOT}/lib/universal")
+            "${_FILAMENT_SDK_ROOT}/lib/universal"
+            "${_FILAMENT_SDK_ROOT}/lib")
     endif()
 elseif(ANDROID)
     set(_FILAMENT_LIB_CANDIDATES
         "${_FILAMENT_SDK_ROOT}/lib/${CMAKE_ANDROID_ARCH_ABI}"
-        "${_FILAMENT_SDK_ROOT}/lib/arm64-v8a")
+        "${_FILAMENT_SDK_ROOT}/lib/arm64-v8a"
+        "${_FILAMENT_SDK_ROOT}/lib")
 else()
     set(_FILAMENT_LIB_CANDIDATES
         "${_FILAMENT_SDK_ROOT}/lib/${CMAKE_SYSTEM_PROCESSOR}"
         "${_FILAMENT_SDK_ROOT}/lib/aarch64"
         "${_FILAMENT_SDK_ROOT}/lib/arm64"
-        "${_FILAMENT_SDK_ROOT}/lib/x86_64")
+        "${_FILAMENT_SDK_ROOT}/lib/x86_64"
+        "${_FILAMENT_SDK_ROOT}/lib")
 endif()
 
 set(FILAMENT_LIB_DIR "")
