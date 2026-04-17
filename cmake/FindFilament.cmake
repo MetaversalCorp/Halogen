@@ -163,6 +163,13 @@ _filament_add_library(zstd)
 _filament_add_library(bluegl)
 _filament_add_library(bluevk)
 
+# matdbg (Material Debugger) — only present on Windows debug builds where
+# Filament was compiled with FILAMENT_ENABLE_MATDBG. On other platforms/
+# configs, the lib may not exist, so add it only when the file is present.
+if(WIN32 AND EXISTS "${FILAMENT_LIB_DIR}/matdbg.lib")
+    _filament_add_library(matdbg)
+endif()
+
 set(Filament_FOUND TRUE)
 
 # Clean up
