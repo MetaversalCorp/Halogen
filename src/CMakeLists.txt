@@ -157,6 +157,10 @@ target_link_libraries(anari_library_halogen
 )
 
 if(WIN32)
+    # Windows Debug builds reference matdbg symbols from filament.lib
+    if(TARGET filament::matdbg)
+        target_link_libraries(anari_library_halogen PRIVATE filament::matdbg)
+    endif()
     target_link_libraries(anari_library_halogen PRIVATE
         filament::bluegl
         filament::bluevk
