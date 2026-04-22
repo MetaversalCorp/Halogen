@@ -49,21 +49,14 @@ SYSROOT="$TOOLCHAIN/$HOST_DIR/sysroot"
 # 1. Compile native_app_glue + our main.cpp into libhalogen_surface_test.so
 # ---------------------------------------------------------------------------
 echo "==> Compiling native lib..."
-GLUE_DIR="$ANDROID_NDK/sources/android/native_app_glue"
-# Compile main.cpp as C++ and native_app_glue.c as C separately, then link.
+# Activity-based test: no native_app_glue, no ANativeActivity_onCreate.
+# JNI calls from the Java MainActivity drive everything.
 "$CLANG" \
     --target=aarch64-linux-android$API_LEVEL --sysroot="$SYSROOT" \
     -fPIC -std=gnu++17 -O2 -Wall \
-    -I"$GLUE_DIR" -I"$ANARI_INCLUDE_DIR" \
+    -I"$ANARI_INCLUDE_DIR" \
     -c "$SCRIPT_DIR/main.cpp" \
     -o "$BUILD_DIR/main.o"
-
-"$CLANG" -x c \
-    --target=aarch64-linux-android$API_LEVEL --sysroot="$SYSROOT" \
-    -fPIC -O2 \
-    -I"$GLUE_DIR" \
-    -c "$GLUE_DIR/android_native_app_glue.c" \
-    -o "$BUILD_DIR/native_app_glue.o"
 
 "$CLANG" \
     --target=aarch64-linux-android$API_LEVEL --sysroot="$SYSROOT" \
@@ -72,10 +65,22 @@ GLUE_DIR="$ANDROID_NDK/sources/android/native_app_glue"
     -Wl,-soname,libhalogen_surface_test.so \
     -o "$APK_STAGE/lib/$ABI/libhalogen_surface_test.so" \
     "$BUILD_DIR/main.o" \
-    "$BUILD_DIR/native_app_glue.o" \
     "$ANARI_LIB_DIR/libanari.so" \
-    -u ANativeActivity_onCreate \
     -landroid -llog
+
+# ---------------------------------------------------------------------------
+# Compile Java Activity + convert to DEX
+# ---------------------------------------------------------------------------
+echo "==> Compiling Java activity..."
+CLASSES_DIR="$BUILD_DIR/classes"
+mkdir -p "$CLASSES_DIR"
+JAVAC="${JAVAC:-javac}"
+find "$SCRIPT_DIR/java" -name "*.java" | xargs "$JAVAC" -encoding UTF-8 -source 1.8 -target 1.8 \
+    -cp "$PLATFORM_JAR" -d "$CLASSES_DIR"
+
+echo "==> d8 to DEX..."
+D8="$(_bt d8)"
+"$D8" --lib "$PLATFORM_JAR" --output "$APK_STAGE" $(find "$CLASSES_DIR" -name "*.class")
 
 # libc++_shared for NDK c++_shared STL
 cp "$SYSROOT/usr/lib/aarch64-linux-android/libc++_shared.so" "$APK_STAGE/lib/$ABI/"
@@ -98,8 +103,8 @@ echo "==> Linking APK..."
 # ---------------------------------------------------------------------------
 # 3. Add native libs (jar works cross-platform unlike GNU zip)
 # ---------------------------------------------------------------------------
-echo "==> Adding native libs..."
-( cd "$APK_STAGE" && jar uf unaligned.apk lib )
+echo "==> Adding native libs + classes.dex..."
+( cd "$APK_STAGE" && jar uf unaligned.apk lib classes.dex )
 
 # ---------------------------------------------------------------------------
 # 4. Align + sign

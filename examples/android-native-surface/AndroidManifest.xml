@@ -3,11 +3,14 @@
           package="com.metaversal.halogen.surfacetest">
     <uses-feature android:name="android.hardware.vulkan.level" android:version="1" android:required="true" />
 
-    <application android:label="Halogen Surface Test" android:hasCode="false" android:allowBackup="false">
-        <activity android:name="android.app.NativeActivity"
-                  android:exported="true"
-                  android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode">
-            <meta-data android:name="android.app.lib_name" android:value="halogen_surface_test" />
+    <application
+        android:label="Halogen Surface Test"
+        android:hasCode="true"
+        android:allowBackup="false">
+        <activity
+            android:name="com.metaversal.halogen.surfacetest.MainActivity"
+            android:exported="true"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
