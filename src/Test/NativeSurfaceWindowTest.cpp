@@ -102,8 +102,11 @@ void NativeSurfaceWindowTest::renderToWindow() {
     // Create and configure native surface
     ANARIObject ns = anariNewObject(f.device, "nativeSurface", "default");
     CORRADE_VERIFY(ns);
+    // ANARI_VOID_POINTER takes the pointer value directly as the 5th arg —
+    // NOT a pointer to it. anari_cpp_impl.hpp:530 dereferences one level for
+    // this type, so &nativeHandle would store a dangling stack address.
     anariSetParameter(
-        f.device, ns, "nativeWindow", ANARI_VOID_POINTER, &nativeHandle);
+        f.device, ns, "nativeWindow", ANARI_VOID_POINTER, nativeHandle);
     anariCommitParameters(f.device, ns);
 
     // Set up a minimal scene with a triangle

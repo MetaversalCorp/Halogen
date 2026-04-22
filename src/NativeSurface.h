@@ -19,7 +19,10 @@ namespace Halogen {
 //
 // Usage (windowed):
 //   ANARIObject ns = anariNewObject(device, "nativeSurface", "default");
-//   anariSetParameter(device, ns, "nativeWindow", ANARI_VOID_POINTER, &hwnd);
+//   // NOTE: ANARI_VOID_POINTER takes the pointer value directly as the 5th
+//   // arg — NOT a pointer to it (anari_cpp_impl.hpp:530 dereferences one
+//   // extra level for this type). Passing &hwnd stores a dangling address.
+//   anariSetParameter(device, ns, "nativeWindow", ANARI_VOID_POINTER, hwnd);
 //   anariCommitParameters(device, ns);
 //   anariSetParameter(device, frame, "nativeSurface", ANARI_OBJECT, &ns);
 //

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="com.metaversal.halogen.surfacetest">
+    <uses-feature android:name="android.hardware.vulkan.level" android:version="1" android:required="true" />
+
+    <application
+        android:label="Halogen Surface Test"
+        android:hasCode="true"
+        android:allowBackup="false">
+        <activity
+            android:name="com.metaversal.halogen.surfacetest.MainActivity"
+            android:exported="true"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
