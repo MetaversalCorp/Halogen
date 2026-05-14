@@ -18,15 +18,17 @@ void NativeSurface::commitParameters()
 {
     mNativeWindow = getParam<void *>("nativeWindow", nullptr);
     mFlags = getParam<uint64_t>("flags", 0);
+    rebuildSwapChain();
+    markCommitted();
+}
 
-    // Recreate the SwapChain whenever the native window changes.
+void NativeSurface::rebuildSwapChain()
+{
     mSwapChain.reset();
     if (mNativeWindow) {
         mSwapChain.reset(
             deviceState()->engine->createSwapChain(mNativeWindow, mFlags));
     }
-
-    markCommitted();
 }
 
 bool NativeSurface::isValid() const

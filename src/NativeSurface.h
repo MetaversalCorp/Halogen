@@ -49,6 +49,7 @@ struct NativeSurface : public Object
     ~NativeSurface() override = default;
 
     void commitParameters() override;
+    void rebuildSwapChain();
 
     bool isValid() const override;
 
