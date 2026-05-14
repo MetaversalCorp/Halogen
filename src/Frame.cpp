@@ -84,6 +84,14 @@ void Frame::commitParameters()
     mNativeSurface = dynamic_cast<NativeSurface *>(
         getParamObject<Object>("nativeSurface"));
 
+    if (mNativeSurface
+        && (mWidth != mLastCommittedWidth || mHeight != mLastCommittedHeight)
+        && (mLastCommittedWidth != 0 || mLastCommittedHeight != 0)) {
+        mNativeSurface->rebuildSwapChain();
+    }
+    mLastCommittedWidth = mWidth;
+    mLastCommittedHeight = mHeight;
+
     markCommitted();
 }
 
