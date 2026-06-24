@@ -23,6 +23,9 @@ struct DeviceState : public helium::BaseGlobalDeviceState
     FilamentResource<filament::Material> matteMaterial;
     FilamentResource<filament::Material> matteBlendMaterial;
     FilamentResource<filament::Material> matteMaskedMaterial;
+    FilamentResource<filament::Material> unlitMaterial;
+    FilamentResource<filament::Material> unlitBlendMaterial;
+    FilamentResource<filament::Material> unlitMaskedMaterial;
     FilamentResource<filament::Material> physicallyBasedMaterial;
     FilamentResource<filament::Material> physicallyBasedBlendMaterial;
     FilamentResource<filament::Material> physicallyBasedMaskedMaterial;

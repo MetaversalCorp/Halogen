@@ -37,6 +37,9 @@
 #include "matte_mat.h"
 #include "matteBlend_mat.h"
 #include "matteMasked_mat.h"
+#include "unlit_mat.h"
+#include "unlitBlend_mat.h"
+#include "unlitMasked_mat.h"
 #include "physicallyBased_mat.h"
 #include "physicallyBasedBlend_mat.h"
 #include "physicallyBasedMasked_mat.h"
@@ -217,7 +220,7 @@ const char *cameraSubtypes[] = {
 const char *lightSubtypes[] = {
     "directional", "point", "spot", nullptr};
 const char *materialSubtypes[] = {
-    "matte", "physicallyBased", nullptr};
+    "matte", "physicallyBased", "unlit", nullptr};
 const char *samplerSubtypes[] = {
     "image1D", "image2D", "image3D", "transform", "primitive", nullptr};
 const char *rendererSubtypes[] = {
@@ -328,6 +331,21 @@ void Device::initDevice()
     state->matteMaskedMaterial = {state->engine,
         filament::Material::Builder()
             .package(MATTEMASKED_MAT_DATA, MATTEMASKED_MAT_SIZE)
+            .build(*state->engine)};
+
+    state->unlitMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(UNLIT_MAT_DATA, UNLIT_MAT_SIZE)
+            .build(*state->engine)};
+
+    state->unlitBlendMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(UNLITBLEND_MAT_DATA, UNLITBLEND_MAT_SIZE)
+            .build(*state->engine)};
+
+    state->unlitMaskedMaterial = {state->engine,
+        filament::Material::Builder()
+            .package(UNLITMASKED_MAT_DATA, UNLITMASKED_MAT_SIZE)
             .build(*state->engine)};
 
     state->physicallyBasedMaterial = {state->engine,

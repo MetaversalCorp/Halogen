@@ -50,6 +50,9 @@ set(MATERIAL_NAMES
     matte
     matteBlend
     matteMasked
+    unlit
+    unlitBlend
+    unlitMasked
     physicallyBased
     physicallyBasedBlend
     physicallyBasedMasked

@@ -1,0 +1,39 @@
+material {
+    name : UnlitMasked,
+    shadingModel : unlit,
+    blending : masked,
+    parameters : [
+        {
+            type : float4,
+            name : baseColor
+        },
+        {
+            type : float,
+            name : opacity
+        },
+        {
+            type : sampler2d,
+            name : baseColorMap
+        },
+        {
+            type : bool,
+            name : hasBaseColorMap
+        }
+    ],
+    requires : [
+        color,
+        uv0
+    ]
+}
+
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        float4 color = materialParams.baseColor * getColor();
+        if (materialParams.hasBaseColorMap) {
+            color *= texture(materialParams_baseColorMap, getUV0());
+        }
+        color.a *= materialParams.opacity;
+        material.baseColor = color;
+    }
+}

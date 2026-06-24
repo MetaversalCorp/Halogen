@@ -44,18 +44,23 @@ void Material::commitParameters()
     }
 
     filament::Material *baseMaterial = nullptr;
+    const Corrade::Containers::String alphaMode =
+        getParamString("alphaMode", "opaque");
     if (mSubtype == "physicallyBased"_s) {
-        const Corrade::Containers::String alphaMode =
-            getParamString("alphaMode", "opaque");
         if (alphaMode == "blend"_s)
             baseMaterial = state->physicallyBasedBlendMaterial.get();
         else if (alphaMode == "mask"_s)
             baseMaterial = state->physicallyBasedMaskedMaterial.get();
         else
             baseMaterial = state->physicallyBasedMaterial.get();
+    } else if (mSubtype == "unlit"_s) {
+        if (alphaMode == "blend"_s)
+            baseMaterial = state->unlitBlendMaterial.get();
+        else if (alphaMode == "mask"_s)
+            baseMaterial = state->unlitMaskedMaterial.get();
+        else
+            baseMaterial = state->unlitMaterial.get();
     } else {
-        const Corrade::Containers::String alphaMode =
-            getParamString("alphaMode", "opaque");
         if (alphaMode == "blend"_s)
             baseMaterial = state->matteBlendMaterial.get();
         else if (alphaMode == "mask"_s)
@@ -73,9 +78,14 @@ void Material::commitParameters()
     mMaterialInstance = baseMaterial->createInstance();
 
     // The ANARI spec uses "color" for matte materials and "baseColor" for
-    // physicallyBased materials.  Read from the correct parameter name.
-    const bool isMatte = (mSubtype != "physicallyBased"_s);
-    const char *const colorKey = isMatte ? "color" : "baseColor";
+    // physicallyBased materials.  The HALOGEN_MATERIAL_UNLIT extension follows
+    // matte and reads "color".  isMatte strictly gates the matte-only
+    // colorTransform / primitive-sampler paths, whose parameters the
+    // lightweight unlit shader does not declare.
+    const bool isPbr = (mSubtype == "physicallyBased"_s);
+    const bool isUnlit = (mSubtype == "unlit"_s);
+    const bool isMatte = (!isPbr && !isUnlit);
+    const char *const colorKey = isPbr ? "baseColor" : "color";
 
     // Check for sampler-based color (texture)
     mColorSampler = getParamObject<Sampler>(colorKey);
@@ -151,8 +161,6 @@ void Material::commitParameters()
         mMaterialInstance->setParameter("baseColorMap", dummy, dummySampler);
 
     // Alpha cutoff for masked mode
-    const Corrade::Containers::String alphaMode =
-        getParamString("alphaMode", "opaque");
     if (alphaMode == "mask"_s) {
         const float alphaCutoff = getParam<float>("alphaCutoff", 0.5f);
         mMaterialInstance->setMaskThreshold(alphaCutoff);

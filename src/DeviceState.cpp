@@ -21,6 +21,9 @@ DeviceState::~DeviceState()
         physicallyBasedMaskedMaterial.reset();
         physicallyBasedBlendMaterial.reset();
         physicallyBasedMaterial.reset();
+        unlitMaskedMaterial.reset();
+        unlitBlendMaterial.reset();
+        unlitMaterial.reset();
         matteMaskedMaterial.reset();
         matteBlendMaterial.reset();
         matteMaterial.reset();

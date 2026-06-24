@@ -29,6 +29,7 @@ ANARIDevice Library::newDevice(const char *) {
 const char **Library::getDeviceExtensions(const char *) {
     static const char *extensions[] = {
         "HALOGEN_NATIVE_SURFACE",
+        "HALOGEN_MATERIAL_UNLIT",
         nullptr
     };
     return extensions;
