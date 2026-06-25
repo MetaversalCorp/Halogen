@@ -30,6 +30,12 @@ struct World : public Object
 private:
     void clearInstanceEntities();
 
+    // Observe a geometry/material used to build an instance renderable so a
+    // change to it re-queues this World for finalize() (rebuilding the
+    // instance entities against the new buffers). Deduplicates additions.
+    void observe(helium::BaseObject *obj);
+    void clearObservers();
+
     filament::Scene *mScene = nullptr;
     Corrade::Containers::Array<helium::IntrusivePtr<Surface>> mSurfaces;
     Corrade::Containers::Array<helium::IntrusivePtr<Light>> mLights;
@@ -37,6 +43,12 @@ private:
 
     // Entities created for instanced surfaces (owned by this World)
     Corrade::Containers::Array<utils::Entity> mInstanceEntities;
+
+    // Objects (geometries/materials) this World observes for change so it can
+    // rebuild instance renderables; IntrusivePtr keeps them alive so the
+    // observer can be safely removed.
+    Corrade::Containers::Array<helium::IntrusivePtr<helium::BaseObject>>
+        mObserved;
 };
 
 }

@@ -11,6 +11,8 @@
 #include <helium/array/Array1D.h>
 #include <helium/array/ObjectArray.h>
 
+#include <Corrade/Containers/GrowableArray.h>
+
 #include <utils/EntityManager.h>
 
 ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::World *);
@@ -25,8 +27,33 @@ World::World(DeviceState *s)
 
 World::~World()
 {
+    clearObservers();
     clearInstanceEntities();
     deviceState()->engine->destroy(mScene);
+}
+
+void World::clearObservers()
+{
+    for (const helium::IntrusivePtr<helium::BaseObject> &o : mObserved) {
+        if (o)
+            o->removeChangeObserver(this);
+    }
+    mObserved = {};
+}
+
+void World::observe(helium::BaseObject *obj)
+{
+    if (!obj)
+        return;
+
+    for (const helium::IntrusivePtr<helium::BaseObject> &o : mObserved) {
+        if (o.ptr == obj)
+            return;
+    }
+
+    obj->addChangeObserver(this);
+    Corrade::Containers::arrayAppend(
+        mObserved, helium::IntrusivePtr<helium::BaseObject>{obj});
 }
 
 void World::clearInstanceEntities()
@@ -49,6 +76,9 @@ void World::commitParameters()
 void World::finalize()
 {
     filament::Engine * const engine = deviceState()->engine;
+
+    // Re-registered below against the current set of rendered geometries.
+    clearObservers();
 
     // Remove all existing entities from the scene
     for (const helium::IntrusivePtr<Surface> &surf : mSurfaces) {
@@ -140,6 +170,12 @@ void World::finalize()
                 Material *mat = surf->material();
                 if (!geom || !mat)
                     continue;
+
+                // Observe the geometry/material so a rebuild of their buffers
+                // re-queues this World to rebuild the instance renderable,
+                // rather than leaving it bound to a destroyed VertexBufferInfo.
+                observe(geom);
+                observe(mat);
 
                 utils::Entity e = utils::EntityManager::get().create();
                 new (&mInstanceEntities[entityIdx++]) utils::Entity{e};
