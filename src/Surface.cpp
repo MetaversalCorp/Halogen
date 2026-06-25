@@ -221,8 +221,8 @@ void Surface::finalize()
     std::fprintf(stderr,
         "[HALOGEN][DIAG] surf=%p finalize entity=%u rebuilt(destroyOld=%d) "
         "bindVB=%p geom=%p\n",
-        (void *)this, mEntity.getId(), (int)mBuilt, (void *)vb,
-        (void *)mGeometry.get());
+        static_cast<void *>(this), mEntity.getId(), static_cast<int>(mBuilt),
+        static_cast<void *>(vb), static_cast<void *>(mGeometry.get()));
     std::fflush(stderr);
 
     filament::RenderableManager::Builder(1)

@@ -63,7 +63,8 @@ void Geometry::retireBuffers()
     // bound them and before the next frame that binds the rebuilt ones.
     std::fprintf(stderr,
         "[HALOGEN][DIAG] geom=%p retire: destroyVB=%p keepPrevVB=%p\n",
-        (void *)this, (void *)mPrevVertexBuffer, (void *)mVertexBuffer);
+        static_cast<void *>(this), static_cast<void *>(mPrevVertexBuffer),
+        static_cast<void *>(mVertexBuffer));
     std::fflush(stderr);
 
     if (mPrevVertexBuffer)
@@ -618,7 +619,7 @@ void Geometry::commitSphere()
     mVertexBuffer = builder.build(*engine);
 
     std::fprintf(stderr, "[HALOGEN][DIAG] geom=%p commitSphere buildVB=%p\n",
-        (void *)this, (void *)mVertexBuffer);
+        static_cast<void *>(this), static_cast<void *>(mVertexBuffer));
     std::fflush(stderr);
 
     // Upload positions (transfer ownership)
