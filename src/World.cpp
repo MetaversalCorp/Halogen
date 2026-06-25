@@ -35,10 +35,10 @@ World::~World()
 void World::clearObservers()
 {
     for (const helium::IntrusivePtr<helium::BaseObject> &o : mObserved) {
-        if (o)
-            o->removeChangeObserver(this);
+        if (o.ptr)
+            o.ptr->removeChangeObserver(this);
     }
-    mObserved = {};
+    mObserved.clear();
 }
 
 void World::observe(helium::BaseObject *obj)
@@ -52,8 +52,7 @@ void World::observe(helium::BaseObject *obj)
     }
 
     obj->addChangeObserver(this);
-    Corrade::Containers::arrayAppend(
-        mObserved, helium::IntrusivePtr<helium::BaseObject>{obj});
+    mObserved.push_back(helium::IntrusivePtr<helium::BaseObject>{obj});
 }
 
 void World::clearInstanceEntities()

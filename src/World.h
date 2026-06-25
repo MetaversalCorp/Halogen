@@ -11,6 +11,8 @@
 #include <helium/utility/IntrusivePtr.h>
 #include <utils/Entity.h>
 
+#include <vector>
+
 namespace filament {
 class Scene;
 }
@@ -46,9 +48,10 @@ private:
 
     // Objects (geometries/materials) this World observes for change so it can
     // rebuild instance renderables; IntrusivePtr keeps them alive so the
-    // observer can be safely removed.
-    Corrade::Containers::Array<helium::IntrusivePtr<helium::BaseObject>>
-        mObserved;
+    // observer can be safely removed. std::vector (not Corrade's growable
+    // Array) because IntrusivePtr's move ctor is not noexcept, which the
+    // Corrade array's nothrow-move-constructible static_assert rejects.
+    std::vector<helium::IntrusivePtr<helium::BaseObject>> mObserved;
 };
 
 }
