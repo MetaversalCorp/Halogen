@@ -17,6 +17,7 @@
 
 #include <utils/EntityManager.h>
 
+#include <cstdio>
 #include <cstring>
 
 ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Surface *);
@@ -216,6 +217,13 @@ void Surface::finalize()
 
     const Aabb &geomAabb = mGeometry->aabb();
     const filament::Box box = {geomAabb.center(), geomAabb.halfExtent()};
+
+    std::fprintf(stderr,
+        "[HALOGEN][DIAG] surf=%p finalize entity=%u rebuilt(destroyOld=%d) "
+        "bindVB=%p geom=%p\n",
+        (void *)this, mEntity.getId(), (int)mBuilt, (void *)vb,
+        (void *)mGeometry.get());
+    std::fflush(stderr);
 
     filament::RenderableManager::Builder(1)
         .geometry(0, filament::RenderableManager::PrimitiveType::TRIANGLES,

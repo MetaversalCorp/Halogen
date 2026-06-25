@@ -20,6 +20,7 @@
 #include <Corrade/Containers/StringView.h>
 
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
 using namespace Corrade::Containers::Literals;
@@ -60,6 +61,11 @@ void Geometry::retireBuffers()
     // compositor thread (Frame::renderFrame flushes then renders), so the
     // command stream tears down the old buffers only after the last frame that
     // bound them and before the next frame that binds the rebuilt ones.
+    std::fprintf(stderr,
+        "[HALOGEN][DIAG] geom=%p retire: destroyVB=%p keepPrevVB=%p\n",
+        (void *)this, (void *)mPrevVertexBuffer, (void *)mVertexBuffer);
+    std::fflush(stderr);
+
     if (mPrevVertexBuffer)
         engine->destroy(mPrevVertexBuffer);
     if (mPrevIndexBuffer)
@@ -610,6 +616,10 @@ void Geometry::commitSphere()
                 filament::VertexBuffer::AttributeType::FLOAT2);
 
     mVertexBuffer = builder.build(*engine);
+
+    std::fprintf(stderr, "[HALOGEN][DIAG] geom=%p commitSphere buildVB=%p\n",
+        (void *)this, (void *)mVertexBuffer);
+    std::fflush(stderr);
 
     // Upload positions (transfer ownership)
     mVertexBuffer->setBufferAt(*engine, posBuffer,
