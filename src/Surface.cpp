@@ -25,6 +25,8 @@ namespace Halogen {
 
 Surface::Surface(DeviceState *s)
     : Object(ANARI_SURFACE, s)
+    , mGeometry(this)
+    , mMaterial(this)
 {
     mEntity = utils::EntityManager::get().create();
 }
