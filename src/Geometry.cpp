@@ -41,6 +41,34 @@ Geometry::~Geometry()
         engine->destroy(mVertexBuffer);
     if (mIndexBuffer)
         engine->destroy(mIndexBuffer);
+    if (mPrevVertexBuffer)
+        engine->destroy(mPrevVertexBuffer);
+    if (mPrevIndexBuffer)
+        engine->destroy(mPrevIndexBuffer);
+}
+
+void Geometry::retireBuffers()
+{
+    filament::Engine *engine = deviceState()->engine;
+
+    // Destroy the generation from two commits ago. Any renderable that still
+    // referenced the most recent buffers is rebuilt against the newly-built
+    // buffers within the same commit-buffer flush (Surface observes this
+    // Geometry), but the previous generation must stay alive across that
+    // one-flush rebuild lag to avoid a dangling HwVertexBufferInfo handle on
+    // strict backends (Metal). Destruction and rendering are serialized on the
+    // compositor thread (Frame::renderFrame flushes then renders), so the
+    // command stream tears down the old buffers only after the last frame that
+    // bound them and before the next frame that binds the rebuilt ones.
+    if (mPrevVertexBuffer)
+        engine->destroy(mPrevVertexBuffer);
+    if (mPrevIndexBuffer)
+        engine->destroy(mPrevIndexBuffer);
+
+    mPrevVertexBuffer = mVertexBuffer;
+    mPrevIndexBuffer = mIndexBuffer;
+    mVertexBuffer = nullptr;
+    mIndexBuffer = nullptr;
 }
 
 void Geometry::commitParameters()
@@ -84,14 +112,7 @@ void Geometry::commitTriangle()
         return;
     }
 
-    if (mVertexBuffer) {
-        engine->destroy(mVertexBuffer);
-        mVertexBuffer = nullptr;
-    }
-    if (mIndexBuffer) {
-        engine->destroy(mIndexBuffer);
-        mIndexBuffer = nullptr;
-    }
+    retireBuffers();
 
     uint32_t numVertices = uint32_t(posArray->totalSize());
     mHasColors = colArray != nullptr || primColArray != nullptr;
@@ -505,14 +526,7 @@ void Geometry::commitSphere()
         return;
     }
 
-    if (mVertexBuffer) {
-        engine->destroy(mVertexBuffer);
-        mVertexBuffer = nullptr;
-    }
-    if (mIndexBuffer) {
-        engine->destroy(mIndexBuffer);
-        mIndexBuffer = nullptr;
-    }
+    retireBuffers();
 
     const float globalRadius = getParam<float>("radius", 0.01f);
     const uint32_t numSpheres = uint32_t(posArray->totalSize());
@@ -726,14 +740,7 @@ void Geometry::commitCylinder()
         return;
     }
 
-    if (mVertexBuffer) {
-        engine->destroy(mVertexBuffer);
-        mVertexBuffer = nullptr;
-    }
-    if (mIndexBuffer) {
-        engine->destroy(mIndexBuffer);
-        mIndexBuffer = nullptr;
-    }
+    retireBuffers();
 
     const float globalRadius = getParam<float>("radius", 1.0f);
     const Corrade::Containers::String capsStr = getParamString("caps", "none");
@@ -985,14 +992,7 @@ void Geometry::commitCurve()
         return;
     }
 
-    if (mVertexBuffer) {
-        engine->destroy(mVertexBuffer);
-        mVertexBuffer = nullptr;
-    }
-    if (mIndexBuffer) {
-        engine->destroy(mIndexBuffer);
-        mIndexBuffer = nullptr;
-    }
+    retireBuffers();
 
     const float globalRadius = getParam<float>("radius", 1.0f);
 
@@ -1379,14 +1379,7 @@ void Geometry::commitQuad()
         return;
     }
 
-    if (mVertexBuffer) {
-        engine->destroy(mVertexBuffer);
-        mVertexBuffer = nullptr;
-    }
-    if (mIndexBuffer) {
-        engine->destroy(mIndexBuffer);
-        mIndexBuffer = nullptr;
-    }
+    retireBuffers();
 
     // Each group of 4 consecutive vertices forms a quad.
     const uint32_t numSrcVertices = uint32_t(posArray->totalSize());
@@ -1649,14 +1642,7 @@ void Geometry::commitCone()
         return;
     }
 
-    if (mVertexBuffer) {
-        engine->destroy(mVertexBuffer);
-        mVertexBuffer = nullptr;
-    }
-    if (mIndexBuffer) {
-        engine->destroy(mIndexBuffer);
-        mIndexBuffer = nullptr;
-    }
+    retireBuffers();
 
     const float globalRadius = getParam<float>("radius", 1.0f);
     const Corrade::Containers::String capsStr = getParamString("caps", "none");

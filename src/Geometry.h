@@ -41,9 +41,16 @@ private:
     void fillDefaultAttributes(filament::Engine *engine, uint32_t vertexCount,
         uint8_t colorBuffer, uint8_t uv0Buffer, uint8_t uv1Buffer);
 
+    // Defer destruction of the current buffers by one commit generation so a
+    // renderable that still references them survives the one-flush lag before
+    // its Surface re-finalizes against the rebuilt buffers.
+    void retireBuffers();
+
     Corrade::Containers::String mSubtype;
     filament::VertexBuffer *mVertexBuffer = nullptr;
     filament::IndexBuffer *mIndexBuffer = nullptr;
+    filament::VertexBuffer *mPrevVertexBuffer = nullptr;
+    filament::IndexBuffer *mPrevIndexBuffer = nullptr;
     uint32_t mIndexCount = 0;
     bool mHasColors = false;
     bool mHasUV0 = false;
