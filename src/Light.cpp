@@ -80,12 +80,17 @@ void Light::commitParameters()
             ? power / (4.0f * Pi)
             : intensity;
 
-        // Filament expects half-angle in degrees for the outer cone
-        const float outerDeg = openingAngle * 180.0f / Pi;
-        float innerDeg = (openingAngle - falloffAngle)
-            * 180.0f / Pi;
-        if (innerDeg < 0.0f)
-            innerDeg = 0.0f;
+        // Filament's spotLightCone() takes half-angles in RADIANS (from the
+        // center axis to the cone edge), with outer clamped to (0, pi/2].
+        // ANARI's openingAngle is the FULL cone aperture in radians, so the
+        // outer half-angle is openingAngle/2. falloffAngle is the penumbra
+        // measured inward from the outer edge (0 <= falloffAngle <=
+        // openingAngle/2), so the inner full-intensity half-angle is
+        // openingAngle/2 - falloffAngle.
+        const float outerRad = openingAngle * 0.5f;
+        float innerRad = openingAngle * 0.5f - falloffAngle;
+        if (innerRad < 0.0f)
+            innerRad = 0.0f;
 
         // ANARI intensity for spot lights is peak radiant intensity in W/sr
         // (candela), so use intensityCandela() not intensity() (which takes lm).
@@ -96,7 +101,7 @@ void Light::commitParameters()
             .color(toFilament(color))
             .intensityCandela(finalIntensity)
             .falloff(100.0f)
-            .spotLightCone(innerDeg, outerDeg)
+            .spotLightCone(innerRad, outerRad)
             .castShadows(true)
             .build(*engine, mEntity);
     } else {
