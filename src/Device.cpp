@@ -4,6 +4,7 @@
 #include "Device.h"
 
 #include "Camera.h"
+#include "CompressedFormats.h"
 #include "Frame.h"
 #include "Geometry.h"
 #include "NativeSurface.h"
@@ -22,8 +23,11 @@
 #include <filament/Texture.h>
 #include <backend/PixelBufferDescriptor.h>
 
+#include <Corrade/Containers/GrowableArray.h>
+
 #include <algorithm>
 #include <cstring>
+#include <string>
 
 #include <helium/BaseObject.h>
 #include <helium/array/Array1D.h>
@@ -222,7 +226,8 @@ const char *lightSubtypes[] = {
 const char *materialSubtypes[] = {
     "matte", "physicallyBased", "unlit", nullptr};
 const char *samplerSubtypes[] = {
-    "image1D", "image2D", "image3D", "transform", "primitive", nullptr};
+    "image1D", "image2D", "image3D", "compressedImage2D",
+    "transform", "primitive", nullptr};
 const char *rendererSubtypes[] = {
     "default", nullptr};
 const char *volumeSubtypes[] = {nullptr};
@@ -251,10 +256,52 @@ const void *Device::getObjectInfo(ANARIDataType, const char *,
     return nullptr;
 }
 
-const void *Device::getParameterInfo(ANARIDataType, const char *,
-    const char *, ANARIDataType, const char *, ANARIDataType)
+const void *Device::getParameterInfo(ANARIDataType objectType,
+    const char *objectSubtype,
+    const char *parameterName,
+    ANARIDataType parameterType,
+    const char *infoName,
+    ANARIDataType infoType)
 {
+    // Advertise the compressedImage2D 'format' values this GPU actually
+    // supports through the standard introspection path. Reporting the probed
+    // subset here is the spec-conformant alternative to advertising a whole
+    // EXT_SAMPLER_COMPRESSED_FORMAT_* group, which would claim every format in
+    // the group works when the hardware only accepts some.
+    if (objectType == ANARI_SAMPLER && objectSubtype
+        && std::strcmp(objectSubtype, "compressedImage2D") == 0
+        && parameterName && std::strcmp(parameterName, "format") == 0
+        && parameterType == ANARI_STRING
+        && infoName && std::strcmp(infoName, "value") == 0
+        && infoType == ANARI_STRING_LIST) {
+        return compressedFormatValueList();
+    }
     return nullptr;
+}
+
+const char *const *Device::compressedFormatValueList()
+{
+    // Probing which block formats the GPU accepts needs a live Filament
+    // engine, so ensure the device is initialized before answering.
+    initDevice();
+    if (!mInitialized)
+        return nullptr;
+
+    if (!mCompressedFormats) {
+        mCompressedFormats.emplace();
+        Corrade::Containers::Array<const char *> &list = *mCompressedFormats;
+        filament::Engine * const engine = deviceState()->engine;
+        // The names have static lifetime (string literals in the table), so
+        // the list points straight at them; only the terminator is appended.
+        for (const CompressedFormat &f : compressedFormatTable()) {
+            if (filament::Texture::isTextureFormatSupported(
+                    *engine, f.internal))
+                Corrade::Containers::arrayAppend(list, f.name);
+        }
+        Corrade::Containers::arrayAppend(
+            list, static_cast<const char *>(nullptr));
+    }
+    return mCompressedFormats->data();
 }
 
 // -- Lifecycle --
@@ -402,6 +449,21 @@ const char *backendString(filament::Engine::Backend b)
     }
 }
 
+// Joins a null-terminated list of format names into the comma-separated form
+// used by the 'halogen.textureFormats' device property. The list itself comes
+// from the cached GPU probe (compressedFormatValueList), so this does no
+// per-call probing.
+std::string joinFormats(const char *const *list)
+{
+    std::string out;
+    for (int i = 0; list && list[i]; ++i) {
+        if (!out.empty())
+            out += ",";
+        out += list[i];
+    }
+    return out;
+}
+
 }
 
 int Device::deviceGetProperty(const char *name, ANARIDataType type,
@@ -428,6 +490,31 @@ int Device::deviceGetProperty(const char *name, ANARIDataType type,
             return 0;
         auto str = backendString(deviceState()->engine->getBackend());
         helium::writeToVoidP(mem, uint64_t(std::strlen(str) + 1));
+        return 1;
+    }
+
+    // Per-GPU compressed-texture capability for the compressedImage2D sampler
+    // (EXT_SAMPLER_COMPRESSED_IMAGE2D). Reported here rather than in
+    // getDeviceExtensions because probing Filament needs a live engine.
+    if (prop == "halogen.textureFormats" && type == ANARI_STRING) {
+        if (mask & ANARI_WAIT)
+            initDevice();
+        if (!mInitialized)
+            return 0;
+        const std::string formats = joinFormats(compressedFormatValueList());
+        std::memset(mem, 0, size);
+        std::memcpy(mem, formats.c_str(),
+            std::min(uint64_t(formats.size()), size - 1));
+        return 1;
+    }
+
+    if (prop == "halogen.textureFormats.size" && type == ANARI_UINT64) {
+        if (mask & ANARI_WAIT)
+            initDevice();
+        if (!mInitialized)
+            return 0;
+        const std::string formats = joinFormats(compressedFormatValueList());
+        helium::writeToVoidP(mem, uint64_t(formats.size() + 1));
         return 1;
     }
 

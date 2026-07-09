@@ -1,0 +1,106 @@
+// Copyright 2026 Jonathan Hale
+// SPDX-License-Identifier: MIT
+
+#include "CompressedFormats.h"
+
+namespace Halogen {
+
+namespace {
+
+using IF = filament::Texture::InternalFormat;
+using CT = filament::backend::CompressedPixelDataType;
+
+// filament::Texture::InternalFormat (== backend::TextureFormat) and
+// CompressedPixelDataType share identical enumerator names for every
+// compressed format, so one token names both.
+#define HALOGEN_FMT(anariName, filamentEnum) \
+    CompressedFormat{anariName, IF::filamentEnum, CT::filamentEnum}
+
+const CompressedFormat kTable[] = {
+    // EXT_SAMPLER_COMPRESSED_FORMAT_BC123 (S3TC / DXT)
+    HALOGEN_FMT("BC1_RGB", DXT1_RGB),
+    HALOGEN_FMT("BC1_RGB_SRGB", DXT1_SRGB),
+    HALOGEN_FMT("BC1_RGBA", DXT1_RGBA),
+    HALOGEN_FMT("BC1_RGBA_SRGB", DXT1_SRGBA),
+    HALOGEN_FMT("BC2", DXT3_RGBA),
+    HALOGEN_FMT("BC2_SRGB", DXT3_SRGBA),
+    HALOGEN_FMT("BC3", DXT5_RGBA),
+    HALOGEN_FMT("BC3_SRGB", DXT5_SRGBA),
+
+    // EXT_SAMPLER_COMPRESSED_FORMAT_BC45 (RGTC)
+    HALOGEN_FMT("BC4", RED_RGTC1),
+    HALOGEN_FMT("BC4_SNORM", SIGNED_RED_RGTC1),
+    HALOGEN_FMT("BC5", RED_GREEN_RGTC2),
+    HALOGEN_FMT("BC5_SNORM", SIGNED_RED_GREEN_RGTC2),
+
+    // EXT_SAMPLER_COMPRESSED_FORMAT_BC67 (BPTC)
+    HALOGEN_FMT("BC6H_UFLOAT", RGB_BPTC_UNSIGNED_FLOAT),
+    HALOGEN_FMT("BC6H_SFLOAT", RGB_BPTC_SIGNED_FLOAT),
+    HALOGEN_FMT("BC7", RGBA_BPTC_UNORM),
+    HALOGEN_FMT("BC7_SRGB", SRGB_ALPHA_BPTC_UNORM),
+
+    // EXT_SAMPLER_COMPRESSED_FORMAT_ETC / _ETC2 (identical format set)
+    HALOGEN_FMT("ETC2_R8G8B8", ETC2_RGB8),
+    HALOGEN_FMT("ETC2_R8G8B8_SRGB", ETC2_SRGB8),
+    HALOGEN_FMT("ETC2_R8G8B8A1", ETC2_RGB8_A1),
+    HALOGEN_FMT("ETC2_R8G8B8A1_SRGB", ETC2_SRGB8_A1),
+    HALOGEN_FMT("ETC2_R8G8B8A8", ETC2_EAC_RGBA8),
+    HALOGEN_FMT("ETC2_R8G8B8A8_SRGB", ETC2_EAC_SRGBA8),
+
+    // EXT_SAMPLER_COMPRESSED_FORMAT_EAC
+    HALOGEN_FMT("EAC_R11_UNORM", EAC_R11),
+    HALOGEN_FMT("EAC_R11_SNORM", EAC_R11_SIGNED),
+    HALOGEN_FMT("EAC_R11G11_UNORM", EAC_RG11),
+    HALOGEN_FMT("EAC_R11G11_SNORM", EAC_RG11_SIGNED),
+
+    // EXT_SAMPLER_COMPRESSED_FORMAT_ASTC
+    HALOGEN_FMT("ASTC_4x4", RGBA_ASTC_4x4),
+    HALOGEN_FMT("ASTC_4x4_SRGB", SRGB8_ALPHA8_ASTC_4x4),
+    HALOGEN_FMT("ASTC_5x4", RGBA_ASTC_5x4),
+    HALOGEN_FMT("ASTC_5x4_SRGB", SRGB8_ALPHA8_ASTC_5x4),
+    HALOGEN_FMT("ASTC_5x5", RGBA_ASTC_5x5),
+    HALOGEN_FMT("ASTC_5x5_SRGB", SRGB8_ALPHA8_ASTC_5x5),
+    HALOGEN_FMT("ASTC_6x5", RGBA_ASTC_6x5),
+    HALOGEN_FMT("ASTC_6x5_SRGB", SRGB8_ALPHA8_ASTC_6x5),
+    HALOGEN_FMT("ASTC_6x6", RGBA_ASTC_6x6),
+    HALOGEN_FMT("ASTC_6x6_SRGB", SRGB8_ALPHA8_ASTC_6x6),
+    HALOGEN_FMT("ASTC_8x5", RGBA_ASTC_8x5),
+    HALOGEN_FMT("ASTC_8x5_SRGB", SRGB8_ALPHA8_ASTC_8x5),
+    HALOGEN_FMT("ASTC_8x6", RGBA_ASTC_8x6),
+    HALOGEN_FMT("ASTC_8x6_SRGB", SRGB8_ALPHA8_ASTC_8x6),
+    HALOGEN_FMT("ASTC_8x8", RGBA_ASTC_8x8),
+    HALOGEN_FMT("ASTC_8x8_SRGB", SRGB8_ALPHA8_ASTC_8x8),
+    HALOGEN_FMT("ASTC_10x5", RGBA_ASTC_10x5),
+    HALOGEN_FMT("ASTC_10x5_SRGB", SRGB8_ALPHA8_ASTC_10x5),
+    HALOGEN_FMT("ASTC_10x6", RGBA_ASTC_10x6),
+    HALOGEN_FMT("ASTC_10x6_SRGB", SRGB8_ALPHA8_ASTC_10x6),
+    HALOGEN_FMT("ASTC_10x8", RGBA_ASTC_10x8),
+    HALOGEN_FMT("ASTC_10x8_SRGB", SRGB8_ALPHA8_ASTC_10x8),
+    HALOGEN_FMT("ASTC_10x10", RGBA_ASTC_10x10),
+    HALOGEN_FMT("ASTC_10x10_SRGB", SRGB8_ALPHA8_ASTC_10x10),
+    HALOGEN_FMT("ASTC_12x10", RGBA_ASTC_12x10),
+    HALOGEN_FMT("ASTC_12x10_SRGB", SRGB8_ALPHA8_ASTC_12x10),
+    HALOGEN_FMT("ASTC_12x12", RGBA_ASTC_12x12),
+    HALOGEN_FMT("ASTC_12x12_SRGB", SRGB8_ALPHA8_ASTC_12x12),
+};
+
+#undef HALOGEN_FMT
+
+}
+
+Corrade::Containers::ArrayView<const CompressedFormat> compressedFormatTable()
+{
+    return kTable;
+}
+
+const CompressedFormat *findCompressedFormat(
+    Corrade::Containers::StringView name)
+{
+    for (const CompressedFormat &f : kTable) {
+        if (name == Corrade::Containers::StringView{f.name})
+            return &f;
+    }
+    return nullptr;
+}
+
+}

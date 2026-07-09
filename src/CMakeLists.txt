@@ -105,6 +105,8 @@ add_library(anari_library_halogen SHARED
     Object.h
     Camera.h
     Camera.cpp
+    CompressedFormats.h
+    CompressedFormats.cpp
     Frame.h
     Frame.cpp
     Geometry.h

@@ -56,6 +56,7 @@ private:
     void commitImage2D();
     void commitImage1D();
     void commitImage3D();
+    void commitCompressedImage2D();
     void commitTransform();
     void commitPrimitive();
 

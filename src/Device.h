@@ -8,6 +8,9 @@
 
 #include <helium/BaseDevice.h>
 
+#include <Corrade/Containers/Array.h>
+#include <Corrade/Containers/Optional.h>
+
 namespace Halogen {
 
 struct Device : public helium::BaseDevice
@@ -89,6 +92,16 @@ struct Device : public helium::BaseDevice
 private:
     DeviceState *deviceState() const;
     bool mInitialized = false;
+
+    // Lazily-built, device-owned cache of the compressedImage2D 'format'
+    // introspection list (the GPU-supported subset) as a null-terminated
+    // array. getParameterInfo hands out its data(), so it must outlive every
+    // query -- hence it lives on the device. Entries point at the static names
+    // in compressedFormatTable(), so no owned string storage is needed. The
+    // Optional being engaged is the "already probed" flag.
+    const char *const *compressedFormatValueList();
+    Corrade::Containers::Optional<Corrade::Containers::Array<const char *>>
+        mCompressedFormats;
 };
 
 }

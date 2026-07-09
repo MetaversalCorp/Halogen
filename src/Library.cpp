@@ -30,6 +30,11 @@ const char **Library::getDeviceExtensions(const char *) {
     static const char *extensions[] = {
         "HALOGEN_NATIVE_SURFACE",
         "HALOGEN_MATERIAL_UNLIT",
+        // Halogen implements the compressedImage2D sampler subtype. Which
+        // block formats the *actual* GPU accepts is a per-device question and
+        // is reported by the "halogen.textureFormats" device property (the
+        // Filament engine, needed to probe support, does not exist yet here).
+        "EXT_SAMPLER_COMPRESSED_IMAGE2D",
         nullptr
     };
     return extensions;

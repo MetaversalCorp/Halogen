@@ -4,11 +4,13 @@
 #include "Sampler.h"
 
 #include "ColorConversion.h"
+#include "CompressedFormats.h"
 
 #include <filament/Engine.h>
 #include <filament/Texture.h>
 
 #include <backend/PixelBufferDescriptor.h>
+#include <backend/DriverEnums.h>
 
 #include <helium/array/Array1D.h>
 #include <helium/array/Array2D.h>
@@ -19,6 +21,7 @@
 #include <Corrade/Containers/StringView.h>
 
 #include <algorithm>
+#include <cstring>
 
 using namespace Corrade::Containers::Literals;
 
@@ -42,12 +45,87 @@ void Sampler::commitParameters()
         commitImage1D();
     else if (mSubtype == "image3D"_s)
         commitImage3D();
+    else if (mSubtype == "compressedImage2D"_s)
+        commitCompressedImage2D();
     else if (mSubtype == "transform"_s)
         commitTransform();
     else if (mSubtype == "primitive"_s)
         commitPrimitive();
     else
         commitImage2D();
+}
+
+void Sampler::commitCompressedImage2D()
+{
+    filament::Engine * const engine = deviceState()->engine;
+
+    if (mTexture) {
+        engine->destroy(mTexture);
+        mTexture = nullptr;
+    }
+
+    auto *imageArray = getParamObject<helium::Array1D>("image");
+    if (!imageArray) {
+        reportMessage(ANARI_SEVERITY_ERROR,
+            "compressedImage2D sampler requires 'image' parameter");
+        return;
+    }
+
+    const Corrade::Containers::String formatStr = getParamString("format", "");
+    const CompressedFormat * const fmt = findCompressedFormat(formatStr);
+    if (!fmt) {
+        reportMessage(ANARI_SEVERITY_ERROR,
+            "compressedImage2D sampler: unsupported 'format'");
+        return;
+    }
+    // Reject formats the GPU cannot accept, so we fail here with a clear
+    // message rather than deep inside Filament. This mirrors the set reported
+    // by the 'halogen.textureFormats' device property.
+    if (!filament::Texture::isTextureFormatSupported(*engine, fmt->internal)) {
+        reportMessage(ANARI_SEVERITY_ERROR,
+            "compressedImage2D sampler: 'format' not supported by this GPU");
+        return;
+    }
+
+    // The extension types 'size' as UINT64_VEC2; texture dimensions never
+    // exceed 32 bits and ANARI's linalg has no u64vec2, so it crosses the wire
+    // as UINT32_VEC2 (matched on the Sneeze producer side).
+    const anari::math::uint2 dims =
+        getParam<anari::math::uint2>("size", anari::math::uint2(0u, 0u));
+    const uint32_t width = dims[0];
+    const uint32_t height = dims[1];
+    if (width == 0 || height == 0) {
+        reportMessage(ANARI_SEVERITY_ERROR,
+            "compressedImage2D sampler requires a non-zero 'size'");
+        return;
+    }
+
+    const Corrade::Containers::String filterStr = getParamString("filter", "linear");
+    mNearest = (filterStr == "nearest"_s);
+
+    // 'image' is an ARRAY1D of UINT8/INT8 -- element count equals byte count.
+    const uint32_t byteCount = uint32_t(imageArray->totalSize());
+    auto *ownedData = new uint8_t[byteCount];
+    std::memcpy(ownedData, imageArray->data(), byteCount);
+
+    mTexture = filament::Texture::Builder()
+        .width(width)
+        .height(height)
+        .levels(1)
+        .format(fmt->internal)
+        .sampler(filament::Texture::Sampler::SAMPLER_2D)
+        .build(*engine);
+
+    using namespace filament::backend;
+    mTexture->setImage(*engine, 0,
+        PixelBufferDescriptor(
+            ownedData, byteCount,
+            fmt->compressed, byteCount,
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<uint8_t *>(buf);
+            }));
+
+    markCommitted();
 }
 
 void Sampler::commitImage2D()
