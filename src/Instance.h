@@ -5,8 +5,10 @@
 
 #include "Group.h"
 
+#include <Corrade/Containers/Array.h>
 #include <helium/utility/IntrusivePtr.h>
 #include <math/mat4.h>
+#include <utils/Entity.h>
 
 namespace Halogen {
 
@@ -19,9 +21,17 @@ struct Instance : public Object
     Group *group() const { return mGroup.ptr; }
     const filament::math::mat4f &transform() const { return mTransform; }
 
+    // The owning World builds one Filament entity per group surface and hands
+    // the (non-owning) handles here so commitParameters() can re-apply this
+    // instance's transform to them every frame without a full World rebuild.
+    // The World owns the entities' lifetime and clears these on rebuild.
+    void setEntities(Corrade::Containers::Array<utils::Entity> aEntity);
+    void clearEntities();
+
 private:
     helium::IntrusivePtr<Group> mGroup;
     filament::math::mat4f mTransform;
+    Corrade::Containers::Array<utils::Entity> mEntities;
 };
 
 }

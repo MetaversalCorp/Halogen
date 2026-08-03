@@ -57,6 +57,14 @@ void World::observe(helium::BaseObject *obj)
 
 void World::clearInstanceEntities()
 {
+    // The entities are about to be destroyed; drop the non-owning copies each
+    // instance kept for its per-frame transform refresh so a commit between now
+    // and the next finalize() cannot touch a stale handle.
+    for (const helium::IntrusivePtr<Instance> &inst : mInstances) {
+        if (inst.ptr)
+            inst.ptr->clearEntities();
+    }
+
     filament::Engine *engine = deviceState()->engine;
     for (utils::Entity e : mInstanceEntities) {
         mScene->remove(e);
@@ -160,6 +168,11 @@ void World::finalize()
 
             const filament::math::mat4f &xform = inst->transform();
 
+            // Collected so the instance can re-apply its transform to exactly
+            // these entities every frame (Instance::commitParameters), which is
+            // the only per-frame commit helium runs for an animated instance.
+            std::vector<utils::Entity> aEntity_Inst;
+
             for (const helium::IntrusivePtr<Surface> &surf :
                     inst->group()->surfaces()) {
                 if (!surf || !surf->isValid())
@@ -178,6 +191,7 @@ void World::finalize()
 
                 utils::Entity e = utils::EntityManager::get().create();
                 new (&mInstanceEntities[entityIdx++]) utils::Entity{e};
+                aEntity_Inst.push_back(e);
 
                 const Aabb &geomAabb = geom->aabb();
                 filament::Box box = {
@@ -200,6 +214,12 @@ void World::finalize()
 
                 mScene->addEntity(e);
             }
+
+            Corrade::Containers::Array<utils::Entity> aEntity{
+                Corrade::NoInit, aEntity_Inst.size()};
+            for (size_t k = 0; k < aEntity_Inst.size(); ++k)
+                new (&aEntity[k]) utils::Entity{aEntity_Inst[k]};
+            inst->setEntities(std::move(aEntity));
         }
     }
 
