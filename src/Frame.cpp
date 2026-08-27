@@ -108,10 +108,20 @@ void Frame::renderFrame()
     if (!isValid())
         return;
 
-    // Ensure all pending GPU uploads and any previous readback are complete
-    // before rendering, then clear the scheduled-readback flag.
-    engine->flushAndWait();
-    mReadbackScheduled = false;
+    const bool nativeSurface =
+        mNativeSurface && mNativeSurface->isValid();
+
+    // flushAndWait serializes the compositor behind every GPU upload and the
+    // previous frame's render. Required for the CPU readback path (pixels
+    // must be done before map). On the native swapchain path it turns a
+    // large glTF commit -- or a TDR during 4x MSAA / shadow maps -- into a
+    // permanent compositor hang (camera, FPS log, and host Cancel all freeze).
+    // Filament's beginFrame already waits for the swapchain; buffer uploads
+    // complete on the driver thread before the draw that uses them.
+    if (!nativeSurface) {
+        engine->flushAndWait();
+        mReadbackScheduled = false;
+    }
 
     const bool wantFloat =
         (mColorType == ANARI_FLOAT32_VEC4 || mColorType == ANARI_FLOAT32);
@@ -199,9 +209,6 @@ void Frame::renderFrame()
     mView->setScene(mWorld->filamentScene());
     mView->setCamera(mCamera->filamentCamera());
     mView->setViewport({0, 0, mWidth, mHeight});
-
-    const bool nativeSurface =
-        mNativeSurface && mNativeSurface->isValid();
 
     mFrameReady = false;
 

@@ -217,13 +217,19 @@ void Surface::finalize()
     const Aabb &geomAabb = mGeometry->aabb();
     const filament::Box box = {geomAabb.center(), geomAabb.halfExtent()};
 
+    // PCF shadow maps over a ~100k-triangle glTF (doughnut1Mb is ~100k tris
+    // per primitive, ~1M total) plus 4x MSAA can TDR the GPU. After a TDR,
+    // Filament's flushAndWait never returns. Small procedural meshes still
+    // cast; large uploaded assets only receive.
+    const bool castShadows = idxCount <= 196608u;
+
     filament::RenderableManager::Builder(1)
         .geometry(0, filament::RenderableManager::PrimitiveType::TRIANGLES,
             vb, ib, 0, idxCount)
         .material(0, mMaterial->materialInstance())
         .boundingBox(box)
         .receiveShadows(true)
-        .castShadows(true)
+        .castShadows(castShadows)
         .build(*engine, mEntity);
 
     mBuilt = true;
