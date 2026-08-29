@@ -55,12 +55,18 @@ bool Frame::isValid() const
     return mCamera && mWorld && mWidth > 0 && mHeight > 0;
 }
 
-bool Frame::getProperty(const std::string_view &,
-    ANARIDataType,
-    void *,
-    uint64_t,
+bool Frame::getProperty(const std::string_view &name,
+    ANARIDataType type,
+    void *ptr,
+    uint64_t size,
     uint32_t)
 {
+    if (name == "presented" && type == ANARI_UINT32 && ptr
+        && size >= sizeof(uint32_t)) {
+        uint32_t value = mPresented ? 1u : 0u;
+        std::memcpy(ptr, &value, sizeof(value));
+        return true;
+    }
     return false;
 }
 
@@ -104,6 +110,8 @@ void Frame::renderFrame()
     filament::Renderer * const renderer = state->renderer.get();
 
     state->commitBuffer.flush();
+
+    mPresented = false;
 
     if (!isValid())
         return;
@@ -230,6 +238,7 @@ void Frame::renderFrame()
             }
             renderer->render(mView.get());
             renderer->endFrame();
+            mPresented = true;
         }
     } else {
         // -- Offscreen path: render to texture, read pixels back to CPU --
@@ -301,6 +310,7 @@ void Frame::renderFrame()
                               : PixelDataType::UBYTE));
 
             renderer->endFrame();
+            mPresented = true;
         }
 
         // readPixels() has been issued; defer flushAndWait() and the vertical
