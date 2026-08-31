@@ -36,13 +36,15 @@ namespace Halogen {
 //     anariSetParameter(device, device, "backend", ANARI_STRING, "opengl");
 //     anariCommitParameters(device, device);
 //
-// OpenXR integration (future):
-//   For XR compositors that provide per-frame swapchain images, query
-//   "halogen.backend" to create a matching XR graphics binding (Vulkan or
-//   OpenGL). The XR swapchain images will be imported via
-//   Texture::Builder::import() and rendered to a RenderTarget instead of a
-//   SwapChain. This path will accept an "externalImage" parameter (intptr_t)
-//   alongside "width" and "height" to specify the imported texture.
+// OpenXR integration:
+//   After device init, query Vulkan handles as ANARI_UINT64 properties:
+//     halogen.vk.instance, halogen.vk.physicalDevice, halogen.vk.device,
+//     halogen.vk.queue, halogen.vk.queueFamilyIndex, halogen.vk.queueIndex
+//   Per-frame XR swapchain images are imported via Texture::Builder::import()
+//   and rendered to a RenderTarget (not an ANativeWindow SwapChain). Set
+//   "externalImage" (ANARI_UINT64 VkImage), "width", "height", and optionally
+//   "imageFormat" (ANARI_UINT32 VkFormat). Rebind every frame — OpenXR
+//   acquires a different image each wait.
 struct NativeSurface : public Object
 {
     NativeSurface(DeviceState *s);
@@ -55,9 +57,19 @@ struct NativeSurface : public Object
 
     filament::SwapChain *swapChain() const;
 
+    bool hasExternalImage() const;
+    uint64_t externalImage() const;
+    uint32_t externalWidth() const;
+    uint32_t externalHeight() const;
+    uint32_t externalFormat() const;
+
 private:
     void *mNativeWindow = nullptr;
     uint64_t mFlags = 0;
+    uint64_t mExternalImage = 0;
+    uint32_t mExternalWidth = 0;
+    uint32_t mExternalHeight = 0;
+    uint32_t mExternalFormat = 0;
     FilamentResource<filament::SwapChain> mSwapChain;
 };
 

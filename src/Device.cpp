@@ -21,8 +21,10 @@
 #include <filament/Renderer.h>
 #include <filament/Texture.h>
 #include <backend/PixelBufferDescriptor.h>
+#include <backend/platforms/VulkanPlatform.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 
 #include <helium/BaseObject.h>
@@ -429,6 +431,52 @@ int Device::deviceGetProperty(const char *name, ANARIDataType type,
         auto str = backendString(deviceState()->engine->getBackend());
         helium::writeToVoidP(mem, uint64_t(std::strlen(str) + 1));
         return 1;
+    }
+
+    auto writeVkHandle = [&](uint64_t value) -> int {
+        if (type != ANARI_UINT64 || !mem || size < sizeof(uint64_t))
+            return 0;
+        if (mask & ANARI_WAIT)
+            initDevice();
+        if (!mInitialized || !deviceState()->engine)
+            return 0;
+        std::memcpy(mem, &value, sizeof(value));
+        return 1;
+    };
+
+    if (prop.rfind("halogen.vk.", 0) == 0) {
+        if (mask & ANARI_WAIT)
+            initDevice();
+        if (!mInitialized || !deviceState()->engine)
+            return 0;
+        if (deviceState()->engine->getBackend() != filament::Engine::Backend::VULKAN)
+            return 0;
+        auto *vk = static_cast<filament::backend::VulkanPlatform *>(
+            deviceState()->engine->getPlatform());
+        if (!vk)
+            return 0;
+        if (prop == "halogen.vk.instance")
+            return writeVkHandle(uint64_t(uintptr_t(vk->getInstance())));
+        if (prop == "halogen.vk.physicalDevice")
+            return writeVkHandle(uint64_t(uintptr_t(vk->getPhysicalDevice())));
+        if (prop == "halogen.vk.device")
+            return writeVkHandle(uint64_t(uintptr_t(vk->getDevice())));
+        if (prop == "halogen.vk.queue")
+            return writeVkHandle(uint64_t(uintptr_t(vk->getGraphicsQueue())));
+        if (prop == "halogen.vk.queueFamilyIndex") {
+            if (type != ANARI_UINT32 || !mem || size < sizeof(uint32_t))
+                return 0;
+            uint32_t v = vk->getGraphicsQueueFamilyIndex();
+            std::memcpy(mem, &v, sizeof(v));
+            return 1;
+        }
+        if (prop == "halogen.vk.queueIndex") {
+            if (type != ANARI_UINT32 || !mem || size < sizeof(uint32_t))
+                return 0;
+            uint32_t v = vk->getGraphicsQueueIndex();
+            std::memcpy(mem, &v, sizeof(v));
+            return 1;
+        }
     }
 
     return 0;
