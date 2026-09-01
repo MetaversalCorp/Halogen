@@ -13,6 +13,8 @@
 #include <Corrade/Containers/StringStl.h>
 #include <Corrade/Containers/StringView.h>
 
+#include <cmath>
+
 using namespace Corrade::Containers::Literals;
 
 ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Camera *);
@@ -62,6 +64,22 @@ void Camera::commitParameters()
         mCamera->setProjection(
             filament::Camera::Projection::ORTHO,
             -halfW, halfW, -halfH, halfH, near, far);
+    } else if (hasParam("fovAngleLeft") && hasParam("fovAngleRight")
+            && hasParam("fovAngleDown") && hasParam("fovAngleUp")) {
+        // OpenXR-style off-axis frustum. Angles are radians from center;
+        // angleLeft/angleDown are typically negative.
+        const float aL = getParam<float>("fovAngleLeft", 0.0f);
+        const float aR = getParam<float>("fovAngleRight", 0.0f);
+        const float aD = getParam<float>("fovAngleDown", 0.0f);
+        const float aU = getParam<float>("fovAngleUp", 0.0f);
+        const double dNear = static_cast<double>(near);
+        mCamera->setProjection(
+            filament::Camera::Projection::PERSPECTIVE,
+            dNear * std::tan(static_cast<double>(aL)),
+            dNear * std::tan(static_cast<double>(aR)),
+            dNear * std::tan(static_cast<double>(aD)),
+            dNear * std::tan(static_cast<double>(aU)),
+            dNear, static_cast<double>(far));
     } else {
         const float fovy = getParam<float>("fovy", Pi / 3.0f);
         const float fovDegrees = fovy * 180.0f / Pi;

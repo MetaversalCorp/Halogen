@@ -226,75 +226,80 @@ void Frame::renderFrame()
     mFrameReady = false;
 
     if (xrImage) {
-        // Imported OpenXR VkImage: render to a Filament RenderTarget whose
-        // color attachment is the XR swapchain image. A 1x1 headless
-        // SwapChain only satisfies beginFrame; it is not presented.
+        // Imported OpenXR VkImage. Render with renderStandaloneView so
+        // Filament's beginFrame skipper cannot drop an eye, then flushAndWait
+        // so the GPU is done before the caller releases the swapchain image.
         const uint32_t xrWidth = mNativeSurface->externalWidth();
         const uint32_t xrHeight = mNativeSurface->externalHeight();
+        const uint64_t xrHandle = mNativeSurface->externalImage();
         mWidth = xrWidth;
         mHeight = xrHeight;
         mView->setViewport({0, 0, xrWidth, xrHeight});
 
-        filament::View::MultiSampleAntiAliasingOptions xrMsaa;
-        xrMsaa.enabled = false;
-        mView->setMultiSampleAntiAliasingOptions(xrMsaa);
+        mView->setDithering(filament::View::Dithering::NONE);
 
-        // VK_FORMAT_R8G8B8A8_UNORM = 37; everything else treated as sRGB.
-        const auto colorFmt = (mNativeSurface->externalFormat() == 37)
-            ? filament::Texture::InternalFormat::RGBA8
-            : filament::Texture::InternalFormat::SRGB8_A8;
+        const bool rebuildTarget = (mXrImage != xrHandle)
+            || (mColorTexture.get() == nullptr)
+            || (mRenderTarget.get() == nullptr);
 
-        mRenderTarget.reset();
-        mColorTexture.reset();
-        mDepthTexture.reset();
+        if (rebuildTarget) {
+            if (mRenderTarget.get() || mColorTexture.get())
+                engine->flushAndWait();
 
-        mColorTexture.reset(filament::Texture::Builder()
-            .width(xrWidth)
-            .height(xrHeight)
-            .levels(1)
-            .format(colorFmt)
-            .usage(filament::Texture::Usage::COLOR_ATTACHMENT
-                | filament::Texture::Usage::SAMPLEABLE
-                | filament::Texture::Usage::BLIT_SRC)
-            .import(static_cast<intptr_t>(
-                static_cast<uintptr_t>(mNativeSurface->externalImage())))
-            .build(*engine));
+            // VK_FORMAT_R8G8B8A8_UNORM = 37; everything else treated as sRGB.
+            const auto colorFmt = (mNativeSurface->externalFormat() == 37)
+                ? filament::Texture::InternalFormat::RGBA8
+                : filament::Texture::InternalFormat::SRGB8_A8;
 
-        mDepthTexture.reset(filament::Texture::Builder()
-            .width(xrWidth)
-            .height(xrHeight)
-            .levels(1)
-            .format(filament::Texture::InternalFormat::DEPTH32F)
-            .usage(filament::Texture::Usage::DEPTH_ATTACHMENT
-                | filament::Texture::Usage::BLIT_SRC)
-            .build(*engine));
+            mRenderTarget.reset();
+            mColorTexture.reset();
+            mDepthTexture.reset();
 
-        mRenderTarget.reset(filament::RenderTarget::Builder()
-            .texture(filament::RenderTarget::AttachmentPoint::COLOR0,
-                mColorTexture.get())
-            .texture(filament::RenderTarget::AttachmentPoint::DEPTH,
-                mDepthTexture.get())
-            .build(*engine));
+            mColorTexture.reset(filament::Texture::Builder()
+                .width(xrWidth)
+                .height(xrHeight)
+                .levels(1)
+                .format(colorFmt)
+                .usage(filament::Texture::Usage::COLOR_ATTACHMENT
+                    | filament::Texture::Usage::SAMPLEABLE
+                    | filament::Texture::Usage::BLIT_SRC)
+                .import(static_cast<intptr_t>(
+                    static_cast<uintptr_t>(xrHandle)))
+                .build(*engine));
+
+            mDepthTexture.reset(filament::Texture::Builder()
+                .width(xrWidth)
+                .height(xrHeight)
+                .levels(1)
+                .format(filament::Texture::InternalFormat::DEPTH32F)
+                .usage(filament::Texture::Usage::DEPTH_ATTACHMENT
+                    | filament::Texture::Usage::BLIT_SRC)
+                .build(*engine));
+
+            mRenderTarget.reset(filament::RenderTarget::Builder()
+                .texture(filament::RenderTarget::AttachmentPoint::COLOR0,
+                    mColorTexture.get())
+                .texture(filament::RenderTarget::AttachmentPoint::DEPTH,
+                    mDepthTexture.get())
+                .build(*engine));
+
+            mXrImage = xrHandle;
+        }
 
         mView->setRenderTarget(mRenderTarget.get());
 
-        if (!mSwapChain)
-            mSwapChain.reset(engine->createSwapChain(1, 1, 0));
-
-        if (renderer->beginFrame(mSwapChain.get())) {
-            if (mRenderer) {
-                const anari::math::float4 bg =
-                    mRenderer->backgroundColor();
-                filament::Renderer::ClearOptions clearOpts;
-                clearOpts.clearColor = {bg[0], bg[1], bg[2], bg[3]};
-                clearOpts.clear = true;
-                clearOpts.discard = true;
-                renderer->setClearOptions(clearOpts);
-            }
-            renderer->render(mView.get());
-            renderer->endFrame();
-            mPresented = true;
+        if (mRenderer) {
+            const anari::math::float4 bg = mRenderer->backgroundColor();
+            filament::Renderer::ClearOptions clearOpts;
+            clearOpts.clearColor = {bg[0], bg[1], bg[2], bg[3]};
+            clearOpts.clear = true;
+            clearOpts.discard = true;
+            renderer->setClearOptions(clearOpts);
         }
+
+        renderer->renderStandaloneView(mView.get());
+        engine->flushAndWait();
+        mPresented = true;
     } else if (nativeSurface) {
         // -- Native surface path: render directly to the platform window --
         // No offscreen render target, no pixel readback, no vertical flip.

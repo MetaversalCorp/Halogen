@@ -5,6 +5,7 @@
 
 #include <filament/Engine.h>
 #include <filament/Texture.h>
+#include <backend/platforms/VulkanPlatform.h>
 
 namespace Halogen {
 
@@ -33,6 +34,7 @@ DeviceState::~DeviceState()
         }
         renderer.reset();
         filament::Engine::destroy(&engine);
+        vulkanPlatform.reset();
     }
 }
 

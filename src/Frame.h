@@ -74,6 +74,7 @@ private:
     FilamentResource<filament::IndirectLight> mIndirectLight;
 
     Corrade::Containers::Array<char> mPixelBuffer;
+    uint64_t mXrImage = 0;
     bool mFrameReady = false;
     bool mReadbackScheduled = false;
     bool mPresented = false;

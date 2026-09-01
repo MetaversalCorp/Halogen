@@ -130,6 +130,12 @@ add_library(anari_library_halogen SHARED
     ${MATERIAL_HEADERS}
 )
 
+if(ANDROID)
+    target_sources(anari_library_halogen PRIVATE VulkanXrPlatform.cpp)
+    set_source_files_properties(VulkanXrPlatform.cpp PROPERTIES
+        COMPILE_OPTIONS "-fno-rtti")
+endif()
+
 include(GenerateExportHeader)
 generate_export_header(anari_library_halogen
     EXPORT_MACRO_NAME "HALOGEN_EXPORT"
@@ -201,6 +207,7 @@ elseif(ANDROID)
         EGL
         GLESv3
         android
+        nativewindow
         log
         dl
     )

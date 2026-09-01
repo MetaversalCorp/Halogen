@@ -46,6 +46,12 @@
 #include "physicallyBasedBlend_mat.h"
 #include "physicallyBasedMasked_mat.h"
 
+#if defined(__ANDROID__)
+namespace filament { namespace backend { class VulkanPlatform; } }
+filament::backend::VulkanPlatform *halogenCreateXrVulkanPlatform ();
+bool halogenHasVulkanCreateHooks ();
+#endif
+
 namespace Halogen {
 
 // -- Array management --
@@ -310,7 +316,17 @@ void Device::initDevice()
             backend = filament::Engine::Backend::NOOP;
     }
 
-    state->engine = filament::Engine::create(backend);
+#if defined(__ANDROID__)
+    if (backend == filament::Engine::Backend::VULKAN
+        && halogenHasVulkanCreateHooks()) {
+        state->vulkanPlatform.reset(halogenCreateXrVulkanPlatform());
+        state->engine = filament::Engine::create(
+            filament::Engine::Backend::VULKAN, state->vulkanPlatform.get());
+    } else
+#endif
+    {
+        state->engine = filament::Engine::create(backend);
+    }
     if (!state->engine) {
         reportMessage(ANARI_SEVERITY_FATAL_ERROR,
             "failed to create Filament engine");
