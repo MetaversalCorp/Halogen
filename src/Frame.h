@@ -14,7 +14,10 @@
 
 #include <Corrade/Containers/Array.h>
 
+#include <vector>
+
 namespace filament {
+class Engine;
 class IndirectLight;
 class RenderTarget;
 class SwapChain;
@@ -78,6 +81,30 @@ private:
     bool mFrameReady = false;
     bool mReadbackScheduled = false;
     bool mPresented = false;
+
+    struct XR_TARGET
+    {
+        uint64_t nImage = 0;
+        uint32_t nWidth = 0;
+        uint32_t nHeight = 0;
+        uint32_t nFormat = 0;
+        FilamentResource<filament::Texture> color;
+        FilamentResource<filament::Texture> depth;
+        FilamentResource<filament::RenderTarget> target;
+
+        XR_TARGET(filament::Engine *pEngine, uint64_t nImg, uint32_t nW, uint32_t nH, uint32_t nFmt)
+            : nImage(nImg)
+            , nWidth(nW)
+            , nHeight(nH)
+            , nFormat(nFmt)
+            , color(pEngine, nullptr)
+            , depth(pEngine, nullptr)
+            , target(pEngine, nullptr)
+        {
+        }
+    };
+
+    std::vector<XR_TARGET> mXrTargets;
 };
 
 }

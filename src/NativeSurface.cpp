@@ -22,6 +22,7 @@ void NativeSurface::commitParameters()
     mExternalWidth = getParam<uint32_t>("width", 0);
     mExternalHeight = getParam<uint32_t>("height", 0);
     mExternalFormat = getParam<uint32_t>("imageFormat", 0);
+    mWaitGpu = getParam<uint32_t>("waitGpu", 1);
     rebuildSwapChain();
     markCommitted();
 }
@@ -72,6 +73,11 @@ uint32_t NativeSurface::externalHeight() const
 uint32_t NativeSurface::externalFormat() const
 {
     return mExternalFormat;
+}
+
+bool NativeSurface::waitGpu() const
+{
+    return mWaitGpu != 0;
 }
 
 }

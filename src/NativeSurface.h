@@ -44,7 +44,9 @@ namespace Halogen {
 //   and rendered to a RenderTarget (not an ANativeWindow SwapChain). Set
 //   "externalImage" (ANARI_UINT64 VkImage), "width", "height", and optionally
 //   "imageFormat" (ANARI_UINT32 VkFormat). Rebind every frame — OpenXR
-//   acquires a different image each wait.
+//   acquires a different image each wait. "waitGpu" (ANARI_UINT32, default 1)
+//   flushAndWait after the draw; the stereo caller sets 0 on the first eye
+//   and 1 on the last so both eyes share one GPU drain.
 struct NativeSurface : public Object
 {
     NativeSurface(DeviceState *s);
@@ -62,6 +64,7 @@ struct NativeSurface : public Object
     uint32_t externalWidth() const;
     uint32_t externalHeight() const;
     uint32_t externalFormat() const;
+    bool waitGpu() const;
 
 private:
     void *mNativeWindow = nullptr;
@@ -70,6 +73,7 @@ private:
     uint32_t mExternalWidth = 0;
     uint32_t mExternalHeight = 0;
     uint32_t mExternalFormat = 0;
+    uint32_t mWaitGpu = 1;
     FilamentResource<filament::SwapChain> mSwapChain;
 };
 
