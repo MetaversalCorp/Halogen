@@ -10,6 +10,8 @@
 #include <filament/LightManager.h>
 #include <utils/EntityManager.h>
 
+#include <cmath>
+
 #include <Corrade/Containers/StringStl.h>
 #include <Corrade/Containers/StringView.h>
 
@@ -55,6 +57,19 @@ void Light::commitParameters()
             ? power / (4.0f * Pi)
             : intensity;
 
+        // Influence radius. Filament sizes a point light's shadow cubemap far
+        // plane to this radius, so it must track where the geometry actually is
+        // or the shadow depth range loses all precision and every surface
+        // self-shadows to black. The framework supplies "falloff" in metres,
+        // sized to the (compressed) scene span, so shadows stay precise at any
+        // scale. Absent it, fall back to an intensity-derived radius
+        // (r = sqrt(I / E_min)); note this can balloon for a bright source and
+        // is only a safety default, not the shadow-friendly path.
+        const float kMinIlluminance = 1.0e-3f;
+        float falloff = getParam<float>("falloff", 0.0f);
+        if (falloff <= 0.0f)
+            falloff = std::sqrt(finalIntensity / kMinIlluminance);
+
         // ANARI intensity for point lights is in W/sr (radiant intensity),
         // which maps to candela (lm/sr). Filament's intensity() for point
         // lights takes lumens, so we use intensityCandela() instead.
@@ -62,7 +77,7 @@ void Light::commitParameters()
             .position(toFilament(position))
             .color(toFilament(color))
             .intensityCandela(finalIntensity)
-            .falloff(100.0f)
+            .falloff(falloff)
             .castShadows(true)
             .build(*engine, mEntity);
     } else if (mSubtype == "spot"_s) {
@@ -92,6 +107,14 @@ void Light::commitParameters()
         if (innerRad < 0.0f)
             innerRad = 0.0f;
 
+        // Influence radius (see the point-light branch): the framework supplies
+        // "falloff" sized to the scene so the shadow-map far plane tracks the
+        // geometry; fall back to an intensity-derived radius only if unset.
+        const float kMinIlluminance = 1.0e-3f;
+        float falloff = getParam<float>("falloff", 0.0f);
+        if (falloff <= 0.0f)
+            falloff = std::sqrt(finalIntensity / kMinIlluminance);
+
         // ANARI intensity for spot lights is peak radiant intensity in W/sr
         // (candela), so use intensityCandela() not intensity() (which takes lm).
         filament::LightManager::Builder(
@@ -100,7 +123,7 @@ void Light::commitParameters()
             .direction(toFilament(direction))
             .color(toFilament(color))
             .intensityCandela(finalIntensity)
-            .falloff(100.0f)
+            .falloff(falloff)
             .spotLightCone(innerRad, outerRad)
             .castShadows(true)
             .build(*engine, mEntity);

@@ -218,6 +218,16 @@ void Frame::renderFrame()
     mView->setCamera(mCamera->filamentCamera());
     mView->setViewport({0, 0, mWidth, mHeight});
 
+    // Punctual (point/spot) lights are culled through Filament's froxel grid,
+    // whose Z range defaults to [5 m, 100 m]. Any positional light beyond the
+    // last slice is never assigned to geometry, so it contributes nothing --
+    // directional lights bypass the grid and are unaffected. Passing equal
+    // near/far here trips Filament's escape hatch (Froxelizer::update), which
+    // spans the froxel light range across the camera's real near/far frustum
+    // instead. That keeps positional lights working at any scene scale, where
+    // geometry routinely sits far past 100 m.
+    mView->setDynamicLightingOptions(1.0f, 1.0f);
+
     mFrameReady = false;
 
     if (nativeSurface) {
