@@ -42,6 +42,13 @@ void Light::commitParameters()
     using float3 = anari::math::float3;
     const float3 color = getParam<float3>("color", float3(1.0f, 1.0f, 1.0f));
 
+    // "global" marks a point/spot light that must bypass Filament's froxel
+    // (clustered) light culling and be evaluated on every lit fragment. The
+    // framework sets this for sources that sit far outside the froxel-safe band
+    // (e.g. a star, or a light nested in a hugely-scaled fabric), which the
+    // froxel grid cannot reach. Ignored for directional lights (already global).
+    const bool global = getParam<bool>("global", false);
+
     if (mBuilt)
         engine->getLightManager().destroy(mEntity);
 
@@ -78,6 +85,7 @@ void Light::commitParameters()
             .color(toFilament(color))
             .intensityCandela(finalIntensity)
             .falloff(falloff)
+            .global(global)
             .castShadows(true)
             .build(*engine, mEntity);
     } else if (mSubtype == "spot"_s) {
@@ -125,6 +133,7 @@ void Light::commitParameters()
             .intensityCandela(finalIntensity)
             .falloff(falloff)
             .spotLightCone(innerRad, outerRad)
+            .global(global)
             .castShadows(true)
             .build(*engine, mEntity);
     } else {
@@ -138,12 +147,27 @@ void Light::commitParameters()
         // irradiance E gives output ~ A*E.
         const float filamentIntensity = irradiance * Pi;
 
+        // Cascaded shadow maps. Filament's default for a directional light is a
+        // SINGLE 1024 shadow map whose far plane follows the camera far plane
+        // (ShadowOptions::shadowFar == 0). When the render far plane is the true
+        // scene reach (kilometres, e.g. a reverse-Z world), one map stretched
+        // over that range is metres-per-texel and produces blocky, self-shadowed
+        // garbage. Four cascades at 2048 keep the near cascade tight: the default
+        // split positions {0.125, 0.25, 0.5} place cascade 0 within 12.5% of the
+        // far plane, so near shadows regain sub-metre resolution while distant
+        // content still shadows. This adapts to any camera far without a magic
+        // distance, and only affects directional lights.
+        filament::LightManager::ShadowOptions shadowOptions;
+        shadowOptions.mapSize = 2048;
+        shadowOptions.shadowCascades = 4;
+
         filament::LightManager::Builder(
                 filament::LightManager::Type::DIRECTIONAL)
             .direction(toFilament(direction))
             .color(toFilament(color))
             .intensity(filamentIntensity)
             .castShadows(true)
+            .shadowOptions(shadowOptions)
             .build(*engine, mEntity);
     }
 
