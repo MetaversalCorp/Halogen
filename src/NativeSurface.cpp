@@ -3,6 +3,8 @@
 
 #include "NativeSurface.h"
 
+#include "AndroidSwapchain.h"
+
 #include <filament/Engine.h>
 #include <filament/SwapChain.h>
 
@@ -26,6 +28,11 @@ void NativeSurface::rebuildSwapChain()
 {
     mSwapChain.reset();
     if (mNativeWindow) {
+#if defined(__ANDROID__)
+        if (mFlags & filament::SwapChain::CONFIG_TRANSPARENT) {
+            installTransparentSwapchainHook();
+        }
+#endif
         mSwapChain.reset(
             deviceState()->engine->createSwapChain(mNativeWindow, mFlags));
     }

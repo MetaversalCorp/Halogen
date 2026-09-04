@@ -243,8 +243,11 @@ void Frame::renderFrame()
                 filament::Renderer::ClearOptions clearOpts;
                 clearOpts.clearColor = {bg[0], bg[1], bg[2], bg[3]};
                 clearOpts.clear = true;
-                clearOpts.discard = true;
+                clearOpts.discard = bg[3] >= 1.0f;
                 renderer->setClearOptions(clearOpts);
+                mView->setBlendMode(bg[3] < 1.0f
+                    ? filament::View::BlendMode::TRANSLUCENT
+                    : filament::View::BlendMode::OPAQUE);
             }
             renderer->render(mView.get());
             renderer->endFrame();
@@ -302,6 +305,9 @@ void Frame::renderFrame()
                 clearOpts.clear = true;
                 clearOpts.discard = true;
                 renderer->setClearOptions(clearOpts);
+                mView->setBlendMode(bg[3] < 1.0f
+                    ? filament::View::BlendMode::TRANSLUCENT
+                    : filament::View::BlendMode::OPAQUE);
             }
 
             renderer->render(mView.get());

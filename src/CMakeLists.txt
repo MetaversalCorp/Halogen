@@ -130,6 +130,13 @@ add_library(anari_library_halogen SHARED
     ${MATERIAL_HEADERS}
 )
 
+if(ANDROID)
+    target_sources(anari_library_halogen PRIVATE
+        AndroidSwapchain.h
+        AndroidSwapchain.cpp
+    )
+endif()
+
 include(GenerateExportHeader)
 generate_export_header(anari_library_halogen
     EXPORT_MACRO_NAME "HALOGEN_EXPORT"
