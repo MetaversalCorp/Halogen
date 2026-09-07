@@ -11,6 +11,8 @@
 #include <filament/IndexBuffer.h>
 #include <filament/VertexBuffer.h>
 
+#include <math/vec4.h>
+
 #include <geometry/SurfaceOrientation.h>
 
 #include <helium/array/Array1D.h>
@@ -105,6 +107,10 @@ void Geometry::commitTriangle()
         getParamObject<helium::Array1D>("vertex.attribute1");
     helium::Array1D *primColArray =
         getParamObject<helium::Array1D>("primitive.color");
+    helium::Array1D *jointArray =
+        getParamObject<helium::Array1D>("vertex.joint");
+    helium::Array1D *weightArray =
+        getParamObject<helium::Array1D>("vertex.weight");
 
     if (!posArray) {
         reportMessage(ANARI_SEVERITY_ERROR,
@@ -118,6 +124,12 @@ void Geometry::commitTriangle()
     mHasColors = colArray != nullptr || primColArray != nullptr;
     mHasUV0 = attr0Array != nullptr;
     mHasUV1 = attr1Array != nullptr;
+    mHasSkinning = jointArray != nullptr && weightArray != nullptr
+        && primColArray == nullptr
+        && jointArray->elementType() == ANARI_UINT32_VEC4
+        && weightArray->elementType() == ANARI_FLOAT32_VEC4
+        && jointArray->totalSize() == numVertices
+        && weightArray->totalSize() == numVertices;
 
     // Generate indices if not provided
     uint32_t numTriangles = 0;
@@ -268,13 +280,20 @@ void Geometry::commitTriangle()
     orientation->getQuats(tangents.data(), numVertices);
     delete orientation;
 
-    // Count buffers: POSITION + TANGENTS + COLOR + UV0 + UV1
+    // Count buffers: POSITION + TANGENTS + COLOR + UV0 + UV1 [+ bones]
     uint8_t bufIdx = 0;
     const uint8_t posBuffer = bufIdx++;
     const uint8_t tangentBuffer = bufIdx++;
     const uint8_t colorBuffer = bufIdx++;
     const uint8_t uv0Buffer = bufIdx++;
     const uint8_t uv1Buffer = bufIdx++;
+    uint8_t jointBuffer = 0;
+    uint8_t weightBuffer = 0;
+    if (mHasSkinning)
+    {
+        jointBuffer = bufIdx++;
+        weightBuffer = bufIdx++;
+    }
     const uint8_t bufferCount = bufIdx;
 
     filament::VertexBuffer::Builder builder =
@@ -292,6 +311,13 @@ void Geometry::commitTriangle()
                 filament::VertexBuffer::AttributeType::FLOAT2)
             .attribute(filament::VertexAttribute::UV1, uv1Buffer,
                 filament::VertexBuffer::AttributeType::FLOAT2);
+    if (mHasSkinning)
+    {
+        builder.attribute(filament::VertexAttribute::BONE_INDICES, jointBuffer,
+                filament::VertexBuffer::AttributeType::USHORT4)
+            .attribute(filament::VertexAttribute::BONE_WEIGHTS, weightBuffer,
+                filament::VertexBuffer::AttributeType::FLOAT4);
+    }
 
     mVertexBuffer = builder.build(*engine);
 
@@ -420,6 +446,39 @@ void Geometry::commitTriangle()
                         }));
             }
         }
+    }
+
+    if (mHasSkinning)
+    {
+        auto *jointOwned = new filament::math::ushort4[numVertices];
+        const uint32_t *jointSrc =
+            static_cast<const uint32_t *>(jointArray->data());
+        for (uint32_t nV = 0; nV < numVertices; nV++)
+        {
+            jointOwned[nV] = {
+                static_cast<uint16_t>(jointSrc[nV * 4 + 0]),
+                static_cast<uint16_t>(jointSrc[nV * 4 + 1]),
+                static_cast<uint16_t>(jointSrc[nV * 4 + 2]),
+                static_cast<uint16_t>(jointSrc[nV * 4 + 3])};
+        }
+        mVertexBuffer->setBufferAt(*engine, jointBuffer,
+            filament::VertexBuffer::BufferDescriptor(
+                jointOwned,
+                numVertices * sizeof(filament::math::ushort4),
+                [](void *buf, size_t, void *) {
+                    delete[] static_cast<filament::math::ushort4 *>(buf);
+                }));
+
+        auto *weightOwned = new filament::math::float4[numVertices];
+        std::memcpy(weightOwned, weightArray->data(),
+            numVertices * sizeof(filament::math::float4));
+        mVertexBuffer->setBufferAt(*engine, weightBuffer,
+            filament::VertexBuffer::BufferDescriptor(
+                weightOwned,
+                numVertices * sizeof(filament::math::float4),
+                [](void *buf, size_t, void *) {
+                    delete[] static_cast<filament::math::float4 *>(buf);
+                }));
     }
 
     fillDefaultAttributes(engine, numVertices, colorBuffer, uv0Buffer,

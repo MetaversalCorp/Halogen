@@ -6,7 +6,10 @@
 #include <cstring>
 
 #include <filament/Engine.h>
+#include <filament/RenderableManager.h>
 #include <filament/TransformManager.h>
+
+#include <helium/array/Array1D.h>
 
 ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Instance *);
 
@@ -44,19 +47,42 @@ void Instance::commitParameters()
     // filament::math::mat4f is also column-major, same layout
     std::memcpy(&mTransform, &m4, sizeof(filament::math::mat4f));
 
+    mBones = {};
+    helium::Array1D *boneArray = getParamObject<helium::Array1D>("bone.matrix");
+    if (boneArray && boneArray->elementType() == ANARI_FLOAT32_MAT4
+        && boneArray->totalSize() > 0)
+    {
+        size_t nBone = boneArray->totalSize();
+        if (nBone > 255)
+            nBone = 255;
+        mBones = Corrade::Containers::Array<filament::math::mat4f>{
+            Corrade::NoInit, nBone};
+        std::memcpy(mBones.data(), boneArray->data(),
+            nBone * sizeof(filament::math::mat4f));
+    }
+
     // Re-apply the (possibly updated) transform to this instance's Filament
     // entities. World::finalize() sets it once at build time and only re-runs
     // on a structural change, so an animated instance would otherwise stay
     // frozen at its build-time transform. This is the per-frame commit helium
-    // actually runs for a moving instance.
+    // actually runs for a moving instance. Bone palettes follow the same path
+    // via setBones so a pose change does not rebuild vertex buffers.
     if (!mEntities.isEmpty())
     {
         auto &tcm = deviceState()->engine->getTransformManager();
+        auto &rm = deviceState()->engine->getRenderableManager();
         for (utils::Entity e : mEntities)
         {
             auto ti = tcm.getInstance(e);
             if (ti.isValid())
                 tcm.setTransform(ti, mTransform);
+
+            if (!mBones.isEmpty())
+            {
+                auto ri = rm.getInstance(e);
+                if (ri.isValid())
+                    rm.setBones(ri, mBones.data(), mBones.size());
+            }
         }
     }
 

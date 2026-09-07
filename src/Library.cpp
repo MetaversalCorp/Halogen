@@ -30,6 +30,7 @@ const char **Library::getDeviceExtensions(const char *) {
     static const char *extensions[] = {
         "HALOGEN_NATIVE_SURFACE",
         "HALOGEN_MATERIAL_UNLIT",
+        "HALOGEN_GEOMETRY_SKINNING",
         nullptr
     };
     return extensions;

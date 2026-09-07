@@ -20,6 +20,11 @@ struct Instance : public Object
 
     Group *group() const { return mGroup.ptr; }
     const filament::math::mat4f &transform() const { return mTransform; }
+    size_t boneCount() const { return mBones.size(); }
+    const filament::math::mat4f *bones() const
+    {
+        return mBones.isEmpty() ? nullptr : mBones.data();
+    }
 
     // The owning World builds one Filament entity per group surface and hands
     // the (non-owning) handles here so commitParameters() can re-apply this
@@ -32,6 +37,7 @@ private:
     helium::IntrusivePtr<Group> mGroup;
     filament::math::mat4f mTransform;
     Corrade::Containers::Array<utils::Entity> mEntities;
+    Corrade::Containers::Array<filament::math::mat4f> mBones;
 };
 
 }

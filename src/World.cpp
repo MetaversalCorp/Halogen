@@ -197,16 +197,36 @@ void World::finalize()
                 filament::Box box = {
                     geomAabb.center(), geomAabb.halfExtent()};
 
-                filament::RenderableManager::Builder(1)
-                    .geometry(0,
+                filament::RenderableManager::Builder builder(1);
+                builder.geometry(0,
                         filament::RenderableManager::PrimitiveType::TRIANGLES,
                         geom->vertexBuffer(), geom->indexBuffer(),
                         0, geom->indexCount())
                     .material(0, mat->materialInstance())
                     .boundingBox(box)
                     .receiveShadows(true)
-                    .castShadows(true)
-                    .build(*engine, e);
+                    .castShadows(true);
+                if (geom->hasSkinning())
+                {
+                    // Bones stay in model space; the instance transform (Y-up
+                    // convert, node TRS, dRenderScale) stays on the entity.
+                    // Folding that matrix into the palette and leaving the
+                    // entity at identity dropped dRenderScale, so a scale-1
+                    // node drew at metre size in a render-unit camera.
+                    size_t nBone = inst->boneCount();
+                    if (nBone == 0)
+                        nBone = 1;
+                    if (nBone > 255)
+                        nBone = 255;
+                    if (inst->bones() && inst->boneCount() > 0)
+                        builder.skinning(nBone, inst->bones());
+                    else
+                        builder.skinning(nBone);
+                    // Rest-pose AABB is object-space; a scaled or posed skin
+                    // can sit outside it. Keep the draw even if the box misses.
+                    builder.culling(false);
+                }
+                builder.build(*engine, e);
 
                 tcm.create(e);
                 auto ti = tcm.getInstance(e);
