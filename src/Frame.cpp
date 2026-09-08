@@ -55,12 +55,18 @@ bool Frame::isValid() const
     return mCamera && mWorld && mWidth > 0 && mHeight > 0;
 }
 
-bool Frame::getProperty(const std::string_view &,
-    ANARIDataType,
-    void *,
-    uint64_t,
+bool Frame::getProperty(const std::string_view &name,
+    ANARIDataType type,
+    void *ptr,
+    uint64_t size,
     uint32_t)
 {
+    if (name == "presented" && type == ANARI_UINT32 && ptr
+        && size >= sizeof(uint32_t)) {
+        uint32_t value = mPresented ? 1u : 0u;
+        std::memcpy(ptr, &value, sizeof(value));
+        return true;
+    }
     return false;
 }
 
@@ -104,6 +110,8 @@ void Frame::renderFrame()
     filament::Renderer * const renderer = state->renderer.get();
 
     state->commitBuffer.flush();
+
+    mPresented = false;
 
     if (!isValid())
         return;
@@ -210,6 +218,16 @@ void Frame::renderFrame()
     mView->setCamera(mCamera->filamentCamera());
     mView->setViewport({0, 0, mWidth, mHeight});
 
+    // Punctual (point/spot) lights are culled through Filament's froxel grid,
+    // whose Z range defaults to [5 m, 100 m]. Any positional light beyond the
+    // last slice is never assigned to geometry, so it contributes nothing --
+    // directional lights bypass the grid and are unaffected. Passing equal
+    // near/far here trips Filament's escape hatch (Froxelizer::update), which
+    // spans the froxel light range across the camera's real near/far frustum
+    // instead. That keeps positional lights working at any scene scale, where
+    // geometry routinely sits far past 100 m.
+    mView->setDynamicLightingOptions(1.0f, 1.0f);
+
     mFrameReady = false;
 
     if (nativeSurface) {
@@ -230,6 +248,7 @@ void Frame::renderFrame()
             }
             renderer->render(mView.get());
             renderer->endFrame();
+            mPresented = true;
         }
     } else {
         // -- Offscreen path: render to texture, read pixels back to CPU --
@@ -301,6 +320,7 @@ void Frame::renderFrame()
                               : PixelDataType::UBYTE));
 
             renderer->endFrame();
+            mPresented = true;
         }
 
         // readPixels() has been issued; defer flushAndWait() and the vertical
