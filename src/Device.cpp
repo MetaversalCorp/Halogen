@@ -308,7 +308,17 @@ void Device::initDevice()
             backend = filament::Engine::Backend::NOOP;
     }
 
-    state->engine = filament::Engine::create(backend);
+    // Default minCommandBufferSizeMB is 1 and commandBufferSizeMB is 3.
+    // World::finalize and Instance::setBones copy every skinned entity's
+    // palette into that stream. 100 copies of a 137-bone / 13-surface VRM
+    // is ~9 MB in one flush -- the previous 8 MB minimum panics. Keep the
+    // arena at 3 in-flight slots of this minimum.
+    filament::Engine::Config config;
+    config.minCommandBufferSizeMB = 32;
+    config.commandBufferSizeMB = 96;
+    config.perFrameCommandsSizeMB = 16;
+    config.perRenderPassArenaSizeMB = 32;
+    state->engine = filament::Engine::create(backend, nullptr, nullptr, &config);
     if (!state->engine) {
         reportMessage(ANARI_SEVERITY_FATAL_ERROR,
             "failed to create Filament engine");

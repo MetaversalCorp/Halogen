@@ -96,6 +96,10 @@ void World::finalize()
         mScene->remove(light->entity());
     clearInstanceEntities();
 
+    // Destroy commands share the circular buffer with the rebuild. Drain
+    // them before allocating hundreds of skinned renderables.
+    engine->flush();
+
     mSurfaces = {};
     mLights = {};
     mInstances = {};
@@ -233,6 +237,12 @@ void World::finalize()
                 tcm.setTransform(ti, xform);
 
                 mScene->addEntity(e);
+
+                // Each skinned Builder.skinning(N, bones) copies N matrices
+                // into Filament's command buffer. Flush often enough that a
+                // crowd of high-bone VRMs cannot overflow the arena.
+                if (entityIdx % 16 == 0)
+                    engine->flush();
             }
 
             Corrade::Containers::Array<utils::Entity> aEntity{
@@ -241,6 +251,8 @@ void World::finalize()
                 new (&aEntity[k]) utils::Entity{aEntity_Inst[k]};
             inst->setEntities(std::move(aEntity));
         }
+
+        engine->flush();
     }
 
     // Lights

@@ -38,6 +38,8 @@ private:
     filament::math::mat4f mTransform;
     Corrade::Containers::Array<utils::Entity> mEntities;
     Corrade::Containers::Array<filament::math::mat4f> mBones;
+    Corrade::Containers::Array<filament::math::mat4f> mBonesComm;
+    bool mBonesOnGpu = false;
 };
 
 }
