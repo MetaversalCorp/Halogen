@@ -64,6 +64,7 @@ private:
     filament::MaterialInstance *mMaterialInstance = nullptr;
     helium::IntrusivePtr<Sampler> mColorSampler;
     helium::IntrusivePtr<Sampler> mNormalSampler;
+    helium::IntrusivePtr<Sampler> mEmissiveSampler;
     bool mUsesVertexColors = false;
     bool mUsesPrimitiveSampler = false;
 };

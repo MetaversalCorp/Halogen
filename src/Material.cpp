@@ -191,12 +191,31 @@ void Material::commitParameters()
             mMaterialInstance->setParameter("roughness", roughness);
         }
 
-        // Emissive color
-        using float3 = anari::math::float3;
-        const float3 emissive = getParam<float3>(
-            "emissive", float3(0.0f, 0.0f, 0.0f));
-        mMaterialInstance->setParameter("emissive",
-            filament::math::float3{emissive[0], emissive[1], emissive[2]});
+        // Emissive: vec3, or an image2D sampler (ANARI physicallyBased).
+        // glTF's emissiveFactor is baked into the map by the caller, matching
+        // baseColor. Unsampled factor [1,1,1] plus a dark map would wash the
+        // surface white.
+        mEmissiveSampler = getParamObject<Sampler>("emissive");
+        if (mEmissiveSampler && mEmissiveSampler->texture()) {
+            mMaterialInstance->setParameter("emissive",
+                filament::math::float3{1.0f, 1.0f, 1.0f});
+            mMaterialInstance->setParameter("hasEmissiveMap", true);
+            filament::TextureSampler emissiveSampler(
+                mEmissiveSampler->isNearest()
+                    ? filament::TextureSampler::MagFilter::NEAREST
+                    : filament::TextureSampler::MagFilter::LINEAR);
+            mMaterialInstance->setParameter("emissiveMap",
+                mEmissiveSampler->texture(), emissiveSampler);
+        } else {
+            mEmissiveSampler = nullptr;
+            using float3 = anari::math::float3;
+            const float3 emissive = getParam<float3>(
+                "emissive", float3(0.0f, 0.0f, 0.0f));
+            mMaterialInstance->setParameter("emissive",
+                filament::math::float3{emissive[0], emissive[1], emissive[2]});
+            mMaterialInstance->setParameter("hasEmissiveMap", false);
+            mMaterialInstance->setParameter("emissiveMap", dummy, dummySampler);
+        }
 
         // Normal map
         mNormalSampler = getParamObject<Sampler>("normal");
