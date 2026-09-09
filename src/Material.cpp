@@ -19,6 +19,21 @@
 
 using namespace Corrade::Containers::Literals;
 
+namespace {
+
+filament::TextureSampler filamentSamplerFrom(const Halogen::Sampler &sampler)
+{
+    filament::TextureSampler out(
+        sampler.isNearest()
+            ? filament::TextureSampler::MagFilter::NEAREST
+            : filament::TextureSampler::MagFilter::LINEAR);
+    out.setWrapModeS(sampler.wrapS());
+    out.setWrapModeT(sampler.wrapT());
+    return out;
+}
+
+}
+
 ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Material *);
 
 namespace Halogen {
@@ -122,10 +137,7 @@ void Material::commitParameters()
         if (isMatte)
             mMaterialInstance->setParameter("hasColorTransform", false);
 
-        filament::TextureSampler sampler(
-            mColorSampler->isNearest()
-                ? filament::TextureSampler::MagFilter::NEAREST
-                : filament::TextureSampler::MagFilter::LINEAR);
+        filament::TextureSampler sampler = filamentSamplerFrom(*mColorSampler);
         mMaterialInstance->setParameter("baseColorMap",
             mColorSampler->texture(), sampler);
     } else if (colorStr == "color"_s) {
@@ -200,10 +212,8 @@ void Material::commitParameters()
             mMaterialInstance->setParameter("emissive",
                 filament::math::float3{1.0f, 1.0f, 1.0f});
             mMaterialInstance->setParameter("hasEmissiveMap", true);
-            filament::TextureSampler emissiveSampler(
-                mEmissiveSampler->isNearest()
-                    ? filament::TextureSampler::MagFilter::NEAREST
-                    : filament::TextureSampler::MagFilter::LINEAR);
+            filament::TextureSampler emissiveSampler =
+                filamentSamplerFrom(*mEmissiveSampler);
             mMaterialInstance->setParameter("emissiveMap",
                 mEmissiveSampler->texture(), emissiveSampler);
         } else {
@@ -221,8 +231,8 @@ void Material::commitParameters()
         mNormalSampler = getParamObject<Sampler>("normal");
         if (mNormalSampler && mNormalSampler->texture()) {
             mMaterialInstance->setParameter("hasNormalMap", true);
-            filament::TextureSampler normalSampler(
-                filament::TextureSampler::MagFilter::LINEAR);
+            filament::TextureSampler normalSampler =
+                filamentSamplerFrom(*mNormalSampler);
             mMaterialInstance->setParameter("normalMap",
                 mNormalSampler->texture(), normalSampler);
         } else {

@@ -7,6 +7,7 @@
 
 #include <filament/Engine.h>
 #include <filament/Texture.h>
+#include <filament/TextureSampler.h>
 
 #include <backend/PixelBufferDescriptor.h>
 
@@ -21,6 +22,22 @@
 #include <algorithm>
 
 using namespace Corrade::Containers::Literals;
+
+namespace {
+
+filament::TextureSampler::WrapMode wrapFromString(
+    const Corrade::Containers::String &s)
+{
+    filament::TextureSampler::WrapMode wrap =
+        filament::TextureSampler::WrapMode::CLAMP_TO_EDGE;
+    if (s == "repeat"_s)
+        wrap = filament::TextureSampler::WrapMode::REPEAT;
+    else if (s == "mirrorRepeat"_s)
+        wrap = filament::TextureSampler::WrapMode::MIRRORED_REPEAT;
+    return wrap;
+}
+
+}
 
 ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Sampler *);
 
@@ -68,6 +85,8 @@ void Sampler::commitImage2D()
 
     const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
+    mWrapS = wrapFromString(getParamString("wrapMode1", "clampToEdge"));
+    mWrapT = wrapFromString(getParamString("wrapMode2", "clampToEdge"));
 
     const anari::math::uint2 dims = imageArray->size();
     const uint32_t width = dims[0];
@@ -117,6 +136,8 @@ void Sampler::commitImage1D()
 
     const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
+    mWrapS = wrapFromString(getParamString("wrapMode", "clampToEdge"));
+    mWrapT = mWrapS;
 
     const uint32_t width = uint32_t(imageArray->totalSize());
     const ANARIDataType type = imageArray->elementType();
@@ -164,6 +185,8 @@ void Sampler::commitImage3D()
 
     const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
+    mWrapS = wrapFromString(getParamString("wrapMode1", "clampToEdge"));
+    mWrapT = wrapFromString(getParamString("wrapMode2", "clampToEdge"));
 
     const anari::math::uint3 dims = imageArray->size();
     const uint32_t width = dims[0];
