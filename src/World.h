@@ -37,6 +37,11 @@ private:
     // instance entities against the new buffers). Deduplicates additions.
     void observe(helium::BaseObject *obj);
     void clearObservers();
+    void createEntitiesForInstance(Instance *inst,
+        std::vector<utils::Entity> &aWorldEntity);
+    void appendEntitiesForInstance(Instance *inst,
+        std::vector<utils::Entity> &aWorldEntity);
+    bool instancesArePrefixGrow(const std::vector<Instance *> &aWant) const;
 
     filament::Scene *mScene = nullptr;
     Corrade::Containers::Array<helium::IntrusivePtr<Surface>> mSurfaces;

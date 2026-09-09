@@ -25,6 +25,21 @@ void Instance::setEntities(Corrade::Containers::Array<utils::Entity> aEntity)
     mBonesOnGpu = true;
 }
 
+void Instance::appendEntities(Corrade::Containers::Array<utils::Entity> aMore)
+{
+    if (aMore.isEmpty())
+        return;
+
+    Corrade::Containers::Array<utils::Entity> aAll{
+        Corrade::NoInit, mEntities.size() + aMore.size()};
+    for (size_t i = 0; i < mEntities.size(); ++i)
+        new (&aAll[i]) utils::Entity{mEntities[i]};
+    for (size_t i = 0; i < aMore.size(); ++i)
+        new (&aAll[mEntities.size() + i]) utils::Entity{aMore[i]};
+    mEntities = std::move(aAll);
+    mBonesOnGpu = true;
+}
+
 void Instance::clearEntities()
 {
     mEntities = {};

@@ -318,6 +318,10 @@ void Device::initDevice()
     config.commandBufferSizeMB = 96;
     config.perFrameCommandsSizeMB = 16;
     config.perRenderPassArenaSizeMB = 32;
+    // Default (0) uses the compile-time OpenGL arena size even on Vulkan.
+    // A skinned VRM crowd allocates one handle per surface; the fallback
+    // heap path is the allocateHandleSlow panic and a multi-ms hitch.
+    config.driverHandleArenaSizeMB = 64;
     state->engine = filament::Engine::create(backend, nullptr, nullptr, &config);
     if (!state->engine) {
         reportMessage(ANARI_SEVERITY_FATAL_ERROR,

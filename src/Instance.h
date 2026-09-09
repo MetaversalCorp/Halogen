@@ -31,7 +31,13 @@ struct Instance : public Object
     // instance's transform to them every frame without a full World rebuild.
     // The World owns the entities' lifetime and clears these on rebuild.
     void setEntities(Corrade::Containers::Array<utils::Entity> aEntity);
+    void appendEntities(Corrade::Containers::Array<utils::Entity> aMore);
     void clearEntities();
+    size_t entityCount() const { return mEntities.size(); }
+    const Corrade::Containers::Array<utils::Entity> &entities() const
+    {
+        return mEntities;
+    }
 
 private:
     helium::IntrusivePtr<Group> mGroup;
