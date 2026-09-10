@@ -1,7 +1,7 @@
 material {
     name : PhysicallyBasedBlend,
     shadingModel : lit,
-    blending : transparent,
+    blending : fade,
     doubleSided : true,
     parameters : [
         {

@@ -1,7 +1,7 @@
 material {
     name : UnlitBlend,
     shadingModel : unlit,
-    blending : transparent,
+    blending : fade,
     doubleSided : true,
     parameters : [
         {

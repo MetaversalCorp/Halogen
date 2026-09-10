@@ -61,6 +61,10 @@ void Material::commitParameters()
     filament::Material *baseMaterial = nullptr;
     const Corrade::Containers::String alphaMode =
         getParamString("alphaMode", "opaque");
+    // glTF BLEND is unpremultiplied. Filament "transparent" expects
+    // premultiplied RGB and does not fade specular, so white RGB with
+    // alpha 0 adds full lighting (a white wash). Filament gltfio maps
+    // glTF BLEND to FADE; the *Blend.mat files use blending : fade.
     if (mSubtype == "physicallyBased"_s) {
         if (alphaMode == "blend"_s)
             baseMaterial = state->physicallyBasedBlendMaterial.get();
