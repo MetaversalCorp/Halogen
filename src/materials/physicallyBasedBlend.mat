@@ -2,6 +2,7 @@ material {
     name : PhysicallyBasedBlend,
     shadingModel : lit,
     blending : transparent,
+    doubleSided : true,
     parameters : [
         {
             type : float4,

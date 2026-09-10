@@ -34,12 +34,15 @@ namespace Halogen {
 //   anariSetParameter(device, m, "color", ANARI_SAMPLER, &tex);   // or float4
 //   anariSetParameter(device, m, "opacity", ANARI_FLOAT32, &a);
 //   anariSetParameter(device, m, "alphaMode", ANARI_STRING, "blend");
+//   anariSetParameter(device, m, "doubleSided", ANARI_BOOL, &on);
 //   anariCommitParameters(device, m);
 //
 // Parameters mirror "matte": "color" (float4 / image2D sampler / "color"
-// vertex attribute), "opacity" (float), and "alphaMode" ("opaque" / "blend"
-// / "mask"). The matte-only "transform" and "primitive" color samplers are
-// not supported by unlit. Final color = color * vertexColor * opacity.
+// vertex attribute), "opacity" (float), "alphaMode" ("opaque" / "blend"
+// / "mask"), and "doubleSided" (bool, default false -- disable back-face
+// culling and enable two-sided lighting). The matte-only "transform" and
+// "primitive" color samplers are not supported by unlit. Final color =
+// color * vertexColor * opacity.
 struct Material : public Object
 {
     Material(DeviceState *s, const char *subtype);

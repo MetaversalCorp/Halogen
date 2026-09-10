@@ -2,6 +2,7 @@ material {
     name : MatteMasked,
     shadingModel : lit,
     blending : masked,
+    doubleSided : true,
     parameters : [
         {
             type : float4,

@@ -6,6 +6,8 @@
 
 #include <anari/anari.h>
 
+#include <cstdint>
+
 namespace {
 
 struct DeviceFixture {
@@ -40,6 +42,7 @@ struct MaterialTest : Corrade::TestSuite::Tester {
     void pbrEmissive();
     void matteOpacity();
     void materialAlphaMode();
+    void materialDoubleSided();
 };
 
 MaterialTest::MaterialTest()
@@ -48,7 +51,8 @@ MaterialTest::MaterialTest()
         &MaterialTest::pbrMaterial,
         &MaterialTest::pbrEmissive,
         &MaterialTest::matteOpacity,
-        &MaterialTest::materialAlphaMode});
+        &MaterialTest::materialAlphaMode,
+        &MaterialTest::materialDoubleSided});
 }
 
 void MaterialTest::matteVertexColor()
@@ -261,6 +265,19 @@ void MaterialTest::materialAlphaMode()
     anariRelease(f.device, matMask);
     anariRelease(f.device, matBlend);
     anariRelease(f.device, matOpaque);
+}
+
+void MaterialTest::materialDoubleSided()
+{
+    DeviceFixture f;
+    CORRADE_VERIFY(f.device);
+
+    ANARIMaterial mat = anariNewMaterial(f.device, "physicallyBased");
+    CORRADE_VERIFY(mat);
+    const uint8_t on = 1;
+    anariSetParameter(f.device, mat, "doubleSided", ANARI_BOOL, &on);
+    anariCommitParameters(f.device, mat);
+    anariRelease(f.device, mat);
 }
 
 }

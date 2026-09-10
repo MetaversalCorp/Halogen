@@ -178,6 +178,15 @@ void Material::commitParameters()
         mMaterialInstance->setMaskThreshold(alphaCutoff);
     }
 
+    // glTF / ANARI doubleSided. The .mat files are compiled with
+    // doubleSided capability so two-sided lighting is in the shader;
+    // culling is chosen per instance. Default false matches ANARI/glTF.
+    const bool doubleSided = getParam<bool>("doubleSided", false);
+    mMaterialInstance->setDoubleSided(doubleSided);
+    mMaterialInstance->setCullingMode(doubleSided
+            ? filament::MaterialInstance::CullingMode::NONE
+            : filament::MaterialInstance::CullingMode::BACK);
+
     if (mSubtype == "physicallyBased"_s) {
         // Metallic: can be float or "attribute0"
         const Corrade::Containers::String metallicStr =

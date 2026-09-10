@@ -2,6 +2,7 @@ material {
     name : UnlitBlend,
     shadingModel : unlit,
     blending : transparent,
+    doubleSided : true,
     parameters : [
         {
             type : float4,
