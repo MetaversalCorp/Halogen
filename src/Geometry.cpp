@@ -28,7 +28,100 @@ ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Geometry *);
 
 namespace Halogen {
 
+namespace {
 
+// Packed layout of the interleaved (buffer 1) attributes. POSITION lives in its
+// own buffer and is not part of this struct. The offset constants below mirror
+// this field order; keep the two in sync. offsetof() is avoided because these
+// math types are not guaranteed standard-layout (-Winvalid-offsetof + -Werror);
+// the static_assert proves there is no padding, which — together with the
+// declaration order — pins each field's offset to the constants.
+struct InterleavedVertex {
+    filament::math::float4 color;
+    filament::math::float2 uv0;
+    filament::math::float2 uv1;
+    filament::math::short4 tangents;
+};
+
+constexpr uint32_t kColorOffset = 0;
+constexpr uint32_t kUv0Offset =
+    kColorOffset + uint32_t(sizeof(filament::math::float4));
+constexpr uint32_t kUv1Offset =
+    kUv0Offset + uint32_t(sizeof(filament::math::float2));
+constexpr uint32_t kTangentOffset =
+    kUv1Offset + uint32_t(sizeof(filament::math::float2));
+constexpr uint8_t kVertexStride =
+    uint8_t(kTangentOffset + sizeof(filament::math::short4));
+
+static_assert(sizeof(InterleavedVertex) == kVertexStride,
+    "InterleavedVertex must stay tightly packed (no padding)");
+
+}
+
+filament::VertexBuffer *Geometry::buildInterleavedVertexBuffer(
+    filament::Engine *engine, uint32_t vertexCount,
+    const filament::math::float3 *positions,
+    const filament::math::short4 *tangents,
+    const filament::math::float4 *colors,
+    const filament::math::float2 *uv0,
+    const filament::math::float2 *uv1)
+{
+    constexpr uint8_t posBuffer = 0;
+    constexpr uint8_t interleavedBuffer = 1;
+
+    filament::VertexBuffer *vb =
+        filament::VertexBuffer::Builder()
+            .bufferCount(2)
+            .vertexCount(vertexCount)
+            .attribute(filament::VertexAttribute::POSITION, posBuffer,
+                filament::VertexBuffer::AttributeType::FLOAT3)
+            .attribute(filament::VertexAttribute::TANGENTS, interleavedBuffer,
+                filament::VertexBuffer::AttributeType::SHORT4,
+                kTangentOffset, kVertexStride)
+            .normalized(filament::VertexAttribute::TANGENTS)
+            .attribute(filament::VertexAttribute::COLOR, interleavedBuffer,
+                filament::VertexBuffer::AttributeType::FLOAT4,
+                kColorOffset, kVertexStride)
+            .attribute(filament::VertexAttribute::UV0, interleavedBuffer,
+                filament::VertexBuffer::AttributeType::FLOAT2,
+                kUv0Offset, kVertexStride)
+            .attribute(filament::VertexAttribute::UV1, interleavedBuffer,
+                filament::VertexBuffer::AttributeType::FLOAT2,
+                kUv1Offset, kVertexStride)
+            .build(*engine);
+
+    // Buffer 0: positions (own copy — Filament uploads async).
+    auto *posOwned = new filament::math::float3[vertexCount];
+    std::memcpy(posOwned, positions,
+        vertexCount * sizeof(filament::math::float3));
+    vb->setBufferAt(*engine, posBuffer,
+        filament::VertexBuffer::BufferDescriptor(
+            posOwned, vertexCount * sizeof(filament::math::float3),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<filament::math::float3 *>(buf);
+            }));
+
+    // Buffer 1: scatter the remaining attributes into the packed struct,
+    // substituting defaults for any absent attribute.
+    auto *interleaved = new InterleavedVertex[vertexCount];
+    for (uint32_t i = 0; i < vertexCount; ++i) {
+        interleaved[i].color =
+            colors ? colors[i] : filament::math::float4{1.0f, 1.0f, 1.0f, 1.0f};
+        interleaved[i].uv0 =
+            uv0 ? uv0[i] : filament::math::float2{0.0f, 0.0f};
+        interleaved[i].uv1 =
+            uv1 ? uv1[i] : filament::math::float2{0.0f, 0.0f};
+        interleaved[i].tangents = tangents[i];
+    }
+    vb->setBufferAt(*engine, interleavedBuffer,
+        filament::VertexBuffer::BufferDescriptor(
+            interleaved, vertexCount * sizeof(InterleavedVertex),
+            [](void *buf, size_t, void *) {
+                delete[] static_cast<InterleavedVertex *>(buf);
+            }));
+
+    return vb;
+}
 
 Geometry::Geometry(DeviceState *s, const char *subtype)
     : Object(ANARI_GEOMETRY, s)
@@ -268,162 +361,67 @@ void Geometry::commitTriangle()
     orientation->getQuats(tangents.data(), numVertices);
     delete orientation;
 
-    // Count buffers: POSITION + TANGENTS + COLOR + UV0 + UV1
-    uint8_t bufIdx = 0;
-    const uint8_t posBuffer = bufIdx++;
-    const uint8_t tangentBuffer = bufIdx++;
-    const uint8_t colorBuffer = bufIdx++;
-    const uint8_t uv0Buffer = bufIdx++;
-    const uint8_t uv1Buffer = bufIdx++;
-    const uint8_t bufferCount = bufIdx;
+    // Materialize the interleaved attributes; a null pointer tells the builder
+    // to fill defaults. Zero-copy pass-through of the source ANARI arrays is
+    // used wherever the element type already matches.
+    Corrade::Containers::Array<filament::math::float4> colorStorage;
+    Corrade::Containers::Array<filament::math::float2> uv0Storage;
+    Corrade::Containers::Array<filament::math::float2> uv1Storage;
+    const filament::math::float4 *colorsPtr = nullptr;
+    const filament::math::float2 *uv0Ptr = nullptr;
+    const filament::math::float2 *uv1Ptr = nullptr;
 
-    filament::VertexBuffer::Builder builder =
-        filament::VertexBuffer::Builder()
-            .bufferCount(bufferCount)
-            .vertexCount(numVertices)
-            .attribute(filament::VertexAttribute::POSITION, posBuffer,
-                filament::VertexBuffer::AttributeType::FLOAT3)
-            .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
-                filament::VertexBuffer::AttributeType::SHORT4)
-            .normalized(filament::VertexAttribute::TANGENTS)
-            .attribute(filament::VertexAttribute::COLOR, colorBuffer,
-                filament::VertexBuffer::AttributeType::FLOAT4)
-            .attribute(filament::VertexAttribute::UV0, uv0Buffer,
-                filament::VertexBuffer::AttributeType::FLOAT2)
-            .attribute(filament::VertexAttribute::UV1, uv1Buffer,
-                filament::VertexBuffer::AttributeType::FLOAT2);
-
-    mVertexBuffer = builder.build(*engine);
-
-    // Upload position data (heap-copy if local — Filament uploads async)
-    auto *posOwned = new filament::math::float3[numVertices];
-    std::memcpy(posOwned, posData,
-        numVertices * sizeof(filament::math::float3));
-    mVertexBuffer->setBufferAt(*engine, posBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            posOwned,
-            numVertices * sizeof(filament::math::float3),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::float3 *>(buf);
-            }));
-
-    // Upload tangent data (transfer ownership via callback)
-    auto *tangentOwned = new filament::math::short4[numVertices];
-    std::memcpy(tangentOwned, tangents.data(),
-        numVertices * sizeof(filament::math::short4));
-    mVertexBuffer->setBufferAt(*engine, tangentBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            tangentOwned,
-            numVertices * sizeof(filament::math::short4),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::short4 *>(buf);
-            }));
-
-    if (mHasColors) {
-        if (primColArray) {
-            // Colors were pre-computed during expansion
-            auto *colorData = new filament::math::float4[numVertices];
-            std::memcpy(colorData, expandedColors.data(),
-                numVertices * sizeof(filament::math::float4));
-            mVertexBuffer->setBufferAt(*engine, colorBuffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    colorData,
-                    numVertices * sizeof(filament::math::float4),
-                    [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float4 *>(buf);
-                    }));
-        } else if (colArray->elementType() == ANARI_FLOAT32_VEC4) {
-            mVertexBuffer->setBufferAt(*engine, colorBuffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    colArray->data(),
-                    colArray->totalSize() * sizeof(float) * 4));
+    if (primColArray) {
+        colorsPtr = expandedColors.data();
+    } else if (mHasColors) {
+        if (colArray->elementType() == ANARI_FLOAT32_VEC4) {
+            colorsPtr = static_cast<const filament::math::float4 *>(
+                colArray->data());
         } else {
-            // Convert from any supported color type to FLOAT4
-            auto *colorData = new filament::math::float4[numVertices];
-            convertColors(colorData, colArray->data(),
+            colorStorage = Corrade::Containers::Array<filament::math::float4>{
+                Corrade::NoInit, numVertices};
+            convertColors(colorStorage.data(), colArray->data(),
                 colArray->elementType(), numVertices);
-            mVertexBuffer->setBufferAt(*engine, colorBuffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    colorData,
-                    numVertices * sizeof(filament::math::float4),
-                    [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float4 *>(buf);
-                    }));
+            colorsPtr = colorStorage.data();
         }
     }
 
-    if (mHasUV0) {
-        if (primColArray && expandedUV0.data()) {
-            auto *uv0Owned = new filament::math::float2[numVertices];
-            std::memcpy(uv0Owned, expandedUV0.data(),
-                numVertices * sizeof(filament::math::float2));
-            mVertexBuffer->setBufferAt(*engine, uv0Buffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    uv0Owned,
-                    numVertices * sizeof(filament::math::float2),
-                    [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float2 *>(buf);
-                    }));
-        } else {
-            const ANARIDataType a0Type = attr0Array->elementType();
-            if (a0Type == ANARI_FLOAT32_VEC2) {
-                mVertexBuffer->setBufferAt(*engine, uv0Buffer,
-                    filament::VertexBuffer::BufferDescriptor(
-                        attr0Array->data(),
-                        attr0Array->totalSize() * sizeof(float) * 2));
-            } else if (a0Type == ANARI_FLOAT32) {
-                auto *uv0Data = new filament::math::float2[numVertices];
-                const float *src =
-                    static_cast<const float *>(attr0Array->data());
-                for (uint32_t i = 0; i < numVertices; ++i)
-                    uv0Data[i] = {src[i], 0.0f};
-                mVertexBuffer->setBufferAt(*engine, uv0Buffer,
-                    filament::VertexBuffer::BufferDescriptor(
-                        uv0Data, numVertices * sizeof(filament::math::float2),
-                        [](void *buf, size_t, void *) {
-                            delete[] static_cast<filament::math::float2 *>(buf);
-                        }));
-            }
+    if (primColArray && !expandedUV0.isEmpty()) {
+        uv0Ptr = expandedUV0.data();
+    } else if (mHasUV0) {
+        const ANARIDataType a0Type = attr0Array->elementType();
+        if (a0Type == ANARI_FLOAT32_VEC2) {
+            uv0Ptr = static_cast<const filament::math::float2 *>(
+                attr0Array->data());
+        } else if (a0Type == ANARI_FLOAT32) {
+            uv0Storage = Corrade::Containers::Array<filament::math::float2>{
+                Corrade::NoInit, numVertices};
+            const float *src = static_cast<const float *>(attr0Array->data());
+            for (uint32_t i = 0; i < numVertices; ++i)
+                uv0Storage[i] = {src[i], 0.0f};
+            uv0Ptr = uv0Storage.data();
         }
     }
 
-    if (mHasUV1) {
-        if (primColArray && expandedUV1.data()) {
-            auto *uv1Owned = new filament::math::float2[numVertices];
-            std::memcpy(uv1Owned, expandedUV1.data(),
-                numVertices * sizeof(filament::math::float2));
-            mVertexBuffer->setBufferAt(*engine, uv1Buffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    uv1Owned,
-                    numVertices * sizeof(filament::math::float2),
-                    [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float2 *>(buf);
-                    }));
-        } else {
-            const ANARIDataType a1Type = attr1Array->elementType();
-            if (a1Type == ANARI_FLOAT32_VEC2) {
-                mVertexBuffer->setBufferAt(*engine, uv1Buffer,
-                    filament::VertexBuffer::BufferDescriptor(
-                        attr1Array->data(),
-                        attr1Array->totalSize() * sizeof(float) * 2));
-            } else if (a1Type == ANARI_FLOAT32) {
-                auto *uv1Data = new filament::math::float2[numVertices];
-                const float *src =
-                    static_cast<const float *>(attr1Array->data());
-                for (uint32_t i = 0; i < numVertices; ++i)
-                    uv1Data[i] = {src[i], 0.0f};
-                mVertexBuffer->setBufferAt(*engine, uv1Buffer,
-                    filament::VertexBuffer::BufferDescriptor(
-                        uv1Data, numVertices * sizeof(filament::math::float2),
-                        [](void *buf, size_t, void *) {
-                            delete[] static_cast<filament::math::float2 *>(buf);
-                        }));
-            }
+    if (primColArray && !expandedUV1.isEmpty()) {
+        uv1Ptr = expandedUV1.data();
+    } else if (mHasUV1) {
+        const ANARIDataType a1Type = attr1Array->elementType();
+        if (a1Type == ANARI_FLOAT32_VEC2) {
+            uv1Ptr = static_cast<const filament::math::float2 *>(
+                attr1Array->data());
+        } else if (a1Type == ANARI_FLOAT32) {
+            uv1Storage = Corrade::Containers::Array<filament::math::float2>{
+                Corrade::NoInit, numVertices};
+            const float *src = static_cast<const float *>(attr1Array->data());
+            for (uint32_t i = 0; i < numVertices; ++i)
+                uv1Storage[i] = {src[i], 0.0f};
+            uv1Ptr = uv1Storage.data();
         }
     }
 
-    fillDefaultAttributes(engine, numVertices, colorBuffer, uv0Buffer,
-        uv1Buffer);
+    mVertexBuffer = buildInterleavedVertexBuffer(engine, numVertices, posData,
+        tangents.data(), colorsPtr, uv0Ptr, uv1Ptr);
 
     // Compute AABB
     mAabb = computeAabb(posData, numVertices);
@@ -584,110 +582,57 @@ void Geometry::commitSphere()
     orientation->getQuats(tangents, totalVerts);
     delete orientation;
 
-    // Build vertex buffer
-    uint8_t bufIdx = 0;
-    const uint8_t posBuffer = bufIdx++;
-    const uint8_t tangentBuffer = bufIdx++;
-    const uint8_t colorBuffer = bufIdx++;
-    const uint8_t uv0Buffer = bufIdx++;
-    const uint8_t uv1Buffer = bufIdx++;
-    const uint8_t bufferCount = bufIdx;
+    // Expand per-sphere attributes to per-vertex. A null pointer tells the
+    // builder to fill defaults.
+    Corrade::Containers::Array<filament::math::float4> colorStorage;
+    Corrade::Containers::Array<filament::math::float2> uv0Storage;
+    Corrade::Containers::Array<filament::math::float2> uv1Storage;
+    const filament::math::float4 *colorsPtr = nullptr;
+    const filament::math::float2 *uv0Ptr = nullptr;
+    const filament::math::float2 *uv1Ptr = nullptr;
 
-    filament::VertexBuffer::Builder builder =
-        filament::VertexBuffer::Builder()
-            .bufferCount(bufferCount)
-            .vertexCount(totalVerts)
-            .attribute(filament::VertexAttribute::POSITION, posBuffer,
-                filament::VertexBuffer::AttributeType::FLOAT3)
-            .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
-                filament::VertexBuffer::AttributeType::SHORT4)
-            .normalized(filament::VertexAttribute::TANGENTS)
-            .attribute(filament::VertexAttribute::COLOR, colorBuffer,
-                filament::VertexBuffer::AttributeType::FLOAT4)
-            .attribute(filament::VertexAttribute::UV0, uv0Buffer,
-                filament::VertexBuffer::AttributeType::FLOAT2)
-            .attribute(filament::VertexAttribute::UV1, uv1Buffer,
-                filament::VertexBuffer::AttributeType::FLOAT2);
-
-    mVertexBuffer = builder.build(*engine);
-
-    // Upload positions (transfer ownership)
-    mVertexBuffer->setBufferAt(*engine, posBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            positions, totalVerts * sizeof(filament::math::float3),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::float3 *>(buf);
-            }));
-
-    // Upload tangents (transfer ownership)
-    mVertexBuffer->setBufferAt(*engine, tangentBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            tangents, totalVerts * sizeof(filament::math::short4),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::short4 *>(buf);
-            }));
-
-    // Upload per-sphere colors (expand to per-vertex)
     if (mHasColors) {
-        auto *colors = new filament::math::float4[totalVerts];
+        colorStorage = Corrade::Containers::Array<filament::math::float4>{
+            Corrade::NoInit, totalVerts};
         const filament::math::float4 *srcColors =
             static_cast<const filament::math::float4 *>(colArray->data());
         for (uint32_t s = 0; s < numSpheres; ++s) {
             for (uint32_t v = 0; v < vertsPerSphere; ++v)
-                colors[s * vertsPerSphere + v] = srcColors[s];
+                colorStorage[s * vertsPerSphere + v] = srcColors[s];
         }
-        mVertexBuffer->setBufferAt(*engine, colorBuffer,
-            filament::VertexBuffer::BufferDescriptor(
-                colors, totalVerts * sizeof(filament::math::float4),
-                [](void *buf, size_t, void *) {
-                    delete[] static_cast<filament::math::float4 *>(buf);
-                }));
+        colorsPtr = colorStorage.data();
     }
 
-    // Upload per-sphere attribute0 (expand to per-vertex as float2)
     if (mHasUV0) {
-        auto *uv0Data = new filament::math::float2[totalVerts];
-        const float *src =
-            static_cast<const float *>(attr0Array->data());
+        uv0Storage = Corrade::Containers::Array<filament::math::float2>{
+            Corrade::NoInit, totalVerts};
+        const float *src = static_cast<const float *>(attr0Array->data());
         for (uint32_t s = 0; s < numSpheres; ++s) {
             for (uint32_t v = 0; v < vertsPerSphere; ++v)
-                uv0Data[s * vertsPerSphere + v] = {src[s], 0.0f};
+                uv0Storage[s * vertsPerSphere + v] = {src[s], 0.0f};
         }
-        mVertexBuffer->setBufferAt(*engine, uv0Buffer,
-            filament::VertexBuffer::BufferDescriptor(
-                uv0Data, totalVerts * sizeof(filament::math::float2),
-                [](void *buf, size_t, void *) {
-                    delete[] static_cast<filament::math::float2 *>(buf);
-                }));
+        uv0Ptr = uv0Storage.data();
     }
 
-    // Upload per-sphere attribute1 (expand to per-vertex as float2)
     if (mHasUV1) {
-        auto *uv1Data = new filament::math::float2[totalVerts];
-        const float *src =
-            static_cast<const float *>(attr1Array->data());
+        uv1Storage = Corrade::Containers::Array<filament::math::float2>{
+            Corrade::NoInit, totalVerts};
+        const float *src = static_cast<const float *>(attr1Array->data());
         for (uint32_t s = 0; s < numSpheres; ++s) {
             for (uint32_t v = 0; v < vertsPerSphere; ++v)
-                uv1Data[s * vertsPerSphere + v] = {src[s], 0.0f};
+                uv1Storage[s * vertsPerSphere + v] = {src[s], 0.0f};
         }
-        mVertexBuffer->setBufferAt(*engine, uv1Buffer,
-            filament::VertexBuffer::BufferDescriptor(
-                uv1Data, totalVerts * sizeof(filament::math::float2),
-                [](void *buf, size_t, void *) {
-                    delete[] static_cast<filament::math::float2 *>(buf);
-                }));
+        uv1Ptr = uv1Storage.data();
     }
 
-    fillDefaultAttributes(engine, totalVerts, colorBuffer, uv0Buffer,
-        uv1Buffer);
+    mVertexBuffer = buildInterleavedVertexBuffer(engine, totalVerts, positions,
+        tangents, colorsPtr, uv0Ptr, uv1Ptr);
 
-    // Compute AABB
-    // For normals array: we allocated it on heap. Compute AABB from positions.
+    // Compute AABB, then release the CPU-side geometry (the builder copied it).
     mAabb = computeAabb(positions, totalVerts);
-
-    // Can't delete positions yet — Filament owns them via the callback.
-    // The normals are only used for orientation, can delete now.
+    delete[] positions;
     delete[] normals;
+    delete[] tangents;
 
     mIndexCount = totalIndices;
     mIndexBuffer = filament::IndexBuffer::Builder()
@@ -874,51 +819,14 @@ void Geometry::commitCylinder()
     orientation->getQuats(tangents, totalVerts);
     delete orientation;
 
-    // Build vertex buffer
-    uint8_t bufIdx = 0;
-    const uint8_t posBuffer = bufIdx++;
-    const uint8_t tangentBuffer = bufIdx++;
-    const uint8_t colorBuffer = bufIdx++;
-    const uint8_t uv0Buffer = bufIdx++;
-    const uint8_t uv1Buffer = bufIdx++;
-    const uint8_t bufferCount = bufIdx;
+    // Expand per-cylinder colors to per-vertex; null fills white. Cylinders
+    // carry no UV attributes.
+    Corrade::Containers::Array<filament::math::float4> colorStorage;
+    const filament::math::float4 *colorsPtr = nullptr;
 
-    auto vbBuilder = filament::VertexBuffer::Builder()
-        .bufferCount(bufferCount)
-        .vertexCount(totalVerts)
-        .attribute(filament::VertexAttribute::POSITION, posBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT3)
-        .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
-            filament::VertexBuffer::AttributeType::SHORT4)
-        .normalized(filament::VertexAttribute::TANGENTS)
-        .attribute(filament::VertexAttribute::COLOR, colorBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT4)
-        .attribute(filament::VertexAttribute::UV0, uv0Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2)
-        .attribute(filament::VertexAttribute::UV1, uv1Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2);
-
-    mVertexBuffer = vbBuilder.build(*engine);
-
-    // Upload positions
-    mVertexBuffer->setBufferAt(*engine, posBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            positions, totalVerts * sizeof(filament::math::float3),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::float3 *>(buf);
-            }));
-
-    // Upload tangents
-    mVertexBuffer->setBufferAt(*engine, tangentBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            tangents, totalVerts * sizeof(filament::math::short4),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::short4 *>(buf);
-            }));
-
-    // Upload per-cylinder colors (expand to per-vertex)
     if (mHasColors) {
-        auto *colors = new filament::math::float4[totalVerts];
+        colorStorage = Corrade::Containers::Array<filament::math::float4>{
+            Corrade::NoInit, totalVerts};
         const filament::math::float4 *srcColors =
             static_cast<const filament::math::float4 *>(colArray->data());
         for (uint32_t c = 0; c < numCylinders; ++c) {
@@ -927,34 +835,30 @@ void Geometry::commitCylinder()
             const uint32_t vBase = c * vertsPerCyl;
             // Tube: first ring gets colorA, second ring gets colorB
             for (uint32_t seg = 0; seg <= S; ++seg) {
-                colors[vBase + seg] = cA;
-                colors[vBase + (S + 1) + seg] = cB;
+                colorStorage[vBase + seg] = cA;
+                colorStorage[vBase + (S + 1) + seg] = cB;
             }
             // Caps: cap A gets colorA, cap B gets colorB
             if (addCaps) {
                 const uint32_t capBase = vBase + tubeVerts;
                 for (uint32_t i = 0; i <= S; ++i)
-                    colors[capBase + i] = cA;
+                    colorStorage[capBase + i] = cA;
                 const uint32_t capBBase = capBase + S + 1;
                 for (uint32_t i = 0; i <= S; ++i)
-                    colors[capBBase + i] = cB;
+                    colorStorage[capBBase + i] = cB;
             }
         }
-        mVertexBuffer->setBufferAt(*engine, colorBuffer,
-            filament::VertexBuffer::BufferDescriptor(
-                colors, totalVerts * sizeof(filament::math::float4),
-                [](void *buf, size_t, void *) {
-                    delete[] static_cast<filament::math::float4 *>(buf);
-                }));
+        colorsPtr = colorStorage.data();
     }
 
-    fillDefaultAttributes(engine, totalVerts, colorBuffer, uv0Buffer,
-        uv1Buffer);
+    mVertexBuffer = buildInterleavedVertexBuffer(engine, totalVerts, positions,
+        tangents, colorsPtr, nullptr, nullptr);
 
-    delete[] normals;
-
-    // Compute AABB
+    // Compute AABB, then release the CPU-side geometry (the builder copied it).
     mAabb = computeAabb(positions, totalVerts);
+    delete[] positions;
+    delete[] normals;
+    delete[] tangents;
 
     mIndexCount = totalIndices;
     mIndexBuffer = filament::IndexBuffer::Builder()
@@ -1268,47 +1172,14 @@ void Geometry::commitCurve()
     orientation->getQuats(tangents, totalVerts);
     delete orientation;
 
-    // Build vertex buffer
-    uint8_t bufIdx = 0;
-    const uint8_t posBuffer = bufIdx++;
-    const uint8_t tangentBuffer = bufIdx++;
-    const uint8_t colorBuffer = bufIdx++;
-    const uint8_t uv0Buffer = bufIdx++;
-    const uint8_t uv1Buffer = bufIdx++;
-    const uint8_t bufferCount = bufIdx;
-
-    mVertexBuffer = filament::VertexBuffer::Builder()
-        .bufferCount(bufferCount)
-        .vertexCount(totalVerts)
-        .attribute(filament::VertexAttribute::POSITION, posBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT3)
-        .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
-            filament::VertexBuffer::AttributeType::SHORT4)
-        .normalized(filament::VertexAttribute::TANGENTS)
-        .attribute(filament::VertexAttribute::COLOR, colorBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT4)
-        .attribute(filament::VertexAttribute::UV0, uv0Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2)
-        .attribute(filament::VertexAttribute::UV1, uv1Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2)
-        .build(*engine);
-
-    mVertexBuffer->setBufferAt(*engine, posBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            positions, totalVerts * sizeof(filament::math::float3),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::float3 *>(buf);
-            }));
-
-    mVertexBuffer->setBufferAt(*engine, tangentBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            tangents, totalVerts * sizeof(filament::math::short4),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::short4 *>(buf);
-            }));
+    // Interpolate per-ring colors to per-vertex; null fills white. Curves
+    // carry no UV attributes.
+    Corrade::Containers::Array<filament::math::float4> colorStorage;
+    const filament::math::float4 *colorsPtr = nullptr;
 
     if (mHasColors) {
-        auto *colors = new filament::math::float4[totalVerts];
+        colorStorage = Corrade::Containers::Array<filament::math::float4>{
+            Corrade::NoInit, totalVerts};
         const filament::math::float4 *srcColors =
             static_cast<const filament::math::float4 *>(colArray->data());
         for (uint32_t r = 0; r < totalRings; ++r) {
@@ -1324,22 +1195,19 @@ void Geometry::commitCurve()
                 cA * (1.0f - ringBlend[r]) + cB * ringBlend[r];
             const uint32_t vBase = r * (S + 1);
             for (uint32_t seg = 0; seg <= S; ++seg)
-                colors[vBase + seg] = interp;
+                colorStorage[vBase + seg] = interp;
         }
-        mVertexBuffer->setBufferAt(*engine, colorBuffer,
-            filament::VertexBuffer::BufferDescriptor(
-                colors, totalVerts * sizeof(filament::math::float4),
-                [](void *buf, size_t, void *) {
-                    delete[] static_cast<filament::math::float4 *>(buf);
-                }));
+        colorsPtr = colorStorage.data();
     }
 
-    fillDefaultAttributes(engine, totalVerts, colorBuffer, uv0Buffer,
-        uv1Buffer);
+    mVertexBuffer = buildInterleavedVertexBuffer(engine, totalVerts, positions,
+        tangents, colorsPtr, nullptr, nullptr);
 
-    delete[] normals;
-
+    // Compute AABB, then release the CPU-side geometry (the builder copied it).
     mAabb = computeAabb(positions, totalVerts);
+    delete[] positions;
+    delete[] normals;
+    delete[] tangents;
 
     mIndexCount = totalIndices;
     mIndexBuffer = filament::IndexBuffer::Builder()
@@ -1478,132 +1346,62 @@ void Geometry::commitQuad()
     orientation->getQuats(tangents.data(), numVertices);
     delete orientation;
 
-    // Build vertex buffer
-    uint8_t bufIdx = 0;
-    const uint8_t posBuffer = bufIdx++;
-    const uint8_t tangentBuffer = bufIdx++;
-    const uint8_t colorBuffer = bufIdx++;
-    const uint8_t uv0Buffer = bufIdx++;
-    const uint8_t uv1Buffer = bufIdx++;
-    const uint8_t bufferCount = bufIdx;
+    // Materialize the interleaved attributes; a null pointer fills defaults.
+    // Zero-copy pass-through is used wherever the element type already matches.
+    Corrade::Containers::Array<filament::math::float4> colorStorage;
+    Corrade::Containers::Array<filament::math::float2> uv0Storage;
+    Corrade::Containers::Array<filament::math::float2> uv1Storage;
+    const filament::math::float4 *colorsPtr = nullptr;
+    const filament::math::float2 *uv0Ptr = nullptr;
+    const filament::math::float2 *uv1Ptr = nullptr;
 
-    filament::VertexBuffer::Builder builder =
-        filament::VertexBuffer::Builder()
-            .bufferCount(bufferCount)
-            .vertexCount(numVertices)
-            .attribute(filament::VertexAttribute::POSITION, posBuffer,
-                filament::VertexBuffer::AttributeType::FLOAT3)
-            .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
-                filament::VertexBuffer::AttributeType::SHORT4)
-            .normalized(filament::VertexAttribute::TANGENTS)
-            .attribute(filament::VertexAttribute::COLOR, colorBuffer,
-                filament::VertexBuffer::AttributeType::FLOAT4)
-            .attribute(filament::VertexAttribute::UV0, uv0Buffer,
-                filament::VertexBuffer::AttributeType::FLOAT2)
-            .attribute(filament::VertexAttribute::UV1, uv1Buffer,
-                filament::VertexBuffer::AttributeType::FLOAT2);
-
-    mVertexBuffer = builder.build(*engine);
-
-    auto *posOwned = new filament::math::float3[numVertices];
-    std::memcpy(posOwned, posData,
-        numVertices * sizeof(filament::math::float3));
-    mVertexBuffer->setBufferAt(*engine, posBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            posOwned,
-            numVertices * sizeof(filament::math::float3),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::float3 *>(buf);
-            }));
-
-    auto *tangentOwned = new filament::math::short4[numVertices];
-    std::memcpy(tangentOwned, tangents.data(),
-        numVertices * sizeof(filament::math::short4));
-    mVertexBuffer->setBufferAt(*engine, tangentBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            tangentOwned,
-            numVertices * sizeof(filament::math::short4),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::short4 *>(buf);
-            }));
-
-    if (mHasColors) {
-        if (primColArray) {
-            auto *colorData = new filament::math::float4[numVertices];
-            std::memcpy(colorData, expandedColors.data(),
-                numVertices * sizeof(filament::math::float4));
-            mVertexBuffer->setBufferAt(*engine, colorBuffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    colorData,
-                    numVertices * sizeof(filament::math::float4),
-                    [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float4 *>(buf);
-                    }));
-        } else if (colArray->elementType() == ANARI_FLOAT32_VEC4) {
-            mVertexBuffer->setBufferAt(*engine, colorBuffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    colArray->data(),
-                    colArray->totalSize() * sizeof(float) * 4));
+    if (primColArray) {
+        colorsPtr = expandedColors.data();
+    } else if (mHasColors) {
+        if (colArray->elementType() == ANARI_FLOAT32_VEC4) {
+            colorsPtr = static_cast<const filament::math::float4 *>(
+                colArray->data());
         } else {
-            auto *colorData = new filament::math::float4[numVertices];
-            convertColors(colorData, colArray->data(),
+            colorStorage = Corrade::Containers::Array<filament::math::float4>{
+                Corrade::NoInit, numVertices};
+            convertColors(colorStorage.data(), colArray->data(),
                 colArray->elementType(), numVertices);
-            mVertexBuffer->setBufferAt(*engine, colorBuffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    colorData,
-                    numVertices * sizeof(filament::math::float4),
-                    [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float4 *>(buf);
-                    }));
+            colorsPtr = colorStorage.data();
         }
     }
 
     if (mHasUV0) {
         const ANARIDataType a0Type = attr0Array->elementType();
         if (a0Type == ANARI_FLOAT32_VEC2) {
-            mVertexBuffer->setBufferAt(*engine, uv0Buffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    attr0Array->data(),
-                    attr0Array->totalSize() * sizeof(float) * 2));
+            uv0Ptr = static_cast<const filament::math::float2 *>(
+                attr0Array->data());
         } else if (a0Type == ANARI_FLOAT32) {
-            auto *uv0Data = new filament::math::float2[numVertices];
-            const float *src =
-                static_cast<const float *>(attr0Array->data());
+            uv0Storage = Corrade::Containers::Array<filament::math::float2>{
+                Corrade::NoInit, numVertices};
+            const float *src = static_cast<const float *>(attr0Array->data());
             for (uint32_t i = 0; i < numVertices; ++i)
-                uv0Data[i] = {src[i], 0.0f};
-            mVertexBuffer->setBufferAt(*engine, uv0Buffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    uv0Data, numVertices * sizeof(filament::math::float2),
-                    [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float2 *>(buf);
-                    }));
+                uv0Storage[i] = {src[i], 0.0f};
+            uv0Ptr = uv0Storage.data();
         }
     }
 
     if (mHasUV1) {
         const ANARIDataType a1Type = attr1Array->elementType();
         if (a1Type == ANARI_FLOAT32_VEC2) {
-            mVertexBuffer->setBufferAt(*engine, uv1Buffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    attr1Array->data(),
-                    attr1Array->totalSize() * sizeof(float) * 2));
+            uv1Ptr = static_cast<const filament::math::float2 *>(
+                attr1Array->data());
         } else if (a1Type == ANARI_FLOAT32) {
-            auto *uv1Data = new filament::math::float2[numVertices];
-            const float *src =
-                static_cast<const float *>(attr1Array->data());
+            uv1Storage = Corrade::Containers::Array<filament::math::float2>{
+                Corrade::NoInit, numVertices};
+            const float *src = static_cast<const float *>(attr1Array->data());
             for (uint32_t i = 0; i < numVertices; ++i)
-                uv1Data[i] = {src[i], 0.0f};
-            mVertexBuffer->setBufferAt(*engine, uv1Buffer,
-                filament::VertexBuffer::BufferDescriptor(
-                    uv1Data, numVertices * sizeof(filament::math::float2),
-                    [](void *buf, size_t, void *) {
-                        delete[] static_cast<filament::math::float2 *>(buf);
-                    }));
+                uv1Storage[i] = {src[i], 0.0f};
+            uv1Ptr = uv1Storage.data();
         }
     }
 
-    fillDefaultAttributes(engine, numVertices, colorBuffer, uv0Buffer,
-        uv1Buffer);
+    mVertexBuffer = buildInterleavedVertexBuffer(engine, numVertices, posData,
+        tangents.data(), colorsPtr, uv0Ptr, uv1Ptr);
 
     mAabb = computeAabb(posData, numVertices);
 
@@ -1795,53 +1593,14 @@ void Geometry::commitCone()
     orientation->getQuats(tangents, totalVerts);
     delete orientation;
 
-    // Build vertex buffer
-    uint8_t bufIdx = 0;
-    const uint8_t posBuffer = bufIdx++;
-    const uint8_t tangentBuffer = bufIdx++;
-    const uint8_t colorBuffer = bufIdx++;
-    const uint8_t uv0Buffer = bufIdx++;
-    const uint8_t uv1Buffer = bufIdx++;
-    const uint8_t bufferCount = bufIdx;
-
-    auto vbBuilder = filament::VertexBuffer::Builder()
-        .bufferCount(bufferCount)
-        .vertexCount(totalVerts)
-        .attribute(filament::VertexAttribute::POSITION, posBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT3)
-        .attribute(filament::VertexAttribute::TANGENTS, tangentBuffer,
-            filament::VertexBuffer::AttributeType::SHORT4)
-        .normalized(filament::VertexAttribute::TANGENTS)
-        .attribute(filament::VertexAttribute::COLOR, colorBuffer,
-            filament::VertexBuffer::AttributeType::FLOAT4)
-        .attribute(filament::VertexAttribute::UV0, uv0Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2)
-        .attribute(filament::VertexAttribute::UV1, uv1Buffer,
-            filament::VertexBuffer::AttributeType::FLOAT2);
-
-    mVertexBuffer = vbBuilder.build(*engine);
-
-    // Upload positions (copy since allPositions may be oversized)
-    auto *posOwned = new filament::math::float3[totalVerts];
-    std::memcpy(posOwned, allPositions.data(),
-        totalVerts * sizeof(filament::math::float3));
-    mVertexBuffer->setBufferAt(*engine, posBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            posOwned, totalVerts * sizeof(filament::math::float3),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::float3 *>(buf);
-            }));
-
-    mVertexBuffer->setBufferAt(*engine, tangentBuffer,
-        filament::VertexBuffer::BufferDescriptor(
-            tangents, totalVerts * sizeof(filament::math::short4),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::short4 *>(buf);
-            }));
+    // Expand per-endpoint colors to per-vertex; null fills white. Cones carry
+    // no UV attributes.
+    Corrade::Containers::Array<filament::math::float4> colorStorage;
+    const filament::math::float4 *colorsPtr = nullptr;
 
     if (mHasColors) {
-        // Expand per-endpoint colors to per-vertex
-        auto *colors = new filament::math::float4[totalVerts];
+        colorStorage = Corrade::Containers::Array<filament::math::float4>{
+            Corrade::NoInit, totalVerts};
         const filament::math::float4 *srcColors =
             static_cast<const filament::math::float4 *>(colArray->data());
 
@@ -1856,35 +1615,32 @@ void Geometry::commitCone()
 
             // Tube: ring A gets colorA, ring B gets colorB
             for (uint32_t seg = 0; seg <= S; ++seg)
-                colors[vOff + seg] = cA;
+                colorStorage[vOff + seg] = cA;
             for (uint32_t seg = 0; seg <= S; ++seg)
-                colors[vOff + (S + 1) + seg] = cB;
+                colorStorage[vOff + (S + 1) + seg] = cB;
             vOff += tubeVerts;
 
             if (capA && rA > 1e-12f) {
                 for (uint32_t i = 0; i <= S; ++i)
-                    colors[vOff + i] = cA;
+                    colorStorage[vOff + i] = cA;
                 vOff += S + 1;
             }
             if (capB && rB > 1e-12f) {
                 for (uint32_t i = 0; i <= S; ++i)
-                    colors[vOff + i] = cB;
+                    colorStorage[vOff + i] = cB;
                 vOff += S + 1;
             }
         }
-
-        mVertexBuffer->setBufferAt(*engine, colorBuffer,
-            filament::VertexBuffer::BufferDescriptor(
-                colors, totalVerts * sizeof(filament::math::float4),
-                [](void *buf, size_t, void *) {
-                    delete[] static_cast<filament::math::float4 *>(buf);
-                }));
+        colorsPtr = colorStorage.data();
     }
 
-    fillDefaultAttributes(engine, totalVerts, colorBuffer, uv0Buffer,
-        uv1Buffer);
+    mVertexBuffer = buildInterleavedVertexBuffer(engine, totalVerts,
+        allPositions.data(), tangents, colorsPtr, nullptr, nullptr);
 
+    // Compute AABB, then release the CPU-side tangents (the builder copied
+    // them; allPositions/allNormals are Corrade arrays freed on scope exit).
     mAabb = computeAabb(allPositions.data(), totalVerts);
+    delete[] tangents;
 
     mIndexCount = totalIndices;
     auto *idxOwned = new uint32_t[totalIndices];
@@ -1901,47 +1657,6 @@ void Geometry::commitCone()
             }));
 
     markCommitted();
-}
-
-void Geometry::fillDefaultAttributes(filament::Engine *engine,
-    uint32_t vertexCount, uint8_t colorBuffer, uint8_t uv0Buffer,
-    uint8_t uv1Buffer)
-{
-    if (!mHasColors) {
-        Corrade::Containers::Array<filament::math::float4> colors{
-            Corrade::NoInit, vertexCount};
-        for (uint32_t i = 0; i < vertexCount; ++i)
-            colors[i] = {1.0f, 1.0f, 1.0f, 1.0f};
-        auto *released = colors.release();
-        mVertexBuffer->setBufferAt(*engine, colorBuffer,
-            filament::VertexBuffer::BufferDescriptor(
-                released, vertexCount * sizeof(filament::math::float4),
-                [](void *buf, size_t, void *) {
-                    delete[] static_cast<filament::math::float4 *>(buf);
-                }));
-    }
-    if (!mHasUV0) {
-        Corrade::Containers::Array<filament::math::float2> uvs{
-            Corrade::ValueInit, vertexCount};
-        auto *released = uvs.release();
-        mVertexBuffer->setBufferAt(*engine, uv0Buffer,
-            filament::VertexBuffer::BufferDescriptor(
-                released, vertexCount * sizeof(filament::math::float2),
-                [](void *buf, size_t, void *) {
-                    delete[] static_cast<filament::math::float2 *>(buf);
-                }));
-    }
-    if (!mHasUV1) {
-        Corrade::Containers::Array<filament::math::float2> uvs{
-            Corrade::ValueInit, vertexCount};
-        auto *released = uvs.release();
-        mVertexBuffer->setBufferAt(*engine, uv1Buffer,
-            filament::VertexBuffer::BufferDescriptor(
-                released, vertexCount * sizeof(filament::math::float2),
-                [](void *buf, size_t, void *) {
-                    delete[] static_cast<filament::math::float2 *>(buf);
-                }));
-    }
 }
 
 }

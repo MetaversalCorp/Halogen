@@ -135,36 +135,14 @@ void Surface::buildPrimitiveSamplerBuffers()
     orientation->getQuats(tangents, expandedCount);
     delete orientation;
 
-    mOwnedVB = filament::VertexBuffer::Builder()
-        .bufferCount(3)
-        .vertexCount(expandedCount)
-        .attribute(filament::VertexAttribute::POSITION, 0,
-            filament::VertexBuffer::AttributeType::FLOAT3)
-        .attribute(filament::VertexAttribute::TANGENTS, 1,
-            filament::VertexBuffer::AttributeType::SHORT4)
-        .normalized(filament::VertexAttribute::TANGENTS)
-        .attribute(filament::VertexAttribute::COLOR, 2,
-            filament::VertexBuffer::AttributeType::FLOAT4)
-        .build(*engine);
-
-    mOwnedVB->setBufferAt(*engine, 0,
-        filament::VertexBuffer::BufferDescriptor(
-            positions, expandedCount * sizeof(filament::math::float3),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::float3 *>(buf);
-            }));
-    mOwnedVB->setBufferAt(*engine, 1,
-        filament::VertexBuffer::BufferDescriptor(
-            tangents, expandedCount * sizeof(filament::math::short4),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::short4 *>(buf);
-            }));
-    mOwnedVB->setBufferAt(*engine, 2,
-        filament::VertexBuffer::BufferDescriptor(
-            colors, expandedCount * sizeof(filament::math::float4),
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<filament::math::float4 *>(buf);
-            }));
+    // Same layout as Geometry's meshes: POSITION alone in buffer 0, the rest
+    // interleaved in buffer 1 (UV0/UV1 default to zero). The builder copies
+    // every input, so free the CPU-side arrays once it returns.
+    mOwnedVB = Geometry::buildInterleavedVertexBuffer(engine, expandedCount,
+        positions, tangents, colors, nullptr, nullptr);
+    delete[] positions;
+    delete[] tangents;
+    delete[] colors;
 
     mOwnedIB = filament::IndexBuffer::Builder()
         .indexCount(expandedCount)
