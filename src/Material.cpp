@@ -12,6 +12,7 @@
 #include <filament/Texture.h>
 #include <filament/TextureSampler.h>
 
+#include <math/mat3.h>
 #include <math/mat4.h>
 
 #include <Corrade/Containers/StringStl.h>
@@ -23,13 +24,57 @@ namespace {
 
 filament::TextureSampler filamentSamplerFrom(const Halogen::Sampler &sampler)
 {
+    using Min = filament::TextureSampler::MinFilter;
+    using Mag = filament::TextureSampler::MagFilter;
     filament::TextureSampler out(
         sampler.isNearest()
-            ? filament::TextureSampler::MagFilter::NEAREST
-            : filament::TextureSampler::MagFilter::LINEAR);
+            ? Min::NEAREST
+            : Min::LINEAR_MIPMAP_LINEAR,
+        sampler.isNearest()
+            ? Mag::NEAREST
+            : Mag::LINEAR);
     out.setWrapModeS(sampler.wrapS());
     out.setWrapModeT(sampler.wrapT());
     return out;
+}
+
+int uvIndexOf(const Halogen::Sampler *sampler)
+{
+    int n = 0;
+    if (sampler)
+        n = sampler->uvIndex();
+    return n;
+}
+
+filament::math::mat3f uvMatrixOf(const Halogen::Sampler *sampler)
+{
+    filament::math::mat3f m;
+    if (sampler)
+        m = sampler->uvMatrix();
+    return m;
+}
+
+void bindTextureMap(filament::MaterialInstance *mi,
+    const char *mapName,
+    const char *hasName,
+    const char *uvName,
+    const char *matName,
+    Halogen::Sampler *sampler,
+    filament::Texture *dummy,
+    const filament::TextureSampler &dummySampler)
+{
+    if (sampler && sampler->texture()) {
+        mi->setParameter(hasName, true);
+        mi->setParameter(mapName, sampler->texture(),
+            filamentSamplerFrom(*sampler));
+        mi->setParameter(uvName, uvIndexOf(sampler));
+        mi->setParameter(matName, uvMatrixOf(sampler));
+    } else {
+        mi->setParameter(hasName, false);
+        mi->setParameter(mapName, dummy, dummySampler);
+        mi->setParameter(uvName, 0);
+        mi->setParameter(matName, filament::math::mat3f());
+    }
 }
 
 }
@@ -135,8 +180,19 @@ void Material::commitParameters()
         mMaterialInstance->setParameter("hasColorTransform", false);
     } else if (mColorSampler && mColorSampler->texture()) {
         mUsesVertexColors = false;
-        mMaterialInstance->setParameter("baseColor",
-            filament::math::float4{1.0f, 1.0f, 1.0f, 1.0f});
+        // glTF multiplies baseColorFactor * texture. Keep the factor when a
+        // map is bound (physicallyBased only -- unlit/matte have no factor
+        // slot). Default white matches callers that still bake the factor.
+        if (isPbr) {
+            using float4 = anari::math::float4;
+            const float4 factor = getParam<float4>(
+                "baseColorFactor", float4(1.0f, 1.0f, 1.0f, 1.0f));
+            mMaterialInstance->setParameter("baseColor",
+                filament::math::float4{factor[0], factor[1], factor[2], factor[3]});
+        } else {
+            mMaterialInstance->setParameter("baseColor",
+                filament::math::float4{1.0f, 1.0f, 1.0f, 1.0f});
+        }
         mMaterialInstance->setParameter("hasBaseColorMap", true);
         if (isMatte)
             mMaterialInstance->setParameter("hasColorTransform", false);
@@ -144,6 +200,12 @@ void Material::commitParameters()
         filament::TextureSampler sampler = filamentSamplerFrom(*mColorSampler);
         mMaterialInstance->setParameter("baseColorMap",
             mColorSampler->texture(), sampler);
+        if (isPbr) {
+            mMaterialInstance->setParameter("baseColorUV",
+                uvIndexOf(mColorSampler.ptr));
+            mMaterialInstance->setParameter("baseColorUvMatrix",
+                uvMatrixOf(mColorSampler.ptr));
+        }
     } else if (colorStr == "color"_s) {
         mUsesVertexColors = true;
         mMaterialInstance->setParameter("baseColor",
@@ -216,19 +278,16 @@ void Material::commitParameters()
             mMaterialInstance->setParameter("roughness", roughness);
         }
 
-        // Emissive: vec3, or an image2D sampler (ANARI physicallyBased).
-        // glTF's emissiveFactor is baked into the map by the caller, matching
-        // baseColor. Unsampled factor [1,1,1] plus a dark map would wash the
-        // surface white.
+        // Emissive: vec3 factor always, optional image2D sampler. glTF's
+        // emissiveFactor * texture is done in the shader. Callers that still
+        // bake the factor into the map leave emissiveFactor at white.
         mEmissiveSampler = getParamObject<Sampler>("emissive");
         if (mEmissiveSampler && mEmissiveSampler->texture()) {
+            using float3 = anari::math::float3;
+            const float3 factor = getParam<float3>(
+                "emissiveFactor", float3(1.0f, 1.0f, 1.0f));
             mMaterialInstance->setParameter("emissive",
-                filament::math::float3{1.0f, 1.0f, 1.0f});
-            mMaterialInstance->setParameter("hasEmissiveMap", true);
-            filament::TextureSampler emissiveSampler =
-                filamentSamplerFrom(*mEmissiveSampler);
-            mMaterialInstance->setParameter("emissiveMap",
-                mEmissiveSampler->texture(), emissiveSampler);
+                filament::math::float3{factor[0], factor[1], factor[2]});
         } else {
             mEmissiveSampler = nullptr;
             using float3 = anari::math::float3;
@@ -236,23 +295,40 @@ void Material::commitParameters()
                 "emissive", float3(0.0f, 0.0f, 0.0f));
             mMaterialInstance->setParameter("emissive",
                 filament::math::float3{emissive[0], emissive[1], emissive[2]});
-            mMaterialInstance->setParameter("hasEmissiveMap", false);
-            mMaterialInstance->setParameter("emissiveMap", dummy, dummySampler);
+        }
+        bindTextureMap(mMaterialInstance,
+            "emissiveMap", "hasEmissiveMap",
+            "emissiveUV", "emissiveUvMatrix",
+            mEmissiveSampler.ptr, dummy, dummySampler);
+
+        if (!(mColorSampler && mColorSampler->texture())) {
+            mMaterialInstance->setParameter("baseColorUV", 0);
+            mMaterialInstance->setParameter("baseColorUvMatrix",
+                filament::math::mat3f());
         }
 
-        // Normal map
+        mMetallicRoughnessSampler =
+            getParamObject<Sampler>("metallicRoughness");
+        bindTextureMap(mMaterialInstance,
+            "metallicRoughnessMap", "hasMetallicRoughnessMap",
+            "metallicRoughnessUV", "metallicRoughnessUvMatrix",
+            mMetallicRoughnessSampler.ptr, dummy, dummySampler);
+
         mNormalSampler = getParamObject<Sampler>("normal");
-        if (mNormalSampler && mNormalSampler->texture()) {
-            mMaterialInstance->setParameter("hasNormalMap", true);
-            filament::TextureSampler normalSampler =
-                filamentSamplerFrom(*mNormalSampler);
-            mMaterialInstance->setParameter("normalMap",
-                mNormalSampler->texture(), normalSampler);
-        } else {
-            mNormalSampler = nullptr;
-            mMaterialInstance->setParameter("hasNormalMap", false);
-            mMaterialInstance->setParameter("normalMap", dummy, dummySampler);
-        }
+        bindTextureMap(mMaterialInstance,
+            "normalMap", "hasNormalMap",
+            "normalUV", "normalUvMatrix",
+            mNormalSampler.ptr, dummy, dummySampler);
+        mMaterialInstance->setParameter("normalScale",
+            getParam<float>("normalScale", 1.0f));
+
+        mOcclusionSampler = getParamObject<Sampler>("occlusion");
+        bindTextureMap(mMaterialInstance,
+            "occlusionMap", "hasOcclusionMap",
+            "occlusionUV", "occlusionUvMatrix",
+            mOcclusionSampler.ptr, dummy, dummySampler);
+        mMaterialInstance->setParameter("occlusionStrength",
+            getParam<float>("occlusionStrength", 1.0f));
     }
 
     markCommitted();

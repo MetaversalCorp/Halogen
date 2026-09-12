@@ -70,6 +70,7 @@ private:
     FilamentResource<filament::Texture> mColorTexture;
     FilamentResource<filament::Texture> mDepthTexture;
     FilamentResource<filament::Texture> mBlackCubemap;
+    FilamentResource<filament::Texture> mIblCubemap;
     FilamentResource<filament::RenderTarget> mRenderTarget;
     FilamentResource<filament::IndirectLight> mIndirectLight;
 

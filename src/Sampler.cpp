@@ -9,6 +9,8 @@
 #include <filament/Texture.h>
 #include <filament/TextureSampler.h>
 
+#include <math/mat3.h>
+
 #include <backend/PixelBufferDescriptor.h>
 
 #include <helium/array/Array1D.h>
@@ -87,6 +89,12 @@ void Sampler::commitImage2D()
     mNearest = (filterStr == "nearest"_s);
     mWrapS = wrapFromString(getParamString("wrapMode1", "clampToEdge"));
     mWrapT = wrapFromString(getParamString("wrapMode2", "clampToEdge"));
+    mInAttribute = getParamString("inAttribute", "attribute0");
+    mTransform = getParam<anari::math::mat4>("inTransform",
+        anari::math::mat4(anari::math::identity));
+    const Corrade::Containers::String colorSpace =
+        getParamString("colorSpace", "linear");
+    mSrgb = (colorSpace == "sRGB"_s);
 
     const anari::math::uint2 dims = imageArray->size();
     const uint32_t width = dims[0];
@@ -94,14 +102,25 @@ void Sampler::commitImage2D()
     const ANARIDataType type = imageArray->elementType();
     const size_t numPixels = size_t(width) * height;
 
+    uint8_t levels = 1;
+    if (!mNearest) {
+        uint32_t m = width > height ? width : height;
+        while (m > 1) {
+            m >>= 1;
+            ++levels;
+        }
+    }
+
     auto *ownedData = new uint8_t[numPixels * 4];
     convertToRGBA8(ownedData, imageArray->data(), type, numPixels);
 
     mTexture = filament::Texture::Builder()
         .width(width)
         .height(height)
-        .levels(1)
-        .format(filament::Texture::InternalFormat::RGBA8)
+        .levels(levels)
+        .format(mSrgb
+            ? filament::Texture::InternalFormat::SRGB8_A8
+            : filament::Texture::InternalFormat::RGBA8)
         .sampler(filament::Texture::Sampler::SAMPLER_2D)
         .build(*engine);
 
@@ -114,8 +133,30 @@ void Sampler::commitImage2D()
             [](void *buf, size_t, void *) {
                 delete[] static_cast<uint8_t *>(buf);
             }));
+    if (levels > 1)
+        mTexture->generateMipmaps(*engine);
 
     markCommitted();
+}
+
+int Sampler::uvIndex() const
+{
+    int n = 0;
+    if (mInAttribute == "attribute1"_s)
+        n = 1;
+    return n;
+}
+
+filament::math::mat3f Sampler::uvMatrix() const
+{
+    // ANARI inTransform is column-vector: uv' = (M * vec4(u, v, 0, 1)).xy.
+    // Filament gltfio samples as (vec3(uv, 1) * mat3).xy, with translation in
+    // the third component of the first two columns.
+    const anari::math::mat4 &t = mTransform;
+    return filament::math::mat3f(
+        t[0][0], t[0][1], t[3][0],
+        t[1][0], t[1][1], t[3][1],
+        0.0f, 0.0f, 1.0f);
 }
 
 void Sampler::commitImage1D()

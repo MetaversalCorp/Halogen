@@ -1,8 +1,9 @@
 material {
     name : PhysicallyBasedMasked,
-    shadingModel : lit,
     blending : masked,
+    shadingModel : lit,
     doubleSided : true,
+    flipUV : false,
     parameters : [
         {
             type : float4,
@@ -42,11 +43,75 @@ material {
         },
         {
             type : sampler2d,
+            name : metallicRoughnessMap
+        },
+        {
+            type : bool,
+            name : hasMetallicRoughnessMap
+        },
+        {
+            type : sampler2d,
             name : normalMap
         },
         {
             type : bool,
             name : hasNormalMap
+        },
+        {
+            type : float,
+            name : normalScale
+        },
+        {
+            type : sampler2d,
+            name : occlusionMap
+        },
+        {
+            type : bool,
+            name : hasOcclusionMap
+        },
+        {
+            type : float,
+            name : occlusionStrength
+        },
+        {
+            type : int,
+            name : baseColorUV
+        },
+        {
+            type : int,
+            name : metallicRoughnessUV
+        },
+        {
+            type : int,
+            name : normalUV
+        },
+        {
+            type : int,
+            name : occlusionUV
+        },
+        {
+            type : int,
+            name : emissiveUV
+        },
+        {
+            type : mat3,
+            name : baseColorUvMatrix
+        },
+        {
+            type : mat3,
+            name : metallicRoughnessUvMatrix
+        },
+        {
+            type : mat3,
+            name : normalUvMatrix
+        },
+        {
+            type : mat3,
+            name : occlusionUvMatrix
+        },
+        {
+            type : mat3,
+            name : emissiveUvMatrix
         },
         {
             type : bool,
@@ -65,11 +130,24 @@ material {
 }
 
 fragment {
+    vec2 uvApply(int uvIndex, highp mat3 m) {
+        vec2 uv = (uvIndex == 1) ? getUV1() : getUV0();
+        return (vec3(uv, 1.0) * m).xy;
+    }
+
     void material(inout MaterialInputs material) {
+        if (materialParams.hasNormalMap) {
+            vec2 nUv = uvApply(materialParams.normalUV, materialParams.normalUvMatrix);
+            vec3 n = texture(materialParams_normalMap, nUv).xyz * 2.0 - 1.0;
+            n.xy *= materialParams.normalScale;
+            material.normal = n;
+        }
         prepareMaterial(material);
+
         float4 color = materialParams.baseColor * getColor();
         if (materialParams.hasBaseColorMap) {
-            color *= texture(materialParams_baseColorMap, getUV0());
+            vec2 bUv = uvApply(materialParams.baseColorUV, materialParams.baseColorUvMatrix);
+            color *= texture(materialParams_baseColorMap, bUv);
         }
         color.a *= materialParams.opacity;
         material.baseColor = color;
@@ -78,23 +156,33 @@ fragment {
         if (materialParams.useAttribute0ForMetallic) {
             m = getUV0().x;
         }
-        material.metallic = m;
-
         float r = materialParams.roughness;
         if (materialParams.useAttribute1ForRoughness) {
             r = getUV1().x;
         }
+        if (materialParams.hasMetallicRoughnessMap) {
+            vec2 ormUv = uvApply(materialParams.metallicRoughnessUV,
+                    materialParams.metallicRoughnessUvMatrix);
+            vec4 orm = texture(materialParams_metallicRoughnessMap, ormUv);
+            r *= orm.g;
+            m *= orm.b;
+        }
+        material.metallic = m;
         material.roughness = r;
 
         vec3 emissive = materialParams.emissive;
         if (materialParams.hasEmissiveMap) {
-            emissive *= texture(materialParams_emissiveMap, getUV0()).rgb;
+            vec2 eUv = uvApply(materialParams.emissiveUV, materialParams.emissiveUvMatrix);
+            emissive *= texture(materialParams_emissiveMap, eUv).rgb;
         }
         material.emissive = vec4(emissive, 0.0);
 
-        if (materialParams.hasNormalMap) {
-            vec3 n = texture(materialParams_normalMap, getUV0()).xyz * 2.0 - 1.0;
-            material.normal = n;
+        float ao = 1.0;
+        if (materialParams.hasOcclusionMap) {
+            vec2 oUv = uvApply(materialParams.occlusionUV, materialParams.occlusionUvMatrix);
+            ao = texture(materialParams_occlusionMap, oUv).r;
         }
+        material.ambientOcclusion =
+            1.0 + materialParams.occlusionStrength * (ao - 1.0);
     }
 }

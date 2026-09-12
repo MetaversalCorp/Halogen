@@ -11,6 +11,7 @@
 #include <filament/IndexBuffer.h>
 #include <filament/VertexBuffer.h>
 
+#include <math/vec2.h>
 #include <math/vec4.h>
 
 #include <geometry/SurfaceOrientation.h>
@@ -270,6 +271,26 @@ void Geometry::commitTriangle()
             : static_cast<const filament::math::float3 *>(norArray->data());
         if (norData)
             orientBuilder.normals(norData);
+    }
+
+    helium::Array1D *tanArray =
+        getParamObject<helium::Array1D>("vertex.tangent");
+    if (!primColArray && tanArray
+        && tanArray->elementType() == ANARI_FLOAT32_VEC4
+        && tanArray->totalSize() == numVertices) {
+        orientBuilder.tangents(
+            static_cast<const filament::math::float4 *>(tanArray->data()));
+    } else {
+        const filament::math::float2 *uvData = nullptr;
+        if (primColArray && expandedUV0.data())
+            uvData = expandedUV0.data();
+        else if (attr0Array
+            && attr0Array->elementType() == ANARI_FLOAT32_VEC2
+            && attr0Array->totalSize() == numVertices)
+            uvData = static_cast<const filament::math::float2 *>(
+                attr0Array->data());
+        if (uvData)
+            orientBuilder.uvs(uvData);
     }
 
     filament::geometry::SurfaceOrientation *orientation =

@@ -68,6 +68,8 @@ private:
     helium::IntrusivePtr<Sampler> mColorSampler;
     helium::IntrusivePtr<Sampler> mNormalSampler;
     helium::IntrusivePtr<Sampler> mEmissiveSampler;
+    helium::IntrusivePtr<Sampler> mMetallicRoughnessSampler;
+    helium::IntrusivePtr<Sampler> mOcclusionSampler;
     bool mUsesVertexColors = false;
     bool mUsesPrimitiveSampler = false;
 };

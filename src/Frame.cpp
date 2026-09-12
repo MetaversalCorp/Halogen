@@ -20,9 +20,83 @@
 
 #include <anari/frontend/type_utility.h>
 
+#include <cmath>
 #include <cstring>
 
 ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Frame *);
+
+namespace {
+
+filament::math::float3 cubemapDir(int face, float u, float v)
+{
+    const float a = 2.0f * u - 1.0f;
+    const float b = 2.0f * v - 1.0f;
+    filament::math::float3 d;
+    switch (face) {
+        case 0: d = { 1.0f, -b, -a}; break;
+        case 1: d = {-1.0f, -b,  a}; break;
+        case 2: d = { a,  1.0f,  b}; break;
+        case 3: d = { a, -1.0f, -b}; break;
+        case 4: d = { a, -b,  1.0f}; break;
+        default: d = {-a, -b, -1.0f}; break;
+    }
+    return normalize(d);
+}
+
+filament::Texture *makeStudioCubemap(filament::Engine *engine)
+{
+    constexpr uint32_t kSize = 32;
+    uint8_t levels = 1;
+    uint32_t m = kSize;
+    while (m > 1) {
+        m >>= 1;
+        ++levels;
+    }
+
+    filament::Texture *cubemap = filament::Texture::Builder()
+        .width(kSize)
+        .height(kSize)
+        .levels(levels)
+        .sampler(filament::Texture::Sampler::SAMPLER_CUBEMAP)
+        .format(filament::Texture::InternalFormat::RGBA8)
+        .build(*engine);
+
+    for (int face = 0; face < 6; ++face) {
+        auto *px = new uint8_t[kSize * kSize * 4];
+        for (uint32_t y = 0; y < kSize; ++y) {
+            for (uint32_t x = 0; x < kSize; ++x) {
+                const float u = (static_cast<float>(x) + 0.5f)
+                    / static_cast<float>(kSize);
+                const float v = (static_cast<float>(y) + 0.5f)
+                    / static_cast<float>(kSize);
+                const filament::math::float3 dir = cubemapDir(face, u, v);
+                // Sneeze world is Z-up; the cubemap is sampled in that frame.
+                const float t = 0.5f * (dir.z + 1.0f);
+                const float r = 0.22f + (0.78f - 0.22f) * t;
+                const float g = 0.20f + (0.82f - 0.20f) * t;
+                const float b = 0.18f + (0.90f - 0.18f) * t;
+                const size_t i = (static_cast<size_t>(y) * kSize + x) * 4;
+                px[i + 0] = static_cast<uint8_t>(r * 255.0f + 0.5f);
+                px[i + 1] = static_cast<uint8_t>(g * 255.0f + 0.5f);
+                px[i + 2] = static_cast<uint8_t>(b * 255.0f + 0.5f);
+                px[i + 3] = 255;
+            }
+        }
+        cubemap->setImage(*engine, 0,
+            0, 0, static_cast<uint32_t>(face), kSize, kSize, 1,
+            filament::backend::PixelBufferDescriptor(
+                px, kSize * kSize * 4,
+                filament::backend::PixelDataFormat::RGBA,
+                filament::backend::PixelDataType::UBYTE,
+                [](void *buf, size_t, void *) {
+                    delete[] static_cast<uint8_t *>(buf);
+                }));
+    }
+    cubemap->generateMipmaps(*engine);
+    return cubemap;
+}
+
+}
 
 namespace Halogen {
 
@@ -33,6 +107,7 @@ Frame::Frame(DeviceState *s)
     , mColorTexture(s->engine, nullptr)
     , mDepthTexture(s->engine, nullptr)
     , mBlackCubemap(s->engine, nullptr)
+    , mIblCubemap(s->engine, nullptr)
     , mRenderTarget(s->engine, nullptr)
     , mIndirectLight(s->engine, nullptr)
 {
@@ -161,24 +236,28 @@ void Frame::renderFrame()
 
     // Set up indirect (image-based) lighting.
     //
-    // When the renderer's ambientRadiance > 0, honour the user-specified
-    // uniform ambient.  Otherwise, apply a default 3-band spherical-
-    // harmonics environment (from Filament's "lightroom_14b" asset) so
-    // that PBR materials look reasonable out of the box.
+    // When ambientRadiance > 0, SH irradiance follows ambientColor and a
+    // small studio cubemap supplies specular reflections (Filament's default
+    // specular fallback is a 1x1 and looks dead on metals). When ambient is
+    // 0, a black cubemap at intensity 0 suppresses that fallback.
     mIndirectLight.reset();
     if (mRenderer && mRenderer->ambientRadiance() > 0.0f) {
         const anari::math::float3 ac = mRenderer->ambientColor();
         const float ar = mRenderer->ambientRadiance();
 
+        if (!mIblCubemap)
+            mIblCubemap.reset(makeStudioCubemap(engine));
+
         const filament::math::float3 sh[1] = {
             {ac[0], ac[1], ac[2]}};
         mIndirectLight.reset(
             filament::IndirectLight::Builder()
+                .reflections(mIblCubemap.get())
                 .irradiance(1, sh)
                 .intensity(ar)
                 .build(*engine));
     } else {
-        // No explicit ambient: provide a black 1×1 cubemap as the reflection
+        // No explicit ambient: provide a black 1x1 cubemap as the reflection
         // environment so Filament uses it instead of its built-in default
         // specular fallback (which contributes ~1.0 regardless of intensity).
         // Created lazily and reused across frames.

@@ -7,6 +7,7 @@
 
 #include <anari/anari_cpp/ext/linalg.h>
 #include <filament/TextureSampler.h>
+#include <math/mat3.h>
 #include <math/vec4.h>
 
 #include <Corrade/Containers/Array.h>
@@ -27,6 +28,9 @@ struct Sampler : public Object
 
     filament::Texture *texture() const { return mTexture; }
     bool isNearest() const { return mNearest; }
+    bool isSrgb() const { return mSrgb; }
+    int uvIndex() const;
+    filament::math::mat3f uvMatrix() const;
     filament::TextureSampler::WrapMode wrapS() const { return mWrapS; }
     filament::TextureSampler::WrapMode wrapT() const { return mWrapT; }
 
@@ -64,6 +68,8 @@ private:
     Corrade::Containers::String mSubtype;
     filament::Texture *mTexture = nullptr;
     bool mNearest = false;
+    bool mSrgb = false;
+    Corrade::Containers::String mInAttribute;
     filament::TextureSampler::WrapMode mWrapS =
         filament::TextureSampler::WrapMode::CLAMP_TO_EDGE;
     filament::TextureSampler::WrapMode mWrapT =
