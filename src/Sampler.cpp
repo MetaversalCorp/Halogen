@@ -114,6 +114,10 @@ void Sampler::commitImage2D()
     auto *ownedData = new uint8_t[numPixels * 4];
     convertToRGBA8(ownedData, imageArray->data(), type, numPixels);
 
+    auto texUsage = filament::Texture::Usage::DEFAULT;
+    if (levels > 1) {
+        texUsage = texUsage | filament::Texture::Usage::GEN_MIPMAPPABLE;
+    }
     mTexture = filament::Texture::Builder()
         .width(width)
         .height(height)
@@ -122,6 +126,7 @@ void Sampler::commitImage2D()
             ? filament::Texture::InternalFormat::SRGB8_A8
             : filament::Texture::InternalFormat::RGBA8)
         .sampler(filament::Texture::Sampler::SAMPLER_2D)
+        .usage(texUsage)
         .build(*engine);
 
     using namespace filament::backend;

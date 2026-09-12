@@ -59,6 +59,8 @@ filament::Texture *makeStudioCubemap(filament::Engine *engine)
         .levels(levels)
         .sampler(filament::Texture::Sampler::SAMPLER_CUBEMAP)
         .format(filament::Texture::InternalFormat::RGBA8)
+        .usage(filament::Texture::Usage::DEFAULT
+            | filament::Texture::Usage::GEN_MIPMAPPABLE)
         .build(*engine);
 
     for (int face = 0; face < 6; ++face) {
