@@ -73,11 +73,6 @@ void Sampler::commitImage2D()
 {
     filament::Engine * const engine = deviceState()->engine;
 
-    if (mTexture) {
-        engine->destroy(mTexture);
-        mTexture = nullptr;
-    }
-
     auto *imageArray = getParamObject<helium::Array2D>("image");
     if (!imageArray) {
         reportMessage(ANARI_SEVERITY_ERROR,
@@ -114,20 +109,37 @@ void Sampler::commitImage2D()
     auto *ownedData = new uint8_t[numPixels * 4];
     convertToRGBA8(ownedData, imageArray->data(), type, numPixels);
 
-    auto texUsage = filament::Texture::Usage::DEFAULT;
-    if (levels > 1) {
-        texUsage = texUsage | filament::Texture::Usage::GEN_MIPMAPPABLE;
+    const filament::Texture::InternalFormat fmt = mSrgb
+        ? filament::Texture::InternalFormat::SRGB8_A8
+        : filament::Texture::InternalFormat::RGBA8;
+
+    // Keep the Filament Texture when size/format match. destroy()+Builder on a
+    // sampler the MaterialInstance still samples aborts Filament. Live video
+    // (and any later image2D rewrite) must setImage the existing object.
+    const bool reuse = mTexture
+        && mTexture->getWidth() == width
+        && mTexture->getHeight() == height
+        && mTexture->getFormat() == fmt
+        && mTexture->getLevels() == levels;
+
+    if (!reuse) {
+        if (mTexture) {
+            engine->destroy(mTexture);
+            mTexture = nullptr;
+        }
+        auto texUsage = filament::Texture::Usage::DEFAULT;
+        if (levels > 1) {
+            texUsage = texUsage | filament::Texture::Usage::GEN_MIPMAPPABLE;
+        }
+        mTexture = filament::Texture::Builder()
+            .width(width)
+            .height(height)
+            .levels(levels)
+            .format(fmt)
+            .sampler(filament::Texture::Sampler::SAMPLER_2D)
+            .usage(texUsage)
+            .build(*engine);
     }
-    mTexture = filament::Texture::Builder()
-        .width(width)
-        .height(height)
-        .levels(levels)
-        .format(mSrgb
-            ? filament::Texture::InternalFormat::SRGB8_A8
-            : filament::Texture::InternalFormat::RGBA8)
-        .sampler(filament::Texture::Sampler::SAMPLER_2D)
-        .usage(texUsage)
-        .build(*engine);
 
     using namespace filament::backend;
     mTexture->setImage(*engine, 0,
