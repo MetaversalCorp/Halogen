@@ -27,6 +27,30 @@ using namespace Corrade::Containers::Literals;
 
 namespace {
 
+// 2x2 box. Live image2D rewrites (the camera panel) call setImage on LOD0
+// and then generateMipmaps. On Vulkan that blit can sample the previous
+// LOD0, so LOD1 stays stale while LOD0 moves. Uploading LOD1+ from this
+// buffer writes the same frame into every level.
+void downsampleBox(const uint8_t *src, uint32_t sw, uint32_t sh,
+    uint8_t *dst, uint32_t dw, uint32_t dh)
+{
+    for (uint32_t y = 0; y < dh; ++y) {
+        uint32_t const y0 = y * 2;
+        uint32_t const y1 = std::min(y0 + 1, sh - 1);
+        for (uint32_t x = 0; x < dw; ++x) {
+            uint32_t const x0 = x * 2;
+            uint32_t const x1 = std::min(x0 + 1, sw - 1);
+            uint8_t const *p00 = src + (size_t(y0) * sw + x0) * 4;
+            uint8_t const *p10 = src + (size_t(y0) * sw + x1) * 4;
+            uint8_t const *p01 = src + (size_t(y1) * sw + x0) * 4;
+            uint8_t const *p11 = src + (size_t(y1) * sw + x1) * 4;
+            uint8_t *o = dst + (size_t(y) * dw + x) * 4;
+            for (int c = 0; c < 4; ++c)
+                o[c] = uint8_t((int(p00[c]) + p10[c] + p01[c] + p11[c]) / 4);
+        }
+    }
+}
+
 filament::TextureSampler::WrapMode wrapFromString(
     const Corrade::Containers::String &s)
 {
@@ -142,15 +166,39 @@ void Sampler::commitImage2D()
     }
 
     using namespace filament::backend;
-    mTexture->setImage(*engine, 0,
-        PixelBufferDescriptor(
-            ownedData, numPixels * 4,
+    auto upload = [](void *buf, uint32_t w, uint32_t h) {
+        return PixelBufferDescriptor(
+            buf, size_t(w) * h * 4,
             PixelDataFormat::RGBA,
             PixelDataType::UBYTE,
-            [](void *buf, size_t, void *) {
-                delete[] static_cast<uint8_t *>(buf);
-            }));
-    if (levels > 1)
+            [](void *p, size_t, void *) {
+                delete[] static_cast<uint8_t *>(p);
+            });
+    };
+    // Build the chain before any setImage. The upload callback can free a
+    // level as soon as that call returns.
+    uint8_t *levelData[16] = {};
+    uint32_t levelW[16] = {};
+    uint32_t levelH[16] = {};
+    levelData[0] = ownedData;
+    levelW[0] = width;
+    levelH[0] = height;
+    uint8_t chain = 1;
+    if (levels > 1 && reuse) {
+        for (uint8_t level = 1; level < levels && level < 16; ++level) {
+            uint32_t const nw = std::max(levelW[level - 1] >> 1, 1u);
+            uint32_t const nh = std::max(levelH[level - 1] >> 1, 1u);
+            auto *next = new uint8_t[size_t(nw) * nh * 4];
+            downsampleBox(levelData[level - 1], levelW[level - 1], levelH[level - 1], next, nw, nh);
+            levelData[level] = next;
+            levelW[level] = nw;
+            levelH[level] = nh;
+            chain = uint8_t(level + 1);
+        }
+    }
+    for (uint8_t level = 0; level < chain; ++level)
+        mTexture->setImage(*engine, level, upload(levelData[level], levelW[level], levelH[level]));
+    if (levels > 1 && !reuse)
         mTexture->generateMipmaps(*engine);
 
     markCommitted();
