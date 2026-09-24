@@ -28,6 +28,7 @@ struct Geometry : public Object
     bool hasVertexColors() const { return mHasColors; }
     bool hasUV0() const { return mHasUV0; }
     bool hasUV1() const { return mHasUV1; }
+    bool hasSkinning() const { return mHasSkinning; }
 
     const Aabb &aabb() const { return mAabb; }
 
@@ -55,6 +56,7 @@ private:
     bool mHasColors = false;
     bool mHasUV0 = false;
     bool mHasUV1 = false;
+    bool mHasSkinning = false;
     Aabb mAabb;
 };
 

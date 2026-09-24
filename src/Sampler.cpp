@@ -7,6 +7,9 @@
 
 #include <filament/Engine.h>
 #include <filament/Texture.h>
+#include <filament/TextureSampler.h>
+
+#include <math/mat3.h>
 
 #include <backend/PixelBufferDescriptor.h>
 
@@ -21,6 +24,22 @@
 #include <algorithm>
 
 using namespace Corrade::Containers::Literals;
+
+namespace {
+
+filament::TextureSampler::WrapMode wrapFromString(
+    const Corrade::Containers::String &s)
+{
+    filament::TextureSampler::WrapMode wrap =
+        filament::TextureSampler::WrapMode::CLAMP_TO_EDGE;
+    if (s == "repeat"_s)
+        wrap = filament::TextureSampler::WrapMode::REPEAT;
+    else if (s == "mirrorRepeat"_s)
+        wrap = filament::TextureSampler::WrapMode::MIRRORED_REPEAT;
+    return wrap;
+}
+
+}
 
 ANARI_HALOGEN_TYPEFOR_DEFINITION(Halogen::Sampler *);
 
@@ -54,11 +73,6 @@ void Sampler::commitImage2D()
 {
     filament::Engine * const engine = deviceState()->engine;
 
-    if (mTexture) {
-        engine->destroy(mTexture);
-        mTexture = nullptr;
-    }
-
     auto *imageArray = getParamObject<helium::Array2D>("image");
     if (!imageArray) {
         reportMessage(ANARI_SEVERITY_ERROR,
@@ -68,6 +82,14 @@ void Sampler::commitImage2D()
 
     const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
+    mWrapS = wrapFromString(getParamString("wrapMode1", "clampToEdge"));
+    mWrapT = wrapFromString(getParamString("wrapMode2", "clampToEdge"));
+    mInAttribute = getParamString("inAttribute", "attribute0");
+    mTransform = getParam<anari::math::mat4>("inTransform",
+        anari::math::mat4(anari::math::identity));
+    const Corrade::Containers::String colorSpace =
+        getParamString("colorSpace", "linear");
+    mSrgb = (colorSpace == "sRGB"_s);
 
     const anari::math::uint2 dims = imageArray->size();
     const uint32_t width = dims[0];
@@ -75,16 +97,49 @@ void Sampler::commitImage2D()
     const ANARIDataType type = imageArray->elementType();
     const size_t numPixels = size_t(width) * height;
 
+    uint8_t levels = 1;
+    if (!mNearest) {
+        uint32_t m = width > height ? width : height;
+        while (m > 1) {
+            m >>= 1;
+            ++levels;
+        }
+    }
+
     auto *ownedData = new uint8_t[numPixels * 4];
     convertToRGBA8(ownedData, imageArray->data(), type, numPixels);
 
-    mTexture = filament::Texture::Builder()
-        .width(width)
-        .height(height)
-        .levels(1)
-        .format(filament::Texture::InternalFormat::RGBA8)
-        .sampler(filament::Texture::Sampler::SAMPLER_2D)
-        .build(*engine);
+    const filament::Texture::InternalFormat fmt = mSrgb
+        ? filament::Texture::InternalFormat::SRGB8_A8
+        : filament::Texture::InternalFormat::RGBA8;
+
+    // Keep the Filament Texture when size/format match. destroy()+Builder on a
+    // sampler the MaterialInstance still samples aborts Filament. Live video
+    // (and any later image2D rewrite) must setImage the existing object.
+    const bool reuse = mTexture
+        && mTexture->getWidth() == width
+        && mTexture->getHeight() == height
+        && mTexture->getFormat() == fmt
+        && mTexture->getLevels() == levels;
+
+    if (!reuse) {
+        if (mTexture) {
+            engine->destroy(mTexture);
+            mTexture = nullptr;
+        }
+        auto texUsage = filament::Texture::Usage::DEFAULT;
+        if (levels > 1) {
+            texUsage = texUsage | filament::Texture::Usage::GEN_MIPMAPPABLE;
+        }
+        mTexture = filament::Texture::Builder()
+            .width(width)
+            .height(height)
+            .levels(levels)
+            .format(fmt)
+            .sampler(filament::Texture::Sampler::SAMPLER_2D)
+            .usage(texUsage)
+            .build(*engine);
+    }
 
     using namespace filament::backend;
     mTexture->setImage(*engine, 0,
@@ -95,8 +150,30 @@ void Sampler::commitImage2D()
             [](void *buf, size_t, void *) {
                 delete[] static_cast<uint8_t *>(buf);
             }));
+    if (levels > 1)
+        mTexture->generateMipmaps(*engine);
 
     markCommitted();
+}
+
+int Sampler::uvIndex() const
+{
+    int n = 0;
+    if (mInAttribute == "attribute1"_s)
+        n = 1;
+    return n;
+}
+
+filament::math::mat3f Sampler::uvMatrix() const
+{
+    // ANARI inTransform is column-vector: uv' = (M * vec4(u, v, 0, 1)).xy.
+    // Filament gltfio samples as (vec3(uv, 1) * mat3).xy, with translation in
+    // the third component of the first two columns.
+    const anari::math::mat4 &t = mTransform;
+    return filament::math::mat3f(
+        t[0][0], t[0][1], t[3][0],
+        t[1][0], t[1][1], t[3][1],
+        0.0f, 0.0f, 1.0f);
 }
 
 void Sampler::commitImage1D()
@@ -117,6 +194,8 @@ void Sampler::commitImage1D()
 
     const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
+    mWrapS = wrapFromString(getParamString("wrapMode", "clampToEdge"));
+    mWrapT = mWrapS;
 
     const uint32_t width = uint32_t(imageArray->totalSize());
     const ANARIDataType type = imageArray->elementType();
@@ -164,6 +243,8 @@ void Sampler::commitImage3D()
 
     const Corrade::Containers::String filterStr = getParamString("filter", "linear");
     mNearest = (filterStr == "nearest"_s);
+    mWrapS = wrapFromString(getParamString("wrapMode1", "clampToEdge"));
+    mWrapT = wrapFromString(getParamString("wrapMode2", "clampToEdge"));
 
     const anari::math::uint3 dims = imageArray->size();
     const uint32_t width = dims[0];

@@ -1,6 +1,7 @@
 material {
     name : Matte,
     shadingModel : lit,
+    doubleSided : true,
     parameters : [
         {
             type : float4,
