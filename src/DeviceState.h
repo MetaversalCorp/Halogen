@@ -7,11 +7,16 @@
 
 #include <helium/BaseGlobalDeviceState.h>
 
+#include <memory>
+
 namespace filament {
 class Engine;
 class Renderer;
 class Material;
 class Texture;
+namespace backend {
+class VulkanPlatform;
+}
 }
 
 namespace Halogen {
@@ -19,6 +24,7 @@ namespace Halogen {
 struct DeviceState : public helium::BaseGlobalDeviceState
 {
     filament::Engine *engine = nullptr;
+    std::unique_ptr<filament::backend::VulkanPlatform> vulkanPlatform;
     FilamentResource<filament::Renderer> renderer;
     FilamentResource<filament::Material> matteMaterial;
     FilamentResource<filament::Material> matteBlendMaterial;

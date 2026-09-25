@@ -11,6 +11,7 @@
 #include <helium/utility/IntrusivePtr.h>
 #include <utils/Entity.h>
 
+#include <unordered_map>
 #include <vector>
 
 namespace filament {
@@ -41,6 +42,10 @@ private:
         std::vector<utils::Entity> &aWorldEntity);
     void appendEntitiesForInstance(Instance *inst,
         std::vector<utils::Entity> &aWorldEntity);
+    // Point a kept instance's renderables at their geometry's current buffers.
+    // Geometry::retireBuffers() destroys the generation from two commits ago,
+    // so a renderable left on an old generation is drawn from freed memory.
+    void rebindChangedGeometry(Instance *inst);
     bool instancesArePrefixGrow(const std::vector<Instance *> &aWant) const;
 
     filament::Scene *mScene = nullptr;
@@ -57,6 +62,11 @@ private:
     // Array) because IntrusivePtr's move ctor is not noexcept, which the
     // Corrade array's nothrow-move-constructible static_assert rejects.
     std::vector<helium::IntrusivePtr<helium::BaseObject>> mObserved;
+
+    // Geometry buffer generation each instance entity was built against,
+    // keyed by entity id, so rebindChangedGeometry() can tell a regenerated
+    // geometry apart from an untouched one without rebuilding every renderable.
+    std::unordered_map<uint32_t, uint64_t> mEntityBufferGeneration;
 };
 
 }

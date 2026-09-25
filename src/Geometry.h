@@ -25,6 +25,9 @@ struct Geometry : public Object
     filament::VertexBuffer *vertexBuffer() const { return mVertexBuffer; }
     filament::IndexBuffer *indexBuffer() const { return mIndexBuffer; }
     uint32_t indexCount() const { return mIndexCount; }
+    // Bumped every time the buffers are regenerated. Pointer identity cannot
+    // detect a regeneration: the freed buffer's address is often reused.
+    uint64_t bufferGeneration() const { return mBufferGeneration; }
     bool hasVertexColors() const { return mHasColors; }
     bool hasUV0() const { return mHasUV0; }
     bool hasUV1() const { return mHasUV1; }
@@ -52,6 +55,7 @@ private:
     filament::IndexBuffer *mIndexBuffer = nullptr;
     filament::VertexBuffer *mPrevVertexBuffer = nullptr;
     filament::IndexBuffer *mPrevIndexBuffer = nullptr;
+    uint64_t mBufferGeneration = 0;
     uint32_t mIndexCount = 0;
     bool mHasColors = false;
     bool mHasUV0 = false;

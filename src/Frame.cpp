@@ -168,6 +168,7 @@ void Frame::commitParameters()
         getParamObject<Object>("nativeSurface"));
 
     if (mNativeSurface
+        && !mNativeSurface->hasExternalImage()
         && (mWidth != mLastCommittedWidth || mHeight != mLastCommittedHeight)
         && (mLastCommittedWidth != 0 || mLastCommittedHeight != 0)) {
         mNativeSurface->rebuildSwapChain();
@@ -193,8 +194,12 @@ void Frame::renderFrame()
     if (!isValid())
         return;
 
+    const bool xrImage =
+        mNativeSurface && mNativeSurface->hasExternalImage()
+        && mNativeSurface->externalWidth() > 0
+        && mNativeSurface->externalHeight() > 0;
     const bool nativeSurface =
-        mNativeSurface && mNativeSurface->isValid();
+        !xrImage && mNativeSurface && mNativeSurface->isValid();
 
     // flushAndWait serializes the compositor behind every GPU upload and the
     // previous frame's render. Required for the CPU readback path (pixels
@@ -203,7 +208,7 @@ void Frame::renderFrame()
     // permanent compositor hang (camera, FPS log, and host Cancel all freeze).
     // Filament's beginFrame already waits for the swapchain; buffer uploads
     // complete on the driver thread before the draw that uses them.
-    if (!nativeSurface) {
+    if (!nativeSurface && !xrImage) {
         engine->flushAndWait();
         mReadbackScheduled = false;
     }
@@ -216,6 +221,23 @@ void Frame::renderFrame()
         // values in the readback buffer.  MSAA is not needed for pixel-exact
         // float output (Blender composites the raw values).
         mView->setPostProcessingEnabled(false);
+    } else if (xrImage) {
+        // OpenXR / Quest: screenshot-quality post (4x MSAA, FXAA, bloom) at
+        // recommended eye resolution, twice, misses the 72 Hz budget. Keep
+        // the colour pass cheap; the HMD compositor already anti-aliases.
+        mView->setPostProcessingEnabled(false);
+        mView->setColorGrading(nullptr);
+        mView->setAntiAliasing(filament::View::AntiAliasing::NONE);
+        mView->setDithering(filament::View::Dithering::NONE);
+        filament::View::MultiSampleAntiAliasingOptions msaa;
+        msaa.enabled = false;
+        msaa.sampleCount = 1;
+        mView->setMultiSampleAntiAliasingOptions(msaa);
+        filament::View::BloomOptions bloom;
+        bloom.enabled = false;
+        mView->setBloomOptions(bloom);
+        mView->setShadowingEnabled(false);
+        mView->setFrustumCullingEnabled(true);
     } else {
         // SRGB output: full post-processing with ACES tonemapping, FXAA,
         // 4x MSAA, and subtle bloom for visual quality in screenshots.
@@ -231,10 +253,9 @@ void Frame::renderFrame()
         bloom.enabled = true;
         bloom.strength = 0.1f;
         mView->setBloomOptions(bloom);
+        mView->setShadowingEnabled(true);
+        mView->setShadowType(filament::View::ShadowType::PCF);
     }
-
-    // Enable soft shadows (PCF)
-    mView->setShadowType(filament::View::ShadowType::PCF);
 
     // Set up indirect (image-based) lighting.
     //
@@ -311,7 +332,88 @@ void Frame::renderFrame()
 
     mFrameReady = false;
 
-    if (nativeSurface) {
+    if (xrImage) {
+        // Imported OpenXR VkImage. Cache a Filament RenderTarget per swapchain
+        // image so cycling the three acquired handles does not rebuild textures
+        // (and flushAndWait) every eye. renderStandaloneView so Filament's
+        // beginFrame skipper cannot drop an eye. flushAndWait only when the
+        // caller asked (last stereo eye) so both eyes share one GPU drain.
+        const uint32_t xrWidth = mNativeSurface->externalWidth();
+        const uint32_t xrHeight = mNativeSurface->externalHeight();
+        const uint64_t xrHandle = mNativeSurface->externalImage();
+        const uint32_t xrFmt = mNativeSurface->externalFormat();
+        mWidth = xrWidth;
+        mHeight = xrHeight;
+        mView->setViewport({0, 0, xrWidth, xrHeight});
+
+        Frame::XR_TARGET *pTarget = nullptr;
+        for (Frame::XR_TARGET &Slot : mXrTargets) {
+            if (Slot.nImage == xrHandle && Slot.nWidth == xrWidth
+                    && Slot.nHeight == xrHeight && Slot.nFormat == xrFmt) {
+                pTarget = &Slot;
+                break;
+            }
+        }
+
+        if (!pTarget) {
+            if (mXrTargets.size() >= 16) {
+                engine->flushAndWait();
+                mXrTargets.clear();
+            }
+
+            mXrTargets.emplace_back(engine, xrHandle, xrWidth, xrHeight, xrFmt);
+            pTarget = &mXrTargets.back();
+
+            const auto colorFmt = (xrFmt == 37)
+                ? filament::Texture::InternalFormat::RGBA8
+                : filament::Texture::InternalFormat::SRGB8_A8;
+
+            pTarget->color.reset(filament::Texture::Builder()
+                .width(xrWidth)
+                .height(xrHeight)
+                .levels(1)
+                .format(colorFmt)
+                .usage(filament::Texture::Usage::COLOR_ATTACHMENT
+                    | filament::Texture::Usage::SAMPLEABLE
+                    | filament::Texture::Usage::BLIT_SRC)
+                .import(static_cast<intptr_t>(
+                    static_cast<uintptr_t>(xrHandle)))
+                .build(*engine));
+
+            pTarget->depth.reset(filament::Texture::Builder()
+                .width(xrWidth)
+                .height(xrHeight)
+                .levels(1)
+                .format(filament::Texture::InternalFormat::DEPTH32F)
+                .usage(filament::Texture::Usage::DEPTH_ATTACHMENT
+                    | filament::Texture::Usage::BLIT_SRC)
+                .build(*engine));
+
+            pTarget->target.reset(filament::RenderTarget::Builder()
+                .texture(filament::RenderTarget::AttachmentPoint::COLOR0,
+                    pTarget->color.get())
+                .texture(filament::RenderTarget::AttachmentPoint::DEPTH,
+                    pTarget->depth.get())
+                .build(*engine));
+        }
+
+        mXrImage = xrHandle;
+        mView->setRenderTarget(pTarget->target.get());
+
+        if (mRenderer) {
+            const anari::math::float4 bg = mRenderer->backgroundColor();
+            filament::Renderer::ClearOptions clearOpts;
+            clearOpts.clearColor = {bg[0], bg[1], bg[2], bg[3]};
+            clearOpts.clear = true;
+            clearOpts.discard = true;
+            renderer->setClearOptions(clearOpts);
+        }
+
+        renderer->renderStandaloneView(mView.get());
+        if (mNativeSurface->waitGpu())
+            engine->flushAndWait();
+        mPresented = true;
+    } else if (nativeSurface) {
         // -- Native surface path: render directly to the platform window --
         // No offscreen render target, no pixel readback, no vertical flip.
         mView->setRenderTarget(nullptr);

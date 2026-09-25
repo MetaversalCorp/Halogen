@@ -74,6 +74,7 @@ void World::clearInstanceEntities()
         engine->getTransformManager().destroy(e);
         utils::EntityManager::get().destroy(e);
     }
+    mEntityBufferGeneration.clear();
     mInstanceEntities = {};
 }
 
@@ -191,6 +192,7 @@ void World::appendEntitiesForInstance(Instance *inst,
             builder.culling(false);
         }
         builder.build(*engine, e);
+        mEntityBufferGeneration[e.getId()] = geom->bufferGeneration();
 
         tcm.create(e);
         auto ti = tcm.getInstance(e);
@@ -213,6 +215,47 @@ void World::appendEntitiesForInstance(Instance *inst,
     for (size_t k = 0; k < aEntity_New.size(); ++k)
         new (&aEntity[k]) utils::Entity{aEntity_New[k]};
     inst->appendEntities(std::move(aEntity));
+}
+
+void World::rebindChangedGeometry(Instance *inst)
+{
+    if (!inst || !inst->group() || inst->entityCount() == 0)
+        return;
+
+    filament::Engine * const engine = deviceState()->engine;
+    auto &rcm = engine->getRenderableManager();
+    const Corrade::Containers::Array<utils::Entity> &aEntity = inst->entities();
+    size_t k = 0;
+
+    // Same walk order as appendEntitiesForInstance: one entity per renderable
+    // surface, in group order.
+    for (const helium::IntrusivePtr<Surface> &surf : inst->group()->surfaces()) {
+        if (!surf || !surf->isValid())
+            continue;
+        Geometry *geom = surf->geometry();
+        Material *mat = surf->material();
+        if (!geom || !mat)
+            continue;
+        if (k >= aEntity.size())
+            break;
+
+        const utils::Entity e = aEntity[k++];
+        auto it = mEntityBufferGeneration.find(e.getId());
+        if (it == mEntityBufferGeneration.end() || it->second == geom->bufferGeneration())
+            continue;
+
+        auto ri = rcm.getInstance(e);
+        if (!ri)
+            continue;
+
+        rcm.setGeometryAt(ri, 0,
+            filament::RenderableManager::PrimitiveType::TRIANGLES,
+            geom->vertexBuffer(), geom->indexBuffer(), 0, geom->indexCount());
+        const Aabb &geomAabb = geom->aabb();
+        rcm.setAxisAlignedBoundingBox(ri,
+            filament::Box{geomAabb.center(), geomAabb.halfExtent()});
+        it->second = geom->bufferGeneration();
+    }
 }
 
 void World::createEntitiesForInstance(Instance *inst,
@@ -299,6 +342,7 @@ void World::finalize()
         aWorldEntity.push_back(mInstanceEntities[i]);
     for (size_t i = 0; i < nKeep; ++i) {
         aInst.emplace_back(mInstances[i]);
+        rebindChangedGeometry(aWant[i]);
         const size_t nBefore = aWorldEntity.size();
         appendEntitiesForInstance(aWant[i], aWorldEntity);
         if (aWorldEntity.size() > nBefore)
