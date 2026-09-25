@@ -25,6 +25,21 @@ void Instance::setEntities(Corrade::Containers::Array<utils::Entity> aEntity)
     mBonesOnGpu = true;
 }
 
+void Instance::appendEntities(Corrade::Containers::Array<utils::Entity> aMore)
+{
+    if (aMore.isEmpty())
+        return;
+
+    Corrade::Containers::Array<utils::Entity> aAll{
+        Corrade::NoInit, mEntities.size() + aMore.size()};
+    for (size_t i = 0; i < mEntities.size(); ++i)
+        new (&aAll[i]) utils::Entity{mEntities[i]};
+    for (size_t i = 0; i < aMore.size(); ++i)
+        new (&aAll[mEntities.size() + i]) utils::Entity{aMore[i]};
+    mEntities = std::move(aAll);
+    mBonesOnGpu = true;
+}
+
 void Instance::clearEntities()
 {
     mEntities = {};
@@ -85,8 +100,12 @@ void Instance::commitParameters()
     // Re-apply the (possibly updated) transform to this instance's Filament
     // entities. World::finalize() sets it once at build time and only re-runs
     // on a structural change, so an animated instance would otherwise stay
-    // frozen at its build-time transform. Bone palettes follow the same path
-    // via setBones so a pose change does not rebuild vertex buffers.
+    // frozen at its build-time transform. This is the per-frame commit helium
+    // actually runs for a moving instance. Bone palettes follow the same path
+    // via setBones so a pose change does not rebuild vertex buffers. Skip
+    // setBones when the palette is unchanged: a transform-only commit on a
+    // 137-bone crowd would otherwise copy every surface's palette into the
+    // command stream and overflow minCommandBufferSizeMB.
     if (!mEntities.isEmpty())
     {
         auto &tcm = deviceState()->engine->getTransformManager();

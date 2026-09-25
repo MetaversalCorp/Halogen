@@ -316,16 +316,31 @@ void Device::initDevice()
             backend = filament::Engine::Backend::NOOP;
     }
 
+    // Default minCommandBufferSizeMB is 1 and commandBufferSizeMB is 3.
+    // World::finalize and Instance::setBones copy every skinned entity's
+    // palette into that stream. 100 copies of a 137-bone / 13-surface VRM
+    // is ~9 MB in one flush -- the previous 8 MB minimum panics. Keep the
+    // arena at 3 in-flight slots of this minimum.
+    filament::Engine::Config config;
+    config.minCommandBufferSizeMB = 32;
+    config.commandBufferSizeMB = 96;
+    config.perFrameCommandsSizeMB = 16;
+    config.perRenderPassArenaSizeMB = 32;
+    // Default (0) uses the compile-time OpenGL arena size even on Vulkan.
+    // A skinned VRM crowd allocates one handle per surface; the fallback
+    // heap path is the allocateHandleSlow panic and a multi-ms hitch.
+    config.driverHandleArenaSizeMB = 64;
 #if defined(__ANDROID__)
     if (backend == filament::Engine::Backend::VULKAN
         && halogenHasVulkanCreateHooks()) {
         state->vulkanPlatform.reset(halogenCreateXrVulkanPlatform());
         state->engine = filament::Engine::create(
-            filament::Engine::Backend::VULKAN, state->vulkanPlatform.get());
+            filament::Engine::Backend::VULKAN, state->vulkanPlatform.get(),
+            nullptr, &config);
     } else
 #endif
     {
-        state->engine = filament::Engine::create(backend);
+        state->engine = filament::Engine::create(backend, nullptr, nullptr, &config);
     }
     if (!state->engine) {
         reportMessage(ANARI_SEVERITY_FATAL_ERROR,
