@@ -72,6 +72,7 @@ void Geometry::retireBuffers()
     mPrevIndexBuffer = mIndexBuffer;
     mVertexBuffer = nullptr;
     mIndexBuffer = nullptr;
+    ++mBufferGeneration;
 }
 
 void Geometry::commitParameters()
